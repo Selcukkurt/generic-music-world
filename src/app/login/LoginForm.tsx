@@ -97,12 +97,6 @@ export default function LoginForm() {
         {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}
       </button>
 
-      <button
-        type="button"
-        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
-      >
-        Demo Login
-      </button>
     </form>
   );
 }
