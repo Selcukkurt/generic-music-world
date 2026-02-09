@@ -113,7 +113,7 @@ export default function LoginForm() {
           type="email"
           name="email"
           placeholder="you@example.com"
-          className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -126,7 +126,7 @@ export default function LoginForm() {
           type="password"
           name="password"
           placeholder="••••••••"
-          className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
@@ -150,7 +150,7 @@ export default function LoginForm() {
       </div>
 
       {errorMessage ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
           <p className="font-semibold text-slate-100">
             {errorMessage.title}
           </p>
@@ -163,7 +163,7 @@ export default function LoginForm() {
 
       <button
         type="submit"
-        className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-md bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? (
