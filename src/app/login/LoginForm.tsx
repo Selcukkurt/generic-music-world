@@ -41,44 +41,67 @@ export default function LoginForm() {
 
   return (
     <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-      <label className="block text-sm text-slate-300">
+      <label className="block text-sm text-slate-200">
         Email
         <input
           type="email"
           name="email"
           placeholder="you@example.com"
-          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
       </label>
 
-      <label className="block text-sm text-slate-300">
-        Password
+      <label className="block text-sm text-slate-200">
+        Şifre
         <input
           type="password"
           name="password"
           placeholder="••••••••"
-          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
       </label>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-white/20 bg-white/10 text-amber-400 focus:ring-2 focus:ring-amber-500/30"
+          />
+          Beni hatırla
+        </label>
+        <button
+          type="button"
+          className="text-sm text-amber-200 hover:text-amber-100"
+        >
+          Şifremi unuttum
+        </button>
+      </div>
+
       {errorMessage ? (
-        <p className="rounded-md border border-rose-800/70 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
+        <p className="rounded-lg border border-rose-800/70 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
           {errorMessage}
         </p>
       ) : null}
 
       <button
         type="submit"
-        className="w-full rounded-md border border-slate-800 bg-slate-800/60 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800"
+        className="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
-        {isLoading ? "Signing in..." : "Sign in"}
+        {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}
+      </button>
+
+      <button
+        type="button"
+        className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10"
+      >
+        Demo Login
       </button>
     </form>
   );
