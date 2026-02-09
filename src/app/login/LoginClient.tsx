@@ -43,7 +43,7 @@ export default function LoginClient() {
             alt="Generic Music Studio logo"
             width={520}
             height={160}
-            className="mb-6 w-[180px] opacity-95 sm:w-[220px] lg:w-[260px]"
+            className="mb-6 w-[170px] opacity-95 sm:w-[200px] lg:w-[220px]"
             style={{ height: "auto" }}
             priority
           />
@@ -69,13 +69,11 @@ export default function LoginClient() {
         </section>
 
         <section className="flex w-full flex-col items-center justify-center lg:items-end">
-          <div className="w-full max-w-[460px] rounded-3xl border border-white/15 bg-white/10 p-6 shadow-[0_30px_90px_rgba(7,16,35,0.6)] backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex w-full flex-col items-center text-center">
-                <h2 className="text-2xl font-semibold">Ekosisteme Bağlan</h2>
-              </div>
-            </div>
-            <p className="mt-2 text-sm text-slate-300">
+          <div className="w-full max-w-[460px] rounded-3xl border border-white/15 bg-white/10 px-6 pb-6 pt-5 shadow-[0_30px_90px_rgba(7,16,35,0.6)] backdrop-blur-xl">
+            <h2 className="text-2xl font-semibold text-left">
+              Ekosisteme Bağlan
+            </h2>
+            <p className="mt-2 text-left text-sm text-slate-300">
               Ekosistemi büyüten her veri seninle başlar.
             </p>
             <LoginForm />
