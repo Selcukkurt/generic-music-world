@@ -94,7 +94,20 @@ export default function LoginForm() {
         className="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_16px_40px_rgba(245,158,11,0.35)] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
-        {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}
+        {isLoading ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="relative h-5 w-5">
+              <img
+                src="/brand-loader.gif"
+                alt="Loading"
+                className="h-5 w-5"
+              />
+            </span>
+            Giriş yapılıyor...
+          </span>
+        ) : (
+          "Giriş Yap"
+        )}
       </button>
 
     </form>
