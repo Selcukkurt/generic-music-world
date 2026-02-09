@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 import LoginForm from "./LoginForm";
+import RotatingPitch from "./RotatingPitch";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,21 +24,17 @@ export default function LoginPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#081426] via-[#0b1b35] to-[#0a1020] text-slate-100">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#081426] via-[#0b1b35] to-[#0a1020] text-slate-100">
+      <div className="pointer-events-none absolute -top-24 left-10 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl motion-safe:animate-pulse" />
+      <div className="pointer-events-none absolute bottom-10 right-10 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl motion-safe:animate-pulse" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"200\" viewBox=\"0 0 200 200\"><filter id=\"n\"><feTurbulence type=\"fractalNoise\" baseFrequency=\"0.8\" numOctaves=\"2\" stitchTiles=\"stitch\"/></filter><rect width=\"200\" height=\"200\" filter=\"url(%23n)\" opacity=\"0.4\"/></svg>')]" />
+
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
-        <section className="flex flex-1 flex-col gap-6">
+        <section className="flex flex-1 flex-col gap-7">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200">
             Generic Music World
           </div>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-              Hoş Geldiniz
-            </h1>
-            <p className="max-w-lg text-base text-slate-300 sm:text-lg">
-              Operasyonlarınızı tek bir panelde yönetin. Modüller, departmanlar
-              ve canlı erişim her zaman elinizin altında.
-            </p>
-          </div>
+          <RotatingPitch />
 
           <div className="flex flex-wrap gap-3">
             <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
@@ -57,7 +54,7 @@ export default function LoginPage() {
         </section>
 
         <section className="flex w-full flex-1 items-center justify-center">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_24px_80px_rgba(7,16,35,0.6)] backdrop-blur">
+          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-7 shadow-[0_30px_90px_rgba(7,16,35,0.65)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Giriş Yap</h2>
               <span className="rounded-full bg-amber-900/40 px-3 py-1 text-xs font-semibold text-amber-200">
