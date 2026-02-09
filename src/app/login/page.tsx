@@ -38,16 +38,6 @@ export default function LoginPage() {
 
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
         <section className="flex flex-1 flex-col gap-7">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200">
-            <Image
-              src="/next.svg"
-              alt="Generic Music Studio logo"
-              width={18}
-              height={18}
-              className="opacity-80"
-            />
-            Generic Music World
-          </div>
           <RotatingPitch />
 
           <div className="flex flex-wrap gap-3">
@@ -67,16 +57,16 @@ export default function LoginPage() {
           </p>
         </section>
 
-        <section className="flex w-full flex-1 items-center justify-center">
+        <section className="flex w-full flex-1 flex-col items-center justify-center">
           <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-7 shadow-[0_30px_90px_rgba(7,16,35,0.65)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-col items-center text-center">
                 <Image
-                  src="/next.svg"
-                  alt="Generic Music Studio mark"
-                  width={22}
-                  height={22}
-                  className="opacity-80"
+                  src="/generic-music-logo.png"
+                  alt="Generic Music Studio logo"
+                  width={88}
+                  height={88}
+                  className="mb-6 mt-2 opacity-95"
                 />
                 <h2 className="text-2xl font-semibold">Giriş Yap</h2>
               </div>
