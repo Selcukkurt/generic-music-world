@@ -26,54 +26,83 @@ export default function LoginForm() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    console.log("[login] submit:start");
     setIsLoading(true);
     setErrorMessage(null);
+    let didTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      setIsLoading(false);
+      setErrorMessage({
+        title: "Giriş işlemi beklenenden uzun sürdü",
+        body: "Lütfen tekrar deneyin.",
+      });
+    }, 10000);
 
-    const { error } = await supabaseBrowser.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabaseBrowser.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      const code = error.code ?? "";
-      const lowerMessage = error.message.toLowerCase();
+      console.log("[login] auth:response", { error, user: data?.user?.id });
 
-      if (
-        code === "invalid_credentials" ||
-        lowerMessage.includes("invalid login credentials")
-      ) {
-        setErrorMessage({
-          title: "Giriş bilgileri doğrulanamadı",
-          body: "Lütfen e-posta adresinizi ve şifrenizi kontrol edip tekrar deneyin.",
-          helper:
-            "Şifrenizi hatırlamıyorsanız 'Şifremi unuttum' bağlantısını kullanabilirsiniz.",
-        });
-      } else if (code === "too_many_requests" || code === "rate_limit") {
-        setErrorMessage({
-          title: "Çok fazla deneme yapıldı",
-          body: "Güvenlik için kısa bir süre beklemenizi rica ediyoruz.",
-          helper: "Birkaç dakika sonra tekrar deneyebilirsiniz.",
-        });
-      } else if (
-        lowerMessage.includes("network") ||
-        lowerMessage.includes("fetch")
-      ) {
-        setErrorMessage({
-          title: "Bağlantı sorunu yaşandı",
-          body: "Şu anda sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
-          helper: "Sorun devam ederse birkaç dakika sonra tekrar deneyin.",
-        });
-      } else {
+      if (didTimeout) {
+        return;
+      }
+
+      if (error) {
+        const code = error.code ?? "";
+        const lowerMessage = error.message.toLowerCase();
+
+        if (
+          code === "invalid_credentials" ||
+          lowerMessage.includes("invalid login credentials")
+        ) {
+          setErrorMessage({
+            title: "Giriş bilgileri doğrulanamadı",
+            body: "Lütfen e-posta adresinizi ve şifrenizi kontrol edip tekrar deneyin.",
+            helper:
+              "Şifrenizi hatırlamıyorsanız 'Şifremi unuttum' bağlantısını kullanabilirsiniz.",
+          });
+        } else if (code === "too_many_requests" || code === "rate_limit") {
+          setErrorMessage({
+            title: "Çok fazla deneme yapıldı",
+            body: "Güvenlik için kısa bir süre beklemenizi rica ediyoruz.",
+            helper: "Birkaç dakika sonra tekrar deneyebilirsiniz.",
+          });
+        } else if (
+          lowerMessage.includes("network") ||
+          lowerMessage.includes("fetch")
+        ) {
+          setErrorMessage({
+            title: "Bağlantı sorunu yaşandı",
+            body: "Şu anda sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
+            helper: "Sorun devam ederse birkaç dakika sonra tekrar deneyin.",
+          });
+        } else {
+          setErrorMessage({
+            title: "Bir şeyler ters gitti",
+            body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
+          });
+        }
+        return;
+      }
+
+      console.log("[login] redirect:/dashboard");
+      router.replace("/dashboard");
+    } catch (error) {
+      console.log("[login] auth:error", error);
+      if (!didTimeout) {
         setErrorMessage({
           title: "Bir şeyler ters gitti",
           body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
         });
       }
+    } finally {
+      window.clearTimeout(timeoutId);
       setIsLoading(false);
-      return;
     }
-
-    router.replace("/dashboard");
   };
 
   return (
