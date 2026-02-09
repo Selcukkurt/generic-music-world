@@ -36,8 +36,8 @@ export default function LoginClient() {
         style={{ backgroundImage: `url("${noiseDataUrl}")` }}
       />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
-        <section className="flex flex-1 flex-col gap-7">
+      <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <section className="flex flex-col justify-center gap-6 lg:pr-10">
           <Image
             src="/generic-music-logo-v2.png"
             alt="Generic Music Studio logo"
@@ -47,7 +47,9 @@ export default function LoginClient() {
             style={{ height: "auto" }}
             priority
           />
-          <RotatingPitch />
+          <div className="max-w-xl">
+            <RotatingPitch />
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
@@ -66,15 +68,15 @@ export default function LoginClient() {
           </p>
         </section>
 
-        <section className="flex w-full flex-1 flex-col items-center justify-center">
-          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-7 shadow-[0_30px_90px_rgba(7,16,35,0.65)] backdrop-blur-xl">
+        <section className="flex w-full flex-col items-center justify-center lg:items-end">
+          <div className="w-full max-w-[460px] rounded-3xl border border-white/15 bg-white/10 p-6 shadow-[0_30px_90px_rgba(7,16,35,0.6)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <div className="flex w-full flex-col items-center text-center">
-                <h2 className="text-2xl font-semibold">Giriş Yap</h2>
+                <h2 className="text-2xl font-semibold">Ekosisteme Bağlan</h2>
               </div>
             </div>
             <p className="mt-2 text-sm text-slate-300">
-              Hesabınıza erişmek için bilgilerinizi girin.
+              Ekosistemi büyüten her veri seninle başlar.
             </p>
             <LoginForm />
           </div>
