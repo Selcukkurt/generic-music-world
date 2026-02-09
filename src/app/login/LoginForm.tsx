@@ -9,7 +9,11 @@ export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<{
+    title: string;
+    body: string;
+    helper?: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -31,7 +35,40 @@ export default function LoginForm() {
     });
 
     if (error) {
-      setErrorMessage(error.message);
+      const code = error.code ?? "";
+      const lowerMessage = error.message.toLowerCase();
+
+      if (
+        code === "invalid_credentials" ||
+        lowerMessage.includes("invalid login credentials")
+      ) {
+        setErrorMessage({
+          title: "Giriş bilgileri doğrulanamadı",
+          body: "Lütfen e-posta adresinizi ve şifrenizi kontrol edip tekrar deneyin.",
+          helper:
+            "Şifrenizi hatırlamıyorsanız 'Şifremi unuttum' bağlantısını kullanabilirsiniz.",
+        });
+      } else if (code === "too_many_requests" || code === "rate_limit") {
+        setErrorMessage({
+          title: "Çok fazla deneme yapıldı",
+          body: "Güvenlik için kısa bir süre beklemenizi rica ediyoruz.",
+          helper: "Birkaç dakika sonra tekrar deneyebilirsiniz.",
+        });
+      } else if (
+        lowerMessage.includes("network") ||
+        lowerMessage.includes("fetch")
+      ) {
+        setErrorMessage({
+          title: "Bağlantı sorunu yaşandı",
+          body: "Şu anda sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
+          helper: "Sorun devam ederse birkaç dakika sonra tekrar deneyin.",
+        });
+      } else {
+        setErrorMessage({
+          title: "Bir şeyler ters gitti",
+          body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
+        });
+      }
       setIsLoading(false);
       return;
     }
@@ -84,9 +121,15 @@ export default function LoginForm() {
       </div>
 
       {errorMessage ? (
-        <p className="rounded-lg border border-rose-800/70 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
-          {errorMessage}
-        </p>
+        <div className="rounded-xl border border-amber-200/20 bg-amber-50/10 px-4 py-3 text-sm text-amber-100">
+          <p className="font-semibold text-amber-100">
+            {errorMessage.title}
+          </p>
+          <p className="mt-1 text-amber-100/90">{errorMessage.body}</p>
+          {errorMessage.helper ? (
+            <p className="mt-1 text-amber-100/70">{errorMessage.helper}</p>
+          ) : null}
+        </div>
       ) : null}
 
       <button
@@ -103,7 +146,7 @@ export default function LoginForm() {
                 className="h-5 w-5"
               />
             </span>
-            Giriş yapılıyor...
+            Güvenli giriş yapılıyor...
           </span>
         ) : (
           "Giriş Yap"
