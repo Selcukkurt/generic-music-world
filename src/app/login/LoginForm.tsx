@@ -107,63 +107,63 @@ export default function LoginForm() {
 
   return (
     <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-      <label className="block text-xs uppercase tracking-[0.2em] text-slate-300">
+      <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
         Email
         <input
           type="email"
           name="email"
           placeholder="you@example.com"
-          className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 shadow-[0_10px_30px_rgba(7,16,35,0.35)] focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
       </label>
 
-      <label className="block text-xs uppercase tracking-[0.2em] text-slate-300">
+      <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
         Şifre
         <input
           type="password"
           name="password"
           placeholder="••••••••"
-          className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 shadow-[0_10px_30px_rgba(7,16,35,0.35)] focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
       </label>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-white/20 bg-white/10 text-amber-400 focus:ring-2 focus:ring-amber-500/30"
+            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-200 focus:ring-2 focus:ring-amber-500/30"
           />
           Beni hatırla
         </label>
         <button
           type="button"
-          className="text-sm text-amber-200 hover:text-amber-100"
+          className="text-sm text-slate-300 hover:text-slate-100"
         >
           Şifremi unuttum
         </button>
       </div>
 
       {errorMessage ? (
-        <div className="rounded-xl border border-amber-200/20 bg-amber-50/10 px-4 py-3 text-sm text-amber-100">
-          <p className="font-semibold text-amber-100">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+          <p className="font-semibold text-slate-100">
             {errorMessage.title}
           </p>
-          <p className="mt-1 text-amber-100/90">{errorMessage.body}</p>
+          <p className="mt-1 text-slate-300">{errorMessage.body}</p>
           {errorMessage.helper ? (
-            <p className="mt-1 text-amber-100/70">{errorMessage.helper}</p>
+            <p className="mt-1 text-slate-400">{errorMessage.helper}</p>
           ) : null}
         </div>
       ) : null}
 
       <button
         type="submit"
-        className="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_16px_40px_rgba(245,158,11,0.35)] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? (

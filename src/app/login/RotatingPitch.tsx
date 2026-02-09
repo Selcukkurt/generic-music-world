@@ -82,10 +82,10 @@ export default function RotatingPitch() {
               : "opacity-0 translate-y-4"
         }`}
       >
-        <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
+        <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
           {scenario.title}
         </h1>
-        <p className="mt-4 text-base text-slate-300 sm:text-lg">
+        <p className="mt-3 text-sm text-slate-400 sm:text-base">
           {scenario.body}
         </p>
       </div>
