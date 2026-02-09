@@ -27,13 +27,13 @@ export default function LoginClient() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <section className="flex flex-col justify-center gap-6 lg:pr-8">
+        <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
           <Image
             src="/generic-music-logo-v2.png"
             alt="Generic Music Studio logo"
             width={520}
             height={160}
-            className="mb-6 w-[170px] opacity-95 sm:w-[200px] lg:w-[220px]"
+            className="mb-4 w-[170px] opacity-95 sm:w-[200px] lg:w-[220px]"
             style={{ height: "auto" }}
             priority
           />
