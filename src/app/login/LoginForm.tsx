@@ -106,27 +106,27 @@ export default function LoginForm() {
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      <label className="block text-xs uppercase tracking-[0.25em] text-slate-300">
+    <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+      <label className="block text-xs uppercase tracking-[0.2em] text-slate-300">
         Email
         <input
           type="email"
           name="email"
           placeholder="you@example.com"
-          className="mt-3 w-full border-b border-white/20 bg-transparent px-1 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+          className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 shadow-[0_10px_30px_rgba(7,16,35,0.35)] focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
       </label>
 
-      <label className="block text-xs uppercase tracking-[0.25em] text-slate-300">
+      <label className="block text-xs uppercase tracking-[0.2em] text-slate-300">
         Şifre
         <input
           type="password"
           name="password"
           placeholder="••••••••"
-          className="mt-3 w-full border-b border-white/20 bg-transparent px-1 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+          className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 shadow-[0_10px_30px_rgba(7,16,35,0.35)] focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
@@ -150,7 +150,7 @@ export default function LoginForm() {
       </div>
 
       {errorMessage ? (
-        <div className="rounded-xl border border-amber-200/20 bg-amber-50/5 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-amber-200/20 bg-amber-50/10 px-4 py-3 text-sm text-amber-100">
           <p className="font-semibold text-amber-100">
             {errorMessage.title}
           </p>
@@ -163,7 +163,7 @@ export default function LoginForm() {
 
       <button
         type="submit"
-        className="w-full rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_16px_40px_rgba(245,158,11,0.35)] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? (

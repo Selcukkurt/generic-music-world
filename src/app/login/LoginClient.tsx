@@ -36,21 +36,47 @@ export default function LoginClient() {
         style={{ backgroundImage: `url("${noiseDataUrl}")` }}
       />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center px-6 py-16 text-center">
-        <Image
-          src="/generic-music-logo.png"
-          alt="Generic Music Studio logo"
-          width={120}
-          height={40}
-          className="mb-10 opacity-90"
-        />
-        <div className="w-full">
-          <h2 className="text-2xl font-light tracking-wide">Giriş Yap</h2>
-          <LoginForm />
-        </div>
-        <p className="mt-10 text-xs text-slate-400">
-          © {currentYear} Generic Music Studio. All rights reserved.
-        </p>
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
+        <section className="flex flex-1 flex-col gap-7">
+          <Image
+            src="/generic-music-logo.png"
+            alt="Generic Music Studio logo"
+            width={64}
+            height={64}
+            className="mb-4 opacity-95"
+          />
+          <RotatingPitch />
+
+          <div className="flex flex-wrap gap-3">
+            <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+              11 Operasyonel Modül
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+              8+ Departman
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+              24/7 Erişim
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            © {currentYear} Generic Music Studio. All rights reserved.
+          </p>
+        </section>
+
+        <section className="flex w-full flex-1 flex-col items-center justify-center">
+          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-7 shadow-[0_30px_90px_rgba(7,16,35,0.65)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex w-full flex-col items-center text-center">
+                <h2 className="text-2xl font-semibold">Giriş Yap</h2>
+              </div>
+            </div>
+            <p className="mt-2 text-sm text-slate-300">
+              Hesabınıza erişmek için bilgilerinizi girin.
+            </p>
+            <LoginForm />
+          </div>
+        </section>
       </div>
     </main>
   );
