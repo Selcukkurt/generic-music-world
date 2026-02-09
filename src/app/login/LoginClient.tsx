@@ -39,11 +39,13 @@ export default function LoginClient() {
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
         <section className="flex flex-1 flex-col gap-7">
           <Image
-            src="/generic-music-logo.png"
+            src="/generic-music-logo-v2.png"
             alt="Generic Music Studio logo"
-            width={64}
-            height={64}
-            className="mb-4 opacity-95"
+            width={520}
+            height={160}
+            className="mb-6 w-[180px] opacity-95 sm:w-[220px] lg:w-[260px]"
+            style={{ height: "auto" }}
+            priority
           />
           <RotatingPitch />
 
