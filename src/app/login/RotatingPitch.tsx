@@ -85,7 +85,7 @@ export default function RotatingPitch() {
         <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
           {scenario.title}
         </h1>
-        <p className="mt-3 text-sm text-slate-400 sm:text-base">
+        <p className="ui-text-secondary mt-3 text-sm sm:text-base">
           {scenario.body}
         </p>
       </div>

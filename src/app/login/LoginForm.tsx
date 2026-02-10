@@ -107,33 +107,33 @@ export default function LoginForm() {
 
   return (
     <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-      <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
+      <label className="block text-xs uppercase tracking-[0.2em] ui-text-muted">
         Email
         <input
           type="email"
           name="email"
           placeholder="you@example.com"
-          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="ui-input mt-2 text-sm"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
       </label>
 
-      <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
+      <label className="block text-xs uppercase tracking-[0.2em] ui-text-muted">
         Şifre
         <input
           type="password"
           name="password"
           placeholder="••••••••"
-          className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="ui-input mt-2 text-sm"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
       </label>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm ui-text-secondary">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -143,27 +143,27 @@ export default function LoginForm() {
         </label>
         <button
           type="button"
-          className="text-sm text-slate-300 hover:text-slate-100"
+          className="text-sm ui-text-secondary hover:text-slate-100"
         >
           Şifremi unuttum
         </button>
       </div>
 
       {errorMessage ? (
-        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+        <div className="ui-card-plain px-4 py-3 text-sm">
           <p className="font-semibold text-slate-100">
             {errorMessage.title}
           </p>
-          <p className="mt-1 text-slate-300">{errorMessage.body}</p>
+          <p className="ui-text-secondary mt-1">{errorMessage.body}</p>
           {errorMessage.helper ? (
-            <p className="mt-1 text-slate-400">{errorMessage.helper}</p>
+            <p className="ui-text-muted mt-1">{errorMessage.helper}</p>
           ) : null}
         </div>
       ) : null}
 
       <button
         type="submit"
-        className="w-full rounded-md border border-amber-600/40 bg-[var(--brand-yellow)] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[var(--brand-yellow-hover)] active:bg-[var(--brand-yellow-active)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="ui-button-primary px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? (

@@ -25,7 +25,7 @@ export default function LoginClient() {
   }, [router]);
 
   return (
-    <main className="min-h-[100dvh] bg-slate-950 text-slate-100">
+    <main className="ui-page">
       <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
           <Image
@@ -42,28 +42,28 @@ export default function LoginClient() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <span className="rounded-md border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+            <span className="ui-pill px-4 py-2 text-sm">
               11 Operasyonel Modül
             </span>
-            <span className="rounded-md border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+            <span className="ui-pill px-4 py-2 text-sm">
               8+ Departman
             </span>
-            <span className="rounded-md border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-100">
+            <span className="ui-pill px-4 py-2 text-sm">
               24/7 Erişim
             </span>
           </div>
 
-          <p className="text-xs text-slate-400">
+          <p className="ui-text-muted text-xs">
             © {currentYear} Generic Music Studio. All rights reserved.
           </p>
         </section>
 
         <section className="flex w-full flex-col items-center justify-center lg:items-end">
-          <div className="w-full max-w-[460px] rounded-xl border border-slate-800 bg-slate-900/60 px-6 pb-6 pt-5">
+          <div className="ui-card-plain w-full max-w-[460px] px-6 pb-6 pt-5">
             <h2 className="text-2xl font-semibold text-left">
               Ekosisteme Bağlan
             </h2>
-            <p className="mt-2 text-left text-sm text-slate-400">
+            <p className="ui-text-secondary mt-2 text-left text-sm">
               Ekosistemi büyüten her veri seninle başlar.
             </p>
             <LoginForm />
