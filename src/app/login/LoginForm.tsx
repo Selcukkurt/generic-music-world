@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function LoginForm() {
   const router = useRouter();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<{
@@ -66,12 +68,17 @@ export default function LoginForm() {
             helper:
               "Şifrenizi hatırlamıyorsanız 'Şifremi unuttum' bağlantısını kullanabilirsiniz.",
           });
+          toast.error(
+            "Giriş bilgileri doğrulanamadı",
+            "E-posta veya şifreyi kontrol edip tekrar deneyin."
+          );
         } else if (code === "too_many_requests" || code === "rate_limit") {
           setErrorMessage({
             title: "Çok fazla deneme yapıldı",
             body: "Güvenlik için kısa bir süre beklemenizi rica ediyoruz.",
             helper: "Birkaç dakika sonra tekrar deneyebilirsiniz.",
           });
+          toast.info("Çok fazla deneme", "Kısa bir süre bekleyin.");
         } else if (
           lowerMessage.includes("network") ||
           lowerMessage.includes("fetch")
@@ -81,16 +88,19 @@ export default function LoginForm() {
             body: "Şu anda sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
             helper: "Sorun devam ederse birkaç dakika sonra tekrar deneyin.",
           });
+          toast.error("Bağlantı sorunu", "Lütfen bağlantınızı kontrol edin.");
         } else {
           setErrorMessage({
             title: "Bir şeyler ters gitti",
             body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
           });
+          toast.error("Bir şeyler ters gitti", "Lütfen tekrar deneyin.");
         }
         return;
       }
 
       console.log("[login] redirect:/dashboard");
+      toast.success("Giriş başarılı", "Yönlendiriliyorsunuz.");
       router.replace("/dashboard");
     } catch (error) {
       console.log("[login] auth:error", error);
@@ -99,6 +109,7 @@ export default function LoginForm() {
           title: "Bir şeyler ters gitti",
           body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
         });
+        toast.error("Bir şeyler ters gitti", "Lütfen tekrar deneyin.");
       }
     } finally {
       window.clearTimeout(timeoutId);
