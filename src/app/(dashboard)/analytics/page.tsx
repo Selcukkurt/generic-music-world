@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 
+import PlaceholderPageClient from "../PlaceholderPageClient";
+import { tr } from "@/i18n/tr";
+
 export const metadata: Metadata = {
-  title: "Analytics",
+  title: tr.page_analytics_title,
 };
 
 export default function AnalyticsPage() {
   return (
-    <div className="ui-card-plain p-6">
-      <h1 className="text-xl font-semibold">Analytics</h1>
-      <p className="ui-text-secondary mt-2 text-sm">
-        Analytics modules will appear here.
-      </p>
-    </div>
+    <PlaceholderPageClient
+      titleKey="page_analytics_title"
+      descriptionKey="page_analytics_description"
+    />
   );
 }

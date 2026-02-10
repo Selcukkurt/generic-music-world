@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 
+import PlaceholderPageClient from "../PlaceholderPageClient";
+import { tr } from "@/i18n/tr";
+
 export const metadata: Metadata = {
-  title: "Events",
+  title: tr.page_events_title,
 };
 
 export default function EventsPage() {
   return (
-    <div className="ui-card-plain p-6">
-      <h1 className="text-xl font-semibold">Events</h1>
-      <p className="ui-text-secondary mt-2 text-sm">
-        Events overview will appear here.
-      </p>
-    </div>
+    <PlaceholderPageClient
+      titleKey="page_events_title"
+      descriptionKey="page_events_description"
+    />
   );
 }

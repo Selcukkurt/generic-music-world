@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { tr } from "@/i18n/tr";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,10 +17,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Generic Music World",
-    template: "%s – Generic Music World",
+    default: tr.meta_default_title,
+    template: `%s – ${tr.meta_default_title}`,
   },
-  description: "Generic Music World",
+  description: tr.meta_default_description,
   icons: {
     icon: "/favicon.ico",
   },
@@ -30,11 +32,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased`}
       >
-        <ToastProvider>{children}</ToastProvider>
+        <LocaleProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

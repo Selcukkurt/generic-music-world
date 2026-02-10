@@ -167,4 +167,19 @@ table {
   .ui-button-primary:active {
     background: var(--brand-yellow-active);
   }
+
+  .ui-fade-slide {
+    animation: fadeSlide 220ms var(--ease-standard);
+  }
+}
+
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

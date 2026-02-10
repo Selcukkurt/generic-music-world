@@ -1,21 +1,12 @@
 import type { Metadata } from "next";
 
-import { ErrorState } from "@/components/ui/ErrorState";
+import ForbiddenClient from "./ForbiddenClient";
+import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
-  title: "Erişim Yok",
+  title: tr.meta_forbidden_title,
 };
 
 export default function ForbiddenPage() {
-  return (
-    <div className="ui-page flex min-h-[100dvh] items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <ErrorState
-          title="403 – Erişim Yok"
-          message="Bu sayfayı görüntüleme yetkiniz bulunmuyor."
-          helper="Erişim ihtiyaçlarınız için yöneticinizle iletişime geçin."
-        />
-      </div>
-    </div>
-  );
+  return <ForbiddenClient />;
 }

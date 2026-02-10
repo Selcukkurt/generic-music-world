@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import DashboardHomeClient from "../DashboardHomeClient";
+import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: tr.meta_dashboard_title,
 };
 
 export default function DashboardPage() {
-  return (
-    <div className="ui-card-plain p-6">
-      <EmptyState
-        title="No data yet"
-        description="Data appears here when modules start collecting activity."
-      />
-    </div>
-  );
+  return <DashboardHomeClient />;
 }

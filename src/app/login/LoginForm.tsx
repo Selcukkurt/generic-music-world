@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export default function LoginForm() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<{
@@ -37,8 +39,8 @@ export default function LoginForm() {
       didTimeout = true;
       setIsLoading(false);
       setErrorMessage({
-        title: "Giriş işlemi beklenenden uzun sürdü",
-        body: "Lütfen tekrar deneyin.",
+        title: t("login_timeout_title"),
+        body: t("login_timeout_body"),
       });
     }, 10000);
 
@@ -63,53 +65,61 @@ export default function LoginForm() {
           lowerMessage.includes("invalid login credentials")
         ) {
           setErrorMessage({
-            title: "Giriş bilgileri doğrulanamadı",
-            body: "Lütfen e-posta adresinizi ve şifrenizi kontrol edip tekrar deneyin.",
-            helper:
-              "Şifrenizi hatırlamıyorsanız 'Şifremi unuttum' bağlantısını kullanabilirsiniz.",
+            title: t("login_invalid_title"),
+            body: t("login_invalid_body"),
+            helper: t("login_invalid_helper"),
           });
           toast.error(
-            "Giriş bilgileri doğrulanamadı",
-            "E-posta veya şifreyi kontrol edip tekrar deneyin."
+            t("login_invalid_toast_title"),
+            t("login_invalid_toast_body")
           );
         } else if (code === "too_many_requests" || code === "rate_limit") {
           setErrorMessage({
-            title: "Çok fazla deneme yapıldı",
-            body: "Güvenlik için kısa bir süre beklemenizi rica ediyoruz.",
-            helper: "Birkaç dakika sonra tekrar deneyebilirsiniz.",
+            title: t("login_rate_title"),
+            body: t("login_rate_body"),
+            helper: t("login_rate_helper"),
           });
-          toast.info("Çok fazla deneme", "Kısa bir süre bekleyin.");
+          toast.info(t("login_rate_toast_title"), t("login_rate_toast_body"));
         } else if (
           lowerMessage.includes("network") ||
           lowerMessage.includes("fetch")
         ) {
           setErrorMessage({
-            title: "Bağlantı sorunu yaşandı",
-            body: "Şu anda sunucuya ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.",
-            helper: "Sorun devam ederse birkaç dakika sonra tekrar deneyin.",
+            title: t("login_network_title"),
+            body: t("login_network_body"),
+            helper: t("login_network_helper"),
           });
-          toast.error("Bağlantı sorunu", "Lütfen bağlantınızı kontrol edin.");
+          toast.error(
+            t("login_network_toast_title"),
+            t("login_network_toast_body")
+          );
         } else {
           setErrorMessage({
-            title: "Bir şeyler ters gitti",
-            body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
+            title: t("login_generic_title"),
+            body: t("login_generic_body"),
           });
-          toast.error("Bir şeyler ters gitti", "Lütfen tekrar deneyin.");
+          toast.error(
+            t("login_generic_toast_title"),
+            t("login_generic_toast_body")
+          );
         }
         return;
       }
 
       console.log("[login] redirect:/dashboard");
-      toast.success("Giriş başarılı", "Yönlendiriliyorsunuz.");
+      toast.success(t("login_success_title"), t("login_success_body"));
       router.replace("/dashboard");
     } catch (error) {
       console.log("[login] auth:error", error);
       if (!didTimeout) {
         setErrorMessage({
-          title: "Bir şeyler ters gitti",
-          body: "Giriş işlemi şu anda tamamlanamadı. Lütfen tekrar deneyin.",
+          title: t("login_generic_title"),
+          body: t("login_generic_body"),
         });
-        toast.error("Bir şeyler ters gitti", "Lütfen tekrar deneyin.");
+        toast.error(
+          t("login_generic_toast_title"),
+          t("login_generic_toast_body")
+        );
       }
     } finally {
       window.clearTimeout(timeoutId);
@@ -120,11 +130,11 @@ export default function LoginForm() {
   return (
     <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
       <label className="block text-xs uppercase tracking-[0.2em] ui-text-muted">
-        Email
+        {t("login_email_label")}
         <input
           type="email"
           name="email"
-          placeholder="you@example.com"
+          placeholder={t("login_email_placeholder")}
           className="ui-input mt-2 text-sm"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -133,11 +143,11 @@ export default function LoginForm() {
       </label>
 
       <label className="block text-xs uppercase tracking-[0.2em] ui-text-muted">
-        Şifre
+        {t("login_password_label")}
         <input
           type="password"
           name="password"
-          placeholder="••••••••"
+          placeholder={t("login_password_placeholder")}
           className="ui-input mt-2 text-sm"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -151,13 +161,13 @@ export default function LoginForm() {
             type="checkbox"
             className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-200 focus:ring-2 focus:ring-amber-500/30"
           />
-          Beni hatırla
+          {t("login_remember")}
         </label>
         <button
           type="button"
           className="text-sm ui-text-secondary hover:text-slate-100"
         >
-          Şifremi unuttum
+          {t("login_forgot")}
         </button>
       </div>
 
@@ -177,16 +187,16 @@ export default function LoginForm() {
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="relative h-5 w-5">
-              <img
-                src="/brand-loader.gif"
-                alt="Loading"
-                className="h-5 w-5"
-              />
+            <img
+              src="/brand-loader.gif"
+              alt={t("common_loading")}
+              className="h-5 w-5"
+            />
             </span>
-            Güvenli giriş yapılıyor...
+          {t("login_loading")}
           </span>
         ) : (
-          "Giriş Yap"
+        t("login_submit")
         )}
       </button>
 

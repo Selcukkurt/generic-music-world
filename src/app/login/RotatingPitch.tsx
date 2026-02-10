@@ -2,41 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const scenarios = [
-  {
-    title: "Generic Music World'e Hoş Geldin.",
-    body:
-      "Müziğin arka planındaki o devasa emeği biliyoruz. Dosyalar ve karmaşık tablolar arasında kaybolma; tüm operasyonunu senin için tek bir dijital evrende topladık.",
-  },
-  {
-    title: "Senin Dünyan, Senin Operasyonun.",
-    body:
-      "11 modülün ve tüm ekibin aynı ritimle çalıştığı dijital omurgan burası. 'Single source of truth' prensibiyle, hız kesmeden en doğru kararları al.",
-  },
-  {
-    title: "Her Şey Tek Bir Çatı Altında.",
-    body:
-      "Operasyonun tüm sesleri burada kusursuz bir orkestraya dönüşüyor. Manuel işleri azalt, şeffaflığı artır ve sadece geleceği yönetmeye odaklan.",
-  },
-  {
-    title: "Veriyi Vizyona Dönüştür.",
-    body:
-      "Finansal şeffaflıktan sosyal medya analizine kadar her veri bir sonraki büyük adımın için bir ipucu. Geleceğin stratejik hedeflerini bugünden inşa et.",
-  },
-  {
-    title: "Sınırları Olmayan Bir Ekosistem.",
-    body:
-      "8'den fazla departman, tek bir ortak hedef. Generic Music World, iş hacmin büyüdükçe seninle birlikte esneyen ve gelişen dijital yol arkadaşın.",
-  },
-];
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export default function RotatingPitch() {
   const [index, setIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const { dict } = useI18n();
 
-  const scenario = useMemo(() => scenarios[index], [index]);
+  const scenario = useMemo(
+    () => dict.login_pitch[index],
+    [dict.login_pitch, index]
+  );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");

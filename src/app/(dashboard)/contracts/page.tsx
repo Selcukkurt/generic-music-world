@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 
+import PlaceholderPageClient from "../PlaceholderPageClient";
+import { tr } from "@/i18n/tr";
+
 export const metadata: Metadata = {
-  title: "Ticket Platforms",
+  title: tr.page_contracts_title,
 };
 
 export default function ContractsPage() {
   return (
-    <div className="ui-card-plain p-6">
-      <h1 className="text-xl font-semibold">Ticket Platforms</h1>
-      <p className="ui-text-secondary mt-2 text-sm">
-        Platform contracts will appear here.
-      </p>
-    </div>
+    <PlaceholderPageClient
+      titleKey="page_contracts_title"
+      descriptionKey="page_contracts_description"
+    />
   );
 }
