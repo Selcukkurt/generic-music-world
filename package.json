@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_DISABLE_TURBOPACK=1 NEXT_TURBOPACK=0 TURBOPACK=0 next dev -p 3005",
+    "dev": "next dev -p 3005",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
