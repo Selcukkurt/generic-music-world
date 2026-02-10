@@ -44,7 +44,6 @@ textarea,
 select {
   font: inherit;
   color: inherit;
-  background: transparent;
   -webkit-appearance: none;
   appearance: none;
 }

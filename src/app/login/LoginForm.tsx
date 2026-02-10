@@ -163,7 +163,7 @@ export default function LoginForm() {
 
       <button
         type="submit"
-        className="w-full rounded-md bg-[var(--brand-yellow)] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[var(--brand-yellow-hover)] active:bg-[var(--brand-yellow-active)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-md border border-amber-600/40 bg-[var(--brand-yellow)] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[var(--brand-yellow-hover)] active:bg-[var(--brand-yellow-active)] disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? (
