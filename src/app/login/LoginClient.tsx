@@ -25,8 +25,8 @@ export default function LoginClient() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto grid min-h-screen w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+    <main className="min-h-[100dvh] bg-slate-950 text-slate-100">
+      <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
           <Image
             src="/generic-music-logo-v2.png"

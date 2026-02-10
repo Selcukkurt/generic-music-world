@@ -29,7 +29,7 @@ export default function DashboardClient() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-6 py-12">
+    <main className="min-h-[100dvh] bg-slate-950 text-slate-100 px-6 py-12">
       <div className="mx-auto w-full max-w-5xl">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -45,7 +45,7 @@ export default function DashboardClient() {
           </p>
         ) : null}
 
-        <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
           {modules.map((module) => (
             <div
               key={module}

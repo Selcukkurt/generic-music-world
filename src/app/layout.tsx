@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     template: "%s – Generic Music World",
   },
   description: "Generic Music World",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased`}
       >
         {children}
       </body>
