@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
 
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import LogoutButton from "./LogoutButton";
 
 const modules = Array.from({ length: 6 }, (_, index) => index + 1);
@@ -45,16 +47,20 @@ export default function DashboardClient() {
           </p>
         ) : null}
 
-        <section className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
-          {modules.map((module) => (
-            <div
-              key={module}
-              className="ui-card-plain flex h-28 items-center justify-center border-dashed text-sm ui-text-muted"
-            >
-              Module Card
-            </div>
-          ))}
-        </section>
+        {modules.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title="Henüz modül yok"
+              description="Modüller eklendiğinde burada listelenecek."
+            />
+          </div>
+        ) : (
+          <section className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
+            {modules.map((module) => (
+              <CardSkeleton key={module} />
+            ))}
+          </section>
+        )}
       </div>
     </main>
   );

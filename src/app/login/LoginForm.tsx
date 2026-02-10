@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -150,15 +151,11 @@ export default function LoginForm() {
       </div>
 
       {errorMessage ? (
-        <div className="ui-card-plain px-4 py-3 text-sm">
-          <p className="font-semibold text-slate-100">
-            {errorMessage.title}
-          </p>
-          <p className="ui-text-secondary mt-1">{errorMessage.body}</p>
-          {errorMessage.helper ? (
-            <p className="ui-text-muted mt-1">{errorMessage.helper}</p>
-          ) : null}
-        </div>
+        <ErrorState
+          title={errorMessage.title}
+          message={errorMessage.body}
+          helper={errorMessage.helper}
+        />
       ) : null}
 
       <button
