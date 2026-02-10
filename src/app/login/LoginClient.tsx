@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/LocaleProvider";
+import LanguageSwitch from "@/components/ui/LanguageSwitch";
 
 import LoginForm from "./LoginForm";
 import RotatingPitch from "./RotatingPitch";
@@ -27,7 +28,10 @@ export default function LoginClient() {
   }, [router]);
 
   return (
-    <main className="ui-page">
+    <main className="ui-page relative">
+      <div className="absolute right-6 top-6">
+        <LanguageSwitch />
+      </div>
       <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
           <Image

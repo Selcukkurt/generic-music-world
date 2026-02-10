@@ -11,6 +11,7 @@ import ModuleMenu from "@/components/shell/ModuleMenu";
 import ContentArea from "@/components/shell/ContentArea";
 import { getModuleForPath } from "@/config/modules";
 import { useI18n } from "@/i18n/LocaleProvider";
+import LanguageSwitch from "@/components/ui/LanguageSwitch";
 
 export default function DashboardLayout({
   children,
@@ -22,7 +23,7 @@ export default function DashboardLayout({
   const [isChecking, setIsChecking] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const module = getModuleForPath(pathname);
-  const { locale, setLocale, t } = useI18n();
+  const { t } = useI18n();
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -91,31 +92,7 @@ export default function DashboardLayout({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-xs">
-              <button
-                type="button"
-                onClick={() => setLocale("tr")}
-                className={`rounded-full px-3 py-1 transition ${
-                  locale === "tr"
-                    ? "bg-[var(--brand-yellow)] text-slate-950"
-                    : "ui-text-secondary hover:bg-slate-900"
-                }`}
-              >
-                {t("header_language_tr")}
-              </button>
-              <span className="ui-text-muted px-1">|</span>
-              <button
-                type="button"
-                onClick={() => setLocale("en")}
-                className={`rounded-full px-3 py-1 transition ${
-                  locale === "en"
-                    ? "bg-[var(--brand-yellow)] text-slate-950"
-                    : "ui-text-secondary hover:bg-slate-900"
-                }`}
-              >
-                {t("header_language_en")}
-              </button>
-            </div>
+            <LanguageSwitch />
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]"

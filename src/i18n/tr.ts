@@ -14,6 +14,7 @@ export const tr = {
   header_profile: "Profil",
   header_language_tr: "TR",
   header_language_en: "EN",
+  language_not_ready: "İngilizce sürüm henüz hazır değil.",
   sidebar_modules_title: "Modüller",
   sidebar_close: "Navigasyonu kapat",
   home_modules_label: "Modüller",

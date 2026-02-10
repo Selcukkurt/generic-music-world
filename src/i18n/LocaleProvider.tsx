@@ -40,6 +40,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateLocale = useCallback((next: Locale) => {
+    if (next !== "tr") {
+      return;
+    }
     setLocaleState(next);
     setLocale(next);
     document.documentElement.lang = next;

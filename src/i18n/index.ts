@@ -22,14 +22,17 @@ export const getDictionary = (locale: Locale) =>
 
 export const getLocale = (): Locale => {
   if (typeof window === "undefined") {
-    return currentLocale;
+    return defaultLocale;
   }
 
   const stored = window.localStorage.getItem(localeStorageKey);
-  return stored === "en" || stored === "tr" ? stored : currentLocale;
+  return stored === "tr" ? stored : defaultLocale;
 };
 
 export const setLocale = (locale: Locale) => {
+  if (locale !== "tr") {
+    return;
+  }
   setCurrentLocale(locale);
   if (typeof window !== "undefined") {
     window.localStorage.setItem(localeStorageKey, locale);
