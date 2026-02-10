@@ -1,3 +1,5 @@
+"use client";
+
 type EmptyStateProps = {
   title: string;
   description: string;
