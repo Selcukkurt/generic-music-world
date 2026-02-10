@@ -25,7 +25,7 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
-  const module = getModuleForPath(pathname);
+  const activeModule = getModuleForPath(pathname);
   const { t } = useI18n();
   const toast = useToast();
 
@@ -101,7 +101,7 @@ export default function DashboardLayout({
       <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            {module ? (
+            {activeModule ? (
               <button
                 type="button"
                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-xs ui-text-secondary lg:hidden"
@@ -214,7 +214,7 @@ export default function DashboardLayout({
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1">
-        {module ? (
+        {activeModule ? (
           <GlobalSidebar
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
@@ -222,10 +222,10 @@ export default function DashboardLayout({
         ) : null}
         <div
           className={`flex min-h-0 flex-1 flex-col px-6 py-6 ${
-            module ? "gap-6" : ""
+            activeModule ? "gap-6" : ""
           }`}
         >
-          {module ? <ModuleMenu /> : null}
+          {activeModule ? <ModuleMenu /> : null}
           <ContentArea className="ui-fade-slide">{children}</ContentArea>
         </div>
       </div>

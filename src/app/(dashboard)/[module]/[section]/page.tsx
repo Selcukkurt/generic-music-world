@@ -8,14 +8,14 @@ export default function ModuleSectionPage({
 }: {
   params: { module: string; section: string };
 }) {
-  const module = modules.find((item) => item.id === params.module);
+  const activeModule = modules.find((item) => item.id === params.module);
 
-  if (!module) {
+  if (!activeModule) {
     notFound();
   }
 
-  const section = module.menuItems.find(
-    (item) => item.href === `/${module.id}/${params.section}`
+  const section = activeModule.menuItems.find(
+    (item) => item.href === `/${activeModule.id}/${params.section}`
   );
 
   if (!section) {
@@ -24,7 +24,7 @@ export default function ModuleSectionPage({
 
   return (
     <ModuleSectionClient
-      nameKey={module.nameKey}
+      nameKey={activeModule.nameKey}
       sectionLabelKey={section.labelKey}
     />
   );

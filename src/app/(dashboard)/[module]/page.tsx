@@ -8,11 +8,16 @@ export default function ModuleRootPage({
 }: {
   params: { module: string };
 }) {
-  const module = modules.find((item) => item.id === params.module);
+  const activeModule = modules.find((item) => item.id === params.module);
 
-  if (!module) {
+  if (!activeModule) {
     notFound();
   }
 
-  return <ModuleRootClient code={module.code} nameKey={module.nameKey} />;
+  return (
+    <ModuleRootClient
+      code={activeModule.code}
+      nameKey={activeModule.nameKey}
+    />
+  );
 }

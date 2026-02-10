@@ -8,11 +8,11 @@ import { useI18n } from "@/i18n/LocaleProvider";
 
 export default function ModuleMenu() {
   const pathname = usePathname();
-  const module = getModuleForPath(pathname);
-  const items = module?.menuItems ?? [];
+  const activeModule = getModuleForPath(pathname);
+  const items = activeModule?.menuItems ?? [];
   const { t } = useI18n();
 
-  if (!module) {
+  if (!activeModule) {
     return null;
   }
 
@@ -22,9 +22,9 @@ export default function ModuleMenu() {
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex sm:flex-col">
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] ui-text-secondary">
-              {module.code}
+              {activeModule.code}
             </span>
-            <span className="text-xs">{t(module.nameKey)}</span>
+            <span className="text-xs">{t(activeModule.nameKey)}</span>
           </div>
           <div className="flex-1 overflow-x-auto">
             <nav className="flex items-center gap-2">

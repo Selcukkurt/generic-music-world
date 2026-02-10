@@ -11,9 +11,12 @@ export default function RotatingPitch() {
   const [isPaused, setIsPaused] = useState(false);
   const { dict } = useI18n();
 
+  const pitch = useMemo(() => dict.login_pitch ?? [], [dict.login_pitch]);
+  const total = pitch.length;
+
   const scenario = useMemo(
-    () => dict.login_pitch[index],
-    [dict.login_pitch, index]
+    () => (total > 0 ? pitch[index % total] : undefined),
+    [pitch, index, total]
   );
 
   useEffect(() => {
@@ -34,20 +37,30 @@ export default function RotatingPitch() {
   }, []);
 
   useEffect(() => {
-    if (reduceMotion || isPaused) {
+    if (reduceMotion || isPaused || total <= 1) {
       return undefined;
     }
 
+    let timeoutId: number | undefined;
     const interval = window.setInterval(() => {
       setIsVisible(false);
-      window.setTimeout(() => {
-        setIndex((prev) => (prev + 1) % scenarios.length);
+      timeoutId = window.setTimeout(() => {
+        setIndex((prev) => (prev + 1) % total);
         setIsVisible(true);
       }, 250);
     }, 6000);
 
-    return () => window.clearInterval(interval);
-  }, [reduceMotion, isPaused]);
+    return () => {
+      window.clearInterval(interval);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [reduceMotion, isPaused, total]);
+
+  if (!scenario) {
+    return null;
+  }
 
   return (
     <div className="min-h-[180px] max-w-xl">

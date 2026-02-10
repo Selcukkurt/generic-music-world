@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import {
-  defaultLocale,
   getDictionary,
   getLocale,
   setLocale,
@@ -30,14 +29,12 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+  const [locale, setLocaleState] = useState<Locale>(() => getLocale());
 
   useEffect(() => {
-    const stored = getLocale();
-    setLocaleState(stored);
-    setCurrentLocale(stored);
-    document.documentElement.lang = stored;
-  }, []);
+    setCurrentLocale(locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const updateLocale = useCallback((next: Locale) => {
     if (next !== "tr") {
