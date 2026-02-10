@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --brand-yellow: #f5c542;
+  --brand-yellow-hover: color-mix(in srgb, var(--brand-yellow) 88%, #000);
+  --brand-yellow-active: color-mix(in srgb, var(--brand-yellow) 76%, #000);
 }
 
 @theme inline {
