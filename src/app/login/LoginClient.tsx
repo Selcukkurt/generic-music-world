@@ -32,7 +32,7 @@ export default function LoginClient() {
       <div className="absolute right-6 top-6">
         <LanguageSwitch />
       </div>
-      <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+      <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
           <Image
             src="/generic-music-logo-v2.png"

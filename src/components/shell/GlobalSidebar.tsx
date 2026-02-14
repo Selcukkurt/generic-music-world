@@ -45,8 +45,8 @@ export default function GlobalSidebar({ isOpen, onClose }: GlobalSidebarProps) {
                   href={module.basePath}
                   className={`block rounded-md px-3 py-2 text-sm transition ${
                     isActive
-                      ? "bg-slate-800 text-white"
-                      : "ui-text-secondary hover:bg-slate-900"
+                      ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
+                      : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={onClose}
                 >

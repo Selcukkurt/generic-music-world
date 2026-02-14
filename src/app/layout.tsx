@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+  openGraph: {
+    title: tr.meta_default_title,
+    description: tr.meta_default_description,
+    type: "website",
+  },
 };
 
 export default function RootLayout({
