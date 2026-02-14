@@ -1,28 +1,36 @@
 "use client";
 
-import { ErrorState } from "@/components/ui/ErrorState";
-import { useI18n } from "@/i18n/LocaleProvider";
+import { useEffect } from "react";
 
-export default function RootError({
+export default function Error({
   error,
   reset,
 }: {
-  error: Error;
+  error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const { t } = useI18n();
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.error("Shell error:", error);
+    }
+  }, [error]);
 
   return (
-    <div className="ui-page flex min-h-[100dvh] items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <ErrorState
-          title={t("error_title")}
-          message={t("error_message")}
-          helper={error.message}
-          actionLabel={t("error_retry")}
-          onAction={reset}
-        />
-      </div>
+    <div className="ui-page flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
+      <h1 className="text-xl font-semibold text-[var(--color-text)]">
+        Bir hata oluştu
+      </h1>
+      <p className="ui-text-muted max-w-md text-center text-sm">
+        Beklenmeyen bir sorun yaşandı. Lütfen sayfayı yenileyin veya bir süre
+        sonra tekrar deneyin.
+      </p>
+      <button
+        type="button"
+        onClick={reset}
+        className="ui-button-primary max-w-[200px] rounded-lg px-6 py-2.5 text-sm"
+      >
+        Tekrar dene
+      </button>
     </div>
   );
 }

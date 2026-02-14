@@ -29,7 +29,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 const variantStyles: Record<ToastVariant, string> = {
   success: "border-emerald-400/30 text-emerald-100",
   error: "border-amber-400/30 text-amber-100",
-  info: "border-slate-500/40 text-slate-100",
+  info: "border-[var(--color-surface2)] text-[var(--color-text)]",
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {

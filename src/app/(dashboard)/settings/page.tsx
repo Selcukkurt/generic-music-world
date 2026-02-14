@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import PlaceholderPageClient from "../PlaceholderPageClient";
+import PageSlot from "@/components/shell/PageSlot";
 import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <PlaceholderPageClient
-      titleKey="page_settings_title"
-      descriptionKey="page_settings_description"
+    <PageSlot
+      title={tr.shell_page_title}
+      subtitle={tr.shell_page_subtitle}
     />
   );
 }

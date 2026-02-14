@@ -36,8 +36,8 @@ export default function ModuleMenu() {
                     href={item.href}
                     className={`whitespace-nowrap rounded-full px-4 py-1 text-xs transition ${
                       isActive
-                        ? "bg-slate-800 text-white"
-                        : "ui-text-secondary hover:bg-slate-900"
+                        ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
+                        : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >
                     {t(item.labelKey)}

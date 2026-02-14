@@ -24,8 +24,8 @@ export default function LanguageSwitch({ className }: LanguageSwitchProps) {
         onClick={() => setLocale("tr")}
         className={`rounded-full px-3 py-1 transition ${
           locale === "tr"
-            ? "bg-[var(--brand-yellow)] text-slate-950"
-            : "ui-text-secondary hover:bg-slate-900"
+            ? "bg-[var(--brand-yellow)] text-[#121212]"
+            : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
         }`}
       >
         {t("header_language_tr")}

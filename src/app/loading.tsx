@@ -3,7 +3,7 @@ import { tr } from "@/i18n/tr";
 export default function Loading() {
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/80"
+      className="fixed inset-0 flex items-center justify-center bg-[var(--color-bg)]/90"
       style={{ zIndex: "var(--z-modal)" }}
     >
       <img

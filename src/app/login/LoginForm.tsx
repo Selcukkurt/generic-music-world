@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -21,18 +21,9 @@ export default function LoginForm() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    console.log("Supabase envs", {
-      hasUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-      hasAnonKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    });
-  }, []);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log("[login] submit:start");
-    setIsLoading(true);
+      setIsLoading(true);
     setErrorMessage(null);
     let didTimeout = false;
     const timeoutId = window.setTimeout(() => {
@@ -45,12 +36,10 @@ export default function LoginForm() {
     }, 10000);
 
     try {
-      const { data, error } = await supabaseBrowser.auth.signInWithPassword({
+      const { error } = await supabaseBrowser.auth.signInWithPassword({
         email,
         password,
       });
-
-      console.log("[login] auth:response", { error, user: data?.user?.id });
 
       if (didTimeout) {
         return;
@@ -106,11 +95,9 @@ export default function LoginForm() {
         return;
       }
 
-      console.log("[login] redirect:/dashboard");
       toast.success(t("login_success_title"), t("login_success_body"));
       router.replace("/dashboard");
-    } catch (error) {
-      console.log("[login] auth:error", error);
+    } catch {
       if (!didTimeout) {
         setErrorMessage({
           title: t("login_generic_title"),
@@ -159,13 +146,13 @@ export default function LoginForm() {
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-200 focus:ring-2 focus:ring-amber-500/30"
+            className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] focus:ring-2 focus:ring-[var(--brand-yellow)]/30"
           />
           {t("login_remember")}
         </label>
         <button
           type="button"
-          className="text-sm ui-text-secondary hover:text-slate-100"
+          className="text-sm ui-text-secondary hover:text-[var(--color-text)]"
         >
           {t("login_forgot")}
         </button>
