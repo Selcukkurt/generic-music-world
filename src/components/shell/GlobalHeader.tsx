@@ -112,7 +112,7 @@ export default function GlobalHeader({
 
   useEffect(() => {
     if (searchOpen) {
-      setSearchQuery("");
+      queueMicrotask(() => setSearchQuery(""));
       searchInputRef.current?.focus();
     }
   }, [searchOpen]);
