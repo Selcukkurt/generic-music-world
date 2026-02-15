@@ -4,12 +4,18 @@ export type ModuleMenuItem = {
   href: string;
 };
 
+export type ModuleStatus = "active" | "in_progress" | "planned";
+
 export type AppModule = {
   id: string;
   code: string;
   nameKey: string;
   basePath: string;
   menuItems: ModuleMenuItem[];
+  status: ModuleStatus;
+  progress: number;
+  summaryKey: string;
+  purposeKey: string;
 };
 
 const buildMenuItems = (code: string, basePath: string): ModuleMenuItem[] => [
@@ -30,84 +36,39 @@ const buildMenuItems = (code: string, basePath: string): ModuleMenuItem[] => [
   },
 ];
 
+const moduleMeta = (
+  id: string,
+  code: string,
+  nameKey: string,
+  basePath: string,
+  status: "active" | "in_progress" | "planned",
+  progress: number,
+  summaryKey: string,
+  purposeKey: string
+): AppModule => ({
+  id,
+  code,
+  nameKey,
+  basePath,
+  menuItems: buildMenuItems(code, basePath),
+  status,
+  progress,
+  summaryKey,
+  purposeKey,
+});
+
 export const modules: AppModule[] = [
-  {
-    id: "m01",
-    code: "M01",
-    nameKey: "module_name_m01",
-    basePath: "/m01",
-    menuItems: buildMenuItems("M01", "/m01"),
-  },
-  {
-    id: "m02",
-    code: "M02",
-    nameKey: "module_name_m02",
-    basePath: "/m02",
-    menuItems: buildMenuItems("M02", "/m02"),
-  },
-  {
-    id: "m03",
-    code: "M03",
-    nameKey: "module_name_m03",
-    basePath: "/m03",
-    menuItems: buildMenuItems("M03", "/m03"),
-  },
-  {
-    id: "m04",
-    code: "M04",
-    nameKey: "module_name_m04",
-    basePath: "/m04",
-    menuItems: buildMenuItems("M04", "/m04"),
-  },
-  {
-    id: "m05",
-    code: "M05",
-    nameKey: "module_name_m05",
-    basePath: "/m05",
-    menuItems: buildMenuItems("M05", "/m05"),
-  },
-  {
-    id: "m06",
-    code: "M06",
-    nameKey: "module_name_m06",
-    basePath: "/m06",
-    menuItems: buildMenuItems("M06", "/m06"),
-  },
-  {
-    id: "m07",
-    code: "M07",
-    nameKey: "module_name_m07",
-    basePath: "/m07",
-    menuItems: buildMenuItems("M07", "/m07"),
-  },
-  {
-    id: "m08",
-    code: "M08",
-    nameKey: "module_name_m08",
-    basePath: "/m08",
-    menuItems: buildMenuItems("M08", "/m08"),
-  },
-  {
-    id: "m09",
-    code: "M09",
-    nameKey: "module_name_m09",
-    basePath: "/m09",
-    menuItems: buildMenuItems("M09", "/m09"),
-  },
-  {
-    id: "m10",
-    code: "M10",
-    nameKey: "module_name_m10",
-    basePath: "/m10",
-    menuItems: buildMenuItems("M10", "/m10"),
-  },
-  {
-    id: "m11",
-    code: "M11",
-    nameKey: "module_name_m11",
-    basePath: "/m11",
-    menuItems: buildMenuItems("M11", "/m11"),
-  },
+  moduleMeta("m01", "M01", "module_name_m01", "/m01", "active", 100, "module_summary_m01", "module_purpose_m01"),
+  moduleMeta("m02", "M02", "module_name_m02", "/m02", "in_progress", 45, "module_summary_m02", "module_purpose_m02"),
+  moduleMeta("m03", "M03", "module_name_m03", "/m03", "planned", 0, "module_summary_m03", "module_purpose_m03"),
+  moduleMeta("m04", "M04", "module_name_m04", "/m04", "planned", 0, "module_summary_m04", "module_purpose_m04"),
+  moduleMeta("m05", "M05", "module_name_m05", "/m05", "planned", 0, "module_summary_m05", "module_purpose_m05"),
+  moduleMeta("m06", "M06", "module_name_m06", "/m06", "planned", 0, "module_summary_m06", "module_purpose_m06"),
+  moduleMeta("m07", "M07", "module_name_m07", "/m07", "planned", 0, "module_summary_m07", "module_purpose_m07"),
+  moduleMeta("m08", "M08", "module_name_m08", "/m08", "planned", 0, "module_summary_m08", "module_purpose_m08"),
+  moduleMeta("m09", "M09", "module_name_m09", "/m09", "planned", 0, "module_summary_m09", "module_purpose_m09"),
+  moduleMeta("m10", "M10", "module_name_m10", "/m10", "planned", 0, "module_summary_m10", "module_purpose_m10"),
+  moduleMeta("m11", "M11", "module_name_m11", "/m11", "planned", 0, "module_summary_m11", "module_purpose_m11"),
 ];
 
 export const getModuleForPath = (pathname: string | null) => {

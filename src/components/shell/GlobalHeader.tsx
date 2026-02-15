@@ -9,8 +9,6 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import LanguageSwitch from "@/components/ui/LanguageSwitch";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useShellUI } from "@/context/ShellUIContext";
 
 type GlobalHeaderProps = {
@@ -78,7 +76,7 @@ export default function GlobalHeader({
   const router = useRouter();
   const { t } = useI18n();
   const toast = useToast();
-  const { openSidebar, openModulePanel, searchOpen, closeSearch, toggleSearch } =
+  const { openSidebar, openModulePanel, searchOpen, openSearch, closeSearch, toggleSearch } =
     useShellUI();
   const [searchQuery, setSearchQuery] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -93,14 +91,14 @@ export default function GlobalHeader({
     setSearchQuery("");
   };
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchPanelRef = useRef<HTMLDivElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeSearch();
+        setSearchQuery("");
         setIsProfileOpen(false);
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -112,12 +110,9 @@ export default function GlobalHeader({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [closeSearch, toggleSearch]);
 
-  useBodyScrollLock(searchOpen);
-  useFocusTrap(searchPanelRef, searchOpen);
-
   useEffect(() => {
     if (searchOpen) {
-      queueMicrotask(() => setSearchQuery(""));
+      setSearchQuery("");
       searchInputRef.current?.focus();
     }
   }, [searchOpen]);
@@ -139,10 +134,9 @@ export default function GlobalHeader({
     if (!searchOpen) return;
     const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node | null;
-      const inButton = searchButtonRef.current?.contains(target);
-      const inPanel = searchPanelRef.current?.contains(target);
-      if (target && !inButton && !inPanel) {
+      if (searchWrapRef.current && target && !searchWrapRef.current.contains(target)) {
         closeSearch();
+        setSearchQuery("");
       }
     };
     document.addEventListener("mousedown", handleOutside);
@@ -202,16 +196,75 @@ export default function GlobalHeader({
               <IconModuleMenu className="h-4 w-4 ui-text-secondary" />
             </button>
           ) : null}
-          <button
-            ref={searchButtonRef}
-            type="button"
-            onClick={toggleSearch}
-            className="flex h-9 w-9 min-h-[36px] min-w-[36px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-text-muted)] hover:bg-[var(--color-surface2)]"
-            aria-label={t("header_search_placeholder")}
-            title={`${t("header_search_placeholder")} (⌘K)`}
-          >
-            <IconSearch className="h-4 w-4 ui-text-secondary" />
-          </button>
+          <div ref={searchWrapRef} className="relative">
+            <div
+              className={`flex items-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-sm transition-[width] duration-200 ease-out ${
+                searchOpen
+                  ? "min-w-[180px] flex-1 sm:min-w-0 sm:flex-none sm:w-[320px] md:w-[360px] lg:w-[400px]"
+                  : "w-10 shrink-0"
+              }`}
+            >
+              {!searchOpen ? (
+                <button
+                  type="button"
+                  onClick={openSearch}
+                  className="flex h-9 w-9 min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-lg transition hover:bg-[var(--color-surface2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)] focus-visible:ring-inset"
+                  aria-label={t("header_search_placeholder")}
+                  title={`${t("header_search_placeholder")} (⌘K)`}
+                >
+                  <IconSearch className="h-4 w-4 ui-text-secondary" />
+                </button>
+              ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
+                  <IconSearch className="h-4 w-4 shrink-0 ui-text-muted" />
+                  <input
+                    ref={searchInputRef}
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("header_search_placeholder_short")}
+                    className="min-w-0 flex-1 rounded bg-transparent py-2 text-sm outline-none placeholder:ui-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)] focus-visible:ring-inset"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        closeSearch();
+                        setSearchQuery("");
+                        return;
+                      }
+                      if (e.key === "Enter" && searchResults.length > 0) {
+                        e.preventDefault();
+                        navigateTo(searchResults[0].path);
+                      }
+                    }}
+                    aria-label={t("header_search_placeholder")}
+                  />
+                </div>
+              )}
+            </div>
+            {searchOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-full min-w-[200px] max-w-[400px] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 py-2 shadow-lg backdrop-blur-md sm:min-w-[320px]">
+                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider ui-text-muted">
+                  {t("search_section_results")}
+                </p>
+                {searchResults.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {searchResults.map((item) => (
+                      <li key={item.path}>
+                        <button
+                          type="button"
+                          onClick={() => navigateTo(item.path)}
+                          className="flex w-full items-center px-3 py-2 text-left text-sm transition ui-text-secondary hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)] focus:outline-none focus-visible:bg-[var(--color-surface2)]"
+                        >
+                          {item.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="ui-text-muted px-3 py-2 text-sm">{t("search_empty_results")}</p>
+                )}
+              </div>
+            )}
+          </div>
           <LanguageSwitch />
           <button
             type="button"
@@ -286,64 +339,6 @@ export default function GlobalHeader({
           </div>
         </div>
       </div>
-
-      {/* Search dropdown (header-attached) */}
-      {searchOpen && (
-        <div
-          ref={searchPanelRef}
-          className="ui-glass ui-search-dropdown-in absolute left-0 right-0 top-full border-b border-x border-[var(--color-border)] bg-[var(--color-surface)]/95 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md"
-          style={{ borderBottomLeftRadius: "var(--radius-xl)", borderBottomRightRadius: "var(--radius-xl)" }}
-          aria-label={t("header_search_placeholder")}
-        >
-          <div className="mx-auto max-w-3xl px-6 py-5">
-            <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/80 px-4 py-3">
-              <IconSearch className="h-5 w-5 shrink-0 ui-text-muted" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t("header_search_placeholder")}
-                className="min-w-0 flex-1 border-0 bg-transparent py-1 text-base outline-none placeholder:ui-text-muted"
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    closeSearch();
-                    return;
-                  }
-                  if (e.key === "Enter" && searchResults.length > 0) {
-                    e.preventDefault();
-                    navigateTo(searchResults[0].path);
-                  }
-                }}
-              />
-            </div>
-            <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider ui-text-muted">
-                {t("search_section_results")}
-              </p>
-              {searchResults.length > 0 ? (
-                <ul className="mt-2 space-y-0.5">
-                  {searchResults.map((item) => (
-                    <li key={item.path}>
-                      <button
-                        type="button"
-                        onClick={() => navigateTo(item.path)}
-                        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm transition ui-text-secondary hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)]"
-                      >
-                        {item.label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="ui-text-muted mt-2 text-sm">
-                  {t("search_empty_results")}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </header>
   );
