@@ -12,21 +12,31 @@ import {
 import type {
   SystemSettings,
   GeneralSettings,
-  NotificationSettings,
-  IntegrationSettings,
-  AppearanceSettings,
+  ParametersSettings,
+  ModulesSettings,
+  MailSettings,
+  SecuritySettings,
 } from "./types";
-import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./store";
+import {
+  loadSettings,
+  saveSettings,
+  appendAuditLog,
+  getChangedFields,
+  DEFAULT_SETTINGS,
+} from "./store";
 
 type SettingsContextValue = {
   settings: SystemSettings;
+  isLoading: boolean;
   isDirty: boolean;
   setGeneral: (g: Partial<GeneralSettings>) => void;
-  setNotifications: (n: Partial<NotificationSettings>) => void;
-  setIntegrations: (i: Partial<IntegrationSettings>) => void;
-  setAppearance: (a: Partial<AppearanceSettings>) => void;
-  save: () => void;
+  setParameters: (p: Partial<ParametersSettings>) => void;
+  setModules: (m: Partial<ModulesSettings>) => void;
+  setMail: (m: Partial<MailSettings>) => void;
+  setSecurity: (s: Partial<SecuritySettings>) => void;
+  save: (actorUserId?: string, actorRole?: string) => void;
   reset: () => void;
+  resetToDefaults: () => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -34,11 +44,13 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [initialSettings, setInitialSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loaded = loadSettings();
     setSettings(loaded);
     setInitialSettings(loaded);
+    setIsLoading(false);
   }, []);
 
   const isDirty = useMemo(
@@ -53,56 +65,88 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setNotifications = useCallback((n: Partial<NotificationSettings>) => {
+  const setParameters = useCallback((p: Partial<ParametersSettings>) => {
     setSettings((prev) => ({
       ...prev,
-      notifications: { ...prev.notifications, ...n },
+      parameters: { ...prev.parameters, ...p },
     }));
   }, []);
 
-  const setIntegrations = useCallback((i: Partial<IntegrationSettings>) => {
+  const setModules = useCallback((m: Partial<ModulesSettings>) => {
     setSettings((prev) => ({
       ...prev,
-      integrations: { ...prev.integrations, ...i },
+      modules: { ...prev.modules, ...m },
     }));
   }, []);
 
-  const setAppearance = useCallback((a: Partial<AppearanceSettings>) => {
+  const setMail = useCallback((m: Partial<MailSettings>) => {
     setSettings((prev) => ({
       ...prev,
-      appearance: { ...prev.appearance, ...a },
+      mail: { ...prev.mail, ...m },
     }));
   }, []);
 
-  const save = useCallback(() => {
-    saveSettings(settings);
-    setInitialSettings(settings);
-  }, [settings]);
+  const setSecurity = useCallback((s: Partial<SecuritySettings>) => {
+    setSettings((prev) => ({
+      ...prev,
+      security: { ...prev.security, ...s },
+    }));
+  }, []);
+
+  const save = useCallback(
+    (actorUserId = "system", actorRole = "system_owner") => {
+      const changed = getChangedFields(initialSettings, settings);
+      saveSettings(settings);
+      setInitialSettings(settings);
+      if (changed.length > 0) {
+        appendAuditLog({
+          actorUserId,
+          actorRole,
+          action: "SYSTEM_SETTINGS_UPDATED",
+          changedFields: changed,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    },
+    [settings, initialSettings]
+  );
 
   const reset = useCallback(() => {
     setSettings(initialSettings);
   }, [initialSettings]);
 
+  const resetToDefaults = useCallback(() => {
+    setSettings(DEFAULT_SETTINGS);
+    setInitialSettings(DEFAULT_SETTINGS);
+    saveSettings(DEFAULT_SETTINGS);
+  }, []);
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
+      isLoading,
       isDirty,
       setGeneral,
-      setNotifications,
-      setIntegrations,
-      setAppearance,
+      setParameters,
+      setModules,
+      setMail,
+      setSecurity,
       save,
       reset,
+      resetToDefaults,
     }),
     [
       settings,
+      isLoading,
       isDirty,
       setGeneral,
-      setNotifications,
-      setIntegrations,
-      setAppearance,
+      setParameters,
+      setModules,
+      setMail,
+      setSecurity,
       save,
       reset,
+      resetToDefaults,
     ]
   );
 
