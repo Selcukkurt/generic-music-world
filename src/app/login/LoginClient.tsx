@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { getCurrentUser, getPostLoginRedirectPath } from "@/lib/auth/getCurrentUser";
 import { useI18n } from "@/i18n/LocaleProvider";
 import LanguageSwitch from "@/components/ui/LanguageSwitch";
 
@@ -20,7 +21,9 @@ export default function LoginClient() {
       const { data } = await supabaseBrowser.auth.getUser();
 
       if (data.user) {
-        router.replace("/dashboard");
+        const currentUser = await getCurrentUser();
+        const path = currentUser ? getPostLoginRedirectPath(currentUser.role) : "/dashboard";
+        router.replace(path);
       }
     };
 

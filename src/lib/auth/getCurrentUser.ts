@@ -12,28 +12,34 @@ export type CurrentUser = {
   role: Role;
 };
 
-/**
- * Single source of truth for current user.
- * Seed users: SYSTEM_OWNER (selcuk), CEO (ceo@genericmusic.net).
- * Replace with Supabase profiles metadata when ready.
- */
-function resolveRole(email: string, metadata?: Record<string, unknown>): Role {
+function parseRole(value: unknown): Role | null {
+  if (typeof value !== "string") return null;
+  const lower = value.toLowerCase();
+  if (lower === "system_owner" || lower === "system owner") return "system_owner";
+  if (lower === "ceo") return "ceo";
+  if (lower === "admin") return "admin";
+  if (lower === "staff") return "staff";
+  if (lower === "viewer") return "viewer";
+  return null;
+}
+
+/** Fallback when profile.role is missing (dev/legacy). */
+function resolveRoleFallback(email: string, metadata?: Record<string, unknown>): Role {
   const metaRole = metadata?.role as string | undefined;
-  if (metaRole === "system_owner" || metaRole === "SYSTEM_OWNER") return "system_owner";
-  if (metaRole === "ceo" || metaRole === "CEO") return "ceo";
+  const parsed = parseRole(metaRole);
+  if (parsed) return parsed;
 
-  if (email === "selcuk@genericmusic.net") return "system_owner";
-  if (email === "ceo@genericmusic.net") return "ceo";
-
-  if (metaRole === "admin") return "admin";
-  if (metaRole === "staff") return "staff";
-  if (metaRole === "viewer") return "viewer";
+  if (email === "info@genericmusic.net") return "system_owner";
+  if (email === "selcuk@genericmusic.net") return "ceo";
 
   return "viewer";
 }
 
-/** Maps Supabase User to CurrentUser. Used by both getCurrentUser and useCurrentUser. */
-export function mapAuthUserToCurrentUser(user: User): CurrentUser {
+/** Maps Supabase User + optional profile.role to CurrentUser. */
+export function mapAuthUserToCurrentUser(
+  user: User,
+  profileRole?: string | null
+): CurrentUser {
   const email = user.email ?? "";
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const fullName =
@@ -46,12 +52,15 @@ export function mapAuthUserToCurrentUser(user: User): CurrentUser {
     (metadata?.role as string) ??
     "Kullanıcı";
 
+  const role =
+    parseRole(profileRole) ?? resolveRoleFallback(email, metadata);
+
   return {
     id: user.id,
     email,
     fullName,
     title,
-    role: resolveRole(email, metadata),
+    role,
   };
 }
 
@@ -60,8 +69,20 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     const { data } = await supabaseBrowser.auth.getUser();
     const user = data?.user;
     if (!user) return null;
-    return mapAuthUserToCurrentUser(user);
+
+    const { data: profile } = await supabaseBrowser
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    return mapAuthUserToCurrentUser(user, profile?.role);
   } catch {
     return null;
   }
+}
+
+/** Returns post-login redirect path based on role. SYSTEM_OWNER → /system, others → /dashboard. */
+export function getPostLoginRedirectPath(role: Role): string {
+  return role === "system_owner" ? "/system" : "/dashboard";
 }

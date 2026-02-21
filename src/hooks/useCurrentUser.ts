@@ -16,9 +16,14 @@ export function useCurrentUser(): {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const applySession = (session: Session | null) => {
+    const applySession = async (session: Session | null) => {
       if (session?.user) {
-        setUser(mapAuthUserToCurrentUser(session.user));
+        const { data: profile } = await supabaseBrowser
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        setUser(mapAuthUserToCurrentUser(session.user, profile?.role));
       } else {
         setUser(null);
       }

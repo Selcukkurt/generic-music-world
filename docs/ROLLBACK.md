@@ -6,11 +6,58 @@
 | RB-004 | — | Global UI + RBAC v1 + Module Status System |
 | RB-006 | — | Sidebar UX + Active route fix + Login stabilization |
 | RB-007 | — | GM DNA Okudum & Anladım acceptance + Kurumsal Onaylar |
-| **RB-008** | — | Professional RBAC: SYSTEM_OWNER vs CEO separation |
+| **RB-008** | — | Supabase profiles + Seed users setup (PROFILES-v1) |
 
-## RB-008: Professional RBAC Separation
+## RB-008: Supabase Migrations + Seed Users Setup
 
-- **SYSTEM_OWNER**: Full system + business access. Seed: `selcuk@genericmusic.net`
-- **CEO**: Business-only, no system permissions. Seed: `ceo@genericmusic.net`
-- **Routes**: `/system/*` protected, SYSTEM_OWNER only
-- **Rollback**: `git checkout tags/RB-007` (or prior tag)
+**Environment:** Local  
+**Date:** 2026-02-21  
+**Scope:** Supabase migrations + Seed users setup  
+
+**Summary:**
+- Supabase profiles table created
+- RLS policies applied
+- role and email columns added
+- Seed script executed successfully
+- system_owner and ceo users created
+
+**DB Schema Version:** PROFILES-v1  
+**Tag:** GMW-2026-02-21-2  
+
+| Field | Value |
+|-------|-------|
+| Active Status | AKTIF |
+| Lock | TRUE |
+| Backup | TRUE |
+| Publish | FALSE |
+| Prod | FALSE |
+
+---
+
+### Roles
+- **SYSTEM_OWNER**: Full system + business access. Only role that can access `/system/*`
+- **CEO**: Business-only, no system permissions. Cannot assign or create SYSTEM_OWNER role.
+
+### Dev-Only Seed Users (fixed credentials)
+| Email | Role | Password (env) |
+|-------|------|----------------|
+| info@genericmusic.net | SYSTEM_OWNER | SEED_PASSWORD_SYSTEM_OWNER |
+| selcuk@genericmusic.net | CEO | SEED_PASSWORD_CEO |
+
+### Seed Script
+- **Run**: `npm run seed:users`
+- **Guard**: Only runs when `SEED_USERS=true`. NEVER run in production.
+- **Required env**: `SEED_USERS`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_PASSWORD_SYSTEM_OWNER`, `SEED_PASSWORD_CEO`
+- Creates Supabase Auth users if missing, upserts `profiles` (id, email, role, created_at, updated_at).
+
+### Post-Login Redirect
+- SYSTEM_OWNER → `/system`
+- CEO (and others) → `/dashboard`
+- Redirect loops prevented: CEO accessing `/system` → 403 Forbidden.
+
+### Route Protection
+- `/system/*` protected by `RequireSystemOwner`. Only SYSTEM_OWNER can access.
+- CEO cannot assign or create SYSTEM_OWNER role (enforced in RBAC UI when implemented).
+
+### Rollback
+`git checkout tags/RB-007` (or prior tag)

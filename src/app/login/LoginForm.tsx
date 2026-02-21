@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { getCurrentUser, getPostLoginRedirectPath } from "@/lib/auth/getCurrentUser";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useI18n } from "@/i18n/LocaleProvider";
@@ -96,7 +97,9 @@ export default function LoginForm() {
       }
 
       toast.success(t("login_success_title"), t("login_success_body"));
-      router.replace("/dashboard");
+      const currentUser = await getCurrentUser();
+      const path = currentUser ? getPostLoginRedirectPath(currentUser.role) : "/dashboard";
+      router.replace(path);
     } catch {
       if (!didTimeout) {
         setErrorMessage({
