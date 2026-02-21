@@ -142,17 +142,39 @@ export default function LoginForm() {
         />
       </label>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm ui-text-secondary">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] focus:ring-2 focus:ring-[var(--brand-yellow)]/30"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <label
+          htmlFor="login-remember"
+          className="flex cursor-pointer items-center gap-2 text-[var(--color-text-secondary)]"
+        >
+          <span className="relative flex h-4 w-4 min-h-4 min-w-4 shrink-0 items-center justify-center">
+            <input
+              id="login-remember"
+              type="checkbox"
+              className="peer sr-only"
+            />
+            <span
+              className="pointer-events-none absolute inset-0 rounded border-2 border-[var(--color-border)] bg-[var(--color-bg)] transition-colors peer-checked:border-[var(--brand-yellow)] peer-checked:bg-[var(--brand-yellow)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--brand-yellow)]/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
+              aria-hidden
+            />
+            <svg
+              className="pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 text-[#121212] opacity-0 transition-opacity peer-checked:opacity-100"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
           {t("login_remember")}
         </label>
         <button
           type="button"
-          className="text-sm ui-text-secondary hover:text-[var(--color-text)]"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
         >
           {t("login_forgot")}
         </button>

@@ -28,43 +28,40 @@ export default function LoginClient() {
   }, [router]);
 
   return (
-    <main className="ui-page relative">
+    <main className="ui-page relative flex min-h-[100dvh] flex-col">
       <div className="absolute right-6 top-6">
         <LanguageSwitch />
       </div>
-      <div className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-cols-1 gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
-          <Image
-            src="/generic-music-logo-v2.png"
-            alt={t("login_logo_alt")}
-            width={520}
-            height={160}
-            className="mb-4 w-[170px] opacity-95 sm:w-[200px] lg:w-[220px]"
-            style={{ height: "auto" }}
-            priority
-          />
-          <div className="max-w-xl">
-            <RotatingPitch />
-          </div>
+      <div className="mx-auto flex flex-1 w-full max-w-5xl flex-col px-4 py-12 sm:px-6 sm:py-16">
+        <div className="grid flex-1 grid-cols-1 gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <section className="flex flex-col justify-center gap-6 text-left lg:pr-8">
+            <Image
+              src="/generic-music-logo-v2.png"
+              alt={t("login_logo_alt")}
+              width={520}
+              height={160}
+              className="mb-4 w-[170px] opacity-95 sm:w-[200px] lg:w-[220px]"
+              style={{ height: "auto" }}
+              priority
+            />
+            <div className="max-w-xl">
+              <RotatingPitch />
+            </div>
 
-          <div className="flex flex-wrap gap-3">
-            <span className="ui-pill px-4 py-2 text-sm">
-              {t("login_pill_modules")}
-            </span>
-            <span className="ui-pill px-4 py-2 text-sm">
-              {t("login_pill_departments")}
-            </span>
-            <span className="ui-pill px-4 py-2 text-sm">
-              {t("login_pill_access")}
-            </span>
-          </div>
+            <div className="flex flex-wrap gap-3">
+              <span className="ui-pill px-4 py-2 text-sm">
+                {t("login_pill_modules")}
+              </span>
+              <span className="ui-pill px-4 py-2 text-sm">
+                {t("login_pill_departments")}
+              </span>
+              <span className="ui-pill px-4 py-2 text-sm">
+                {t("login_pill_access")}
+              </span>
+            </div>
+          </section>
 
-          <p className="ui-text-muted text-xs">
-            © {currentYear} {t("login_brand_name")}. {t("login_footer_rights")}
-          </p>
-        </section>
-
-        <section className="flex w-full flex-col items-center justify-center lg:items-end">
+          <section className="flex w-full flex-col items-center justify-center lg:items-end">
           <div className="ui-card-plain w-full max-w-[460px] px-6 pb-6 pt-5">
             <h2 className="text-2xl font-semibold text-left">
               {t("login_heading")}
@@ -75,7 +72,13 @@ export default function LoginClient() {
             <LoginForm />
           </div>
         </section>
+        </div>
       </div>
+      <footer className="shrink-0 py-6 text-center">
+        <p className="mx-auto max-w-5xl px-4 text-xs text-[var(--color-text-secondary)] opacity-70">
+          © {currentYear} {t("login_brand_name")}. {t("login_footer_rights")}
+        </p>
+      </footer>
     </main>
   );
 }
