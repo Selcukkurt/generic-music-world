@@ -14,7 +14,9 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3005](http://localhost:3005) with your browser. The dev server always runs on port 3005.
+
+**If port 3005 is in use:** `lsof -i :3005` to find the PID, then `kill -9 <PID>` to free it. Or run `npm run dev:clean` to remove build artifacts and restart.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

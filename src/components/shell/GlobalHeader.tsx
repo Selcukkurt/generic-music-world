@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/LocaleProvider";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import LanguageSwitch from "@/components/ui/LanguageSwitch";
 import { useShellUI } from "@/context/ShellUIContext";
@@ -76,6 +77,7 @@ export default function GlobalHeader({
   const router = useRouter();
   const { t } = useI18n();
   const toast = useToast();
+  const { user } = useCurrentUser();
   const { openSidebar, openModulePanel, searchOpen, openSearch, closeSearch, toggleSearch } =
     useShellUI();
   const [searchQuery, setSearchQuery] = useState("");
@@ -293,10 +295,10 @@ export default function GlobalHeader({
           <div className="relative flex items-center gap-3" ref={profileRef}>
             <div className="hidden text-right md:block">
               <p className="text-sm font-semibold leading-tight">
-                {t("header_user_name")}
+                {user?.fullName ?? t("header_user_name_placeholder")}
               </p>
               <p className="text-xs ui-text-muted leading-tight">
-                {t("header_user_role")}
+                {user?.title ?? t("header_user_role_placeholder")}
               </p>
             </div>
             <button

@@ -7,6 +7,20 @@
 | RB-006 | — | Sidebar UX + Active route fix + Login stabilization |
 | RB-007 | — | GM DNA Okudum & Anladım acceptance + Kurumsal Onaylar |
 | **RB-008** | — | Supabase profiles + Seed users setup (PROFILES-v1) |
+| **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
+
+## GMW-RBAC-v1.0: Role Management Module
+
+**Tag:** GMW-RBAC-v1.0  
+**Date:** 2026-02  
+**Scope:** /system/rbac – full CRUD, permissions matrix, user assignment  
+
+**Production roles:**
+- **Super Admin** (locked): `isLocked: true` – cannot delete, rename, or change level/permissions. System-level access only.
+
+**Features:** Roles table, Permission matrix, User assignment, localStorage persistence, Checkbox component, Toasts.
+
+---
 
 ## RB-008: Supabase Migrations + Seed Users Setup
 

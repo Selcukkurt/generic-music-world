@@ -21,12 +21,13 @@ export const getDictionary = (locale: Locale) =>
   dictionaries[locale] ?? dictionaries[defaultLocale];
 
 export const getLocale = (): Locale => {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined") return defaultLocale;
+  try {
+    const stored = window.localStorage.getItem(localeStorageKey);
+    return stored === "tr" ? stored : defaultLocale;
+  } catch {
     return defaultLocale;
   }
-
-  const stored = window.localStorage.getItem(localeStorageKey);
-  return stored === "tr" ? stored : defaultLocale;
 };
 
 export const setLocale = (locale: Locale) => {

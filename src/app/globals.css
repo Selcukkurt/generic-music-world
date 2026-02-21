@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-geist-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-geist-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --background: #0b1020;
   --foreground: #e6e7ea;
   --brand-yellow: #f5c542;

@@ -8,6 +8,7 @@ import { getCurrentUser, getPostLoginRedirectPath } from "@/lib/auth/getCurrentU
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useI18n } from "@/i18n/LocaleProvider";
+import Checkbox from "@/components/ui/Checkbox";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function LoginForm() {
   const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [errorMessage, setErrorMessage] = useState<{
     title: string;
     body: string;
@@ -146,33 +148,12 @@ export default function LoginForm() {
       </label>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <label
-          htmlFor="login-remember"
-          className="flex cursor-pointer items-center gap-2 text-[var(--color-text-secondary)]"
-        >
-          <span className="relative flex h-4 w-4 min-h-4 min-w-4 shrink-0 items-center justify-center">
-            <input
-              id="login-remember"
-              type="checkbox"
-              className="peer sr-only"
-            />
-            <span
-              className="pointer-events-none absolute inset-0 rounded border-2 border-[var(--color-border)] bg-[var(--color-bg)] transition-colors peer-checked:border-[var(--brand-yellow)] peer-checked:bg-[var(--brand-yellow)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--brand-yellow)]/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
-              aria-hidden
-            />
-            <svg
-              className="pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 text-[#121212] opacity-0 transition-opacity peer-checked:opacity-100"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </span>
+        <label className="flex cursor-pointer items-center gap-2 text-[var(--color-text-secondary)]">
+          <Checkbox
+            id="login-remember"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
           {t("login_remember")}
         </label>
         <button

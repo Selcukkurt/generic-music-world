@@ -52,25 +52,25 @@ export default function ProfileIdentity() {
               <dt className="text-xs font-semibold uppercase tracking-wider ui-text-muted">
                 {t("profile_label_full_name")}
               </dt>
-              <dd className="mt-1 text-sm">{t("profile_user_name")}</dd>
+              <dd className="mt-1 text-sm">{user?.fullName ?? t("profile_user_name")}</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider ui-text-muted">
                 {t("profile_label_title")}
               </dt>
-              <dd className="mt-1 text-sm">{t("profile_user_title")}</dd>
+              <dd className="mt-1 text-sm">{user?.title ?? t("profile_user_title")}</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider ui-text-muted">
                 {t("profile_label_email")}
               </dt>
-              <dd className="mt-1 text-sm">{t("profile_user_email")}</dd>
+              <dd className="mt-1 text-sm">{user?.email ?? t("profile_user_email")}</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider ui-text-muted">
                 {t("profile_label_role")}
               </dt>
-              <dd className="mt-1 text-sm">{t("profile_user_role")}</dd>
+              <dd className="mt-1 text-sm">{user?.role ?? t("profile_user_role")}</dd>
             </div>
           </dl>
         </div>

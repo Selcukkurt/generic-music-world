@@ -42,6 +42,20 @@ export function mapAuthUserToCurrentUser(
 ): CurrentUser {
   const email = user.email ?? "";
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
+  const role =
+    parseRole(profileRole) ?? resolveRoleFallback(email, metadata);
+
+  // info@genericmusic.net: fixed display name and title (keeps system_owner)
+  if (email === "info@genericmusic.net") {
+    return {
+      id: user.id,
+      email,
+      fullName: "GMW Super Admin",
+      title: "Super Administrator",
+      role,
+    };
+  }
+
   const fullName =
     (metadata?.full_name as string) ??
     (metadata?.name as string) ??
@@ -51,9 +65,6 @@ export function mapAuthUserToCurrentUser(
     (metadata?.title as string) ??
     (metadata?.role as string) ??
     "Kullanıcı";
-
-  const role =
-    parseRole(profileRole) ?? resolveRoleFallback(email, metadata);
 
   return {
     id: user.id,

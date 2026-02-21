@@ -29,11 +29,17 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => getLocale());
+  const [locale, setLocaleState] = useState<Locale>("tr");
+
+  useEffect(() => {
+    setLocaleState(getLocale());
+  }, []);
 
   useEffect(() => {
     setCurrentLocale(locale);
-    document.documentElement.lang = locale;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
   }, [locale]);
 
   const updateLocale = useCallback((next: Locale) => {

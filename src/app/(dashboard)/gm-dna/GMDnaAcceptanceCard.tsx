@@ -9,6 +9,7 @@ import {
   formatAcceptedAt,
   type GmDnaAcceptance,
 } from "@/lib/gm-dna/acceptance";
+import Checkbox from "@/components/ui/Checkbox";
 
 export default function GMDnaAcceptanceCard() {
   const { user, isLoading: userLoading } = useCurrentUser();
@@ -88,11 +89,9 @@ export default function GMDnaAcceptanceCard() {
       ) : (
         <>
           <label className="mb-4 flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
-              className="h-4 w-4 rounded border-[var(--color-border)]"
             />
             <span className="text-[15px] text-[var(--color-text)]/85">
               Okudum ve anladım
