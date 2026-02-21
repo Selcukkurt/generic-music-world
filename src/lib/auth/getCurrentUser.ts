@@ -14,10 +14,21 @@ export type CurrentUser = {
 
 /**
  * Single source of truth for current user.
- * Mocked role resolution – replace with Supabase profiles metadata when ready.
+ * Seed users: SYSTEM_OWNER (selcuk), CEO (ceo@genericmusic.net).
+ * Replace with Supabase profiles metadata when ready.
  */
-function resolveRole(email: string): Role {
-  if (email === "selcuk@genericmusic.net") return "owner";
+function resolveRole(email: string, metadata?: Record<string, unknown>): Role {
+  const metaRole = metadata?.role as string | undefined;
+  if (metaRole === "system_owner" || metaRole === "SYSTEM_OWNER") return "system_owner";
+  if (metaRole === "ceo" || metaRole === "CEO") return "ceo";
+
+  if (email === "selcuk@genericmusic.net") return "system_owner";
+  if (email === "ceo@genericmusic.net") return "ceo";
+
+  if (metaRole === "admin") return "admin";
+  if (metaRole === "staff") return "staff";
+  if (metaRole === "viewer") return "viewer";
+
   return "viewer";
 }
 
@@ -40,7 +51,7 @@ export function mapAuthUserToCurrentUser(user: User): CurrentUser {
     email,
     fullName,
     title,
-    role: resolveRole(email),
+    role: resolveRole(email, metadata),
   };
 }
 

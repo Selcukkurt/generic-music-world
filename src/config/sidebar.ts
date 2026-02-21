@@ -1,5 +1,20 @@
 import type { Action, Resource } from "@/lib/rbac/types";
 
+/** System sidebar items – visible ONLY to SYSTEM_OWNER. */
+export type SystemSidebarNavItem = {
+  href: string;
+  labelKey: string;
+  iconType: SidebarIconType;
+};
+
+export const systemItems: SystemSidebarNavItem[] = [
+  { href: "/system/rbac", labelKey: "shell_system_rbac", iconType: "users" },
+  { href: "/system/settings", labelKey: "shell_system_settings", iconType: "settings" },
+  { href: "/system/release", labelKey: "shell_system_release", iconType: "activity" },
+  { href: "/system/security", labelKey: "shell_system_security", iconType: "check-circle" },
+  { href: "/system/migration", labelKey: "shell_system_migration", iconType: "file-text" },
+];
+
 export type SidebarIconType =
   | "home"
   | "atom"
@@ -22,6 +37,8 @@ export type SidebarNavItem = {
   /** RBAC: required permission to show item. If omitted, item is always shown. */
   resource?: Resource;
   action?: Action;
+  /** If true, item visible ONLY to SYSTEM_OWNER. CEO must not see. */
+  systemOnly?: boolean;
 };
 
 /** GENEL / Core System items. */

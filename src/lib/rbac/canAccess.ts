@@ -1,15 +1,23 @@
 /**
  * RBAC permission matrix.
- * owner: all
- * admin: view/manage most (except personnel manage for future granularity)
- * staff: view modules, no personnel manage
- * viewer: view-only limited (dashboard, profile, modules view)
+ * SYSTEM_OWNER: ALL SYSTEM_* + ALL BUSINESS_* (full access).
+ * CEO: ONLY BUSINESS_* (no system permissions).
+ * admin/staff/viewer: business-only, granular.
  */
 
-import type { Action, Resource, Role } from "./types";
+import type { Action, Resource, Role, SystemResource } from "./types";
 
-const MATRIX: Partial<Record<Role, Partial<Record<Resource, Action[]>>>> = {
-  owner: {
+/** Business resource matrix – CEO and below. */
+const BUSINESS_MATRIX: Partial<Record<Role, Partial<Record<Resource, Action[]>>>> = {
+  system_owner: {
+    dashboard: ["view", "manage"],
+    modules: ["view", "manage"],
+    personnel: ["view", "manage"],
+    profile: ["view", "manage"],
+    settings: ["view", "manage"],
+    notifications: ["view", "manage"],
+  },
+  ceo: {
     dashboard: ["view", "manage"],
     modules: ["view", "manage"],
     personnel: ["view", "manage"],
@@ -48,7 +56,27 @@ export function canAccess(
   resource: Resource,
   action: Action
 ): boolean {
-  const allowed = MATRIX[role]?.[resource];
+  const allowed = BUSINESS_MATRIX[role]?.[resource];
   if (!allowed) return false;
   return allowed.includes(action);
+}
+
+/** Check if role can access any SYSTEM_* resource. CEO returns false. */
+export function canAccessSystem(role: Role | null): boolean {
+  return role === "system_owner";
+}
+
+/** Check if role can access a specific system resource. */
+export function canAccessSystemResource(
+  role: Role | null,
+  _resource: SystemResource
+): boolean {
+  void _resource; // Reserved for future per-resource checks
+  return role === "system_owner";
+}
+
+/** Check if role can access business resources (dashboard, modules, etc.). */
+export function canAccessBusiness(role: Role | null): boolean {
+  if (!role) return false;
+  return ["system_owner", "ceo", "admin", "staff", "viewer"].includes(role);
 }

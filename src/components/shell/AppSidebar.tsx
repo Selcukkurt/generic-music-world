@@ -8,15 +8,18 @@ import { usePathname } from "next/navigation";
 import {
   coreItems,
   personalItems,
+  systemItems,
   type SidebarNavItem,
   type SidebarIconType,
+  type SystemSidebarNavItem,
 } from "@/config/sidebar";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useShellUI } from "@/context/ShellUIContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { canAccess } from "@/lib/rbac/canAccess";
+import { canAccess, canAccessSystem } from "@/lib/rbac/canAccess";
+import type { Role } from "@/lib/rbac/types";
 
 /**
  * Strict active check: only one sidebar item can be active.
@@ -234,7 +237,7 @@ function SidebarSection({
   t,
 }: {
   titleKey: string;
-  items: SidebarNavItem[];
+  items: (SidebarNavItem | SystemSidebarNavItem)[];
   collapsed: boolean;
   isActive: (href: string) => boolean;
   onClose: () => void;
@@ -273,10 +276,11 @@ function SidebarSection({
 
 function filterByAccess(
   items: SidebarNavItem[],
-  role: "owner" | "admin" | "staff" | "viewer" | null
+  role: Role | null
 ): SidebarNavItem[] {
   if (!role) return items;
   return items.filter((item) => {
+    if ("systemOnly" in item && item.systemOnly) return canAccessSystem(role);
     if (item.resource == null || item.action == null) return true;
     return canAccess(role, item.resource, item.action);
   });
@@ -295,6 +299,7 @@ export default function AppSidebar({
   const role = user?.role ?? null;
   const filteredCoreItems = filterByAccess(coreItems, role);
   const filteredPersonalItems = filterByAccess(personalItems, role);
+  const showSystemSection = canAccessSystem(role);
 
   useEffect(() => {
     if (DEBUG_SIDEBAR_TOOLTIP) {
@@ -359,6 +364,19 @@ export default function AppSidebar({
               onClose={closeSidebar}
               t={t}
             />
+            {showSystemSection && (
+              <>
+                <div className="border-t border-[var(--color-border)]" />
+                <SidebarSection
+                  titleKey="shell_system"
+                  items={systemItems}
+                  collapsed={collapsed}
+                  isActive={isActive}
+                  onClose={closeSidebar}
+                  t={t}
+                />
+              </>
+            )}
             <div className="border-t border-[var(--color-border)]" />
             <SidebarSection
               titleKey="shell_personal"
