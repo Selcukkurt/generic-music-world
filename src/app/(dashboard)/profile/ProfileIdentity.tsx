@@ -20,7 +20,7 @@ export default function ProfileIdentity() {
 
   useEffect(() => {
     if (!user?.id) {
-      setAcceptance(user === null ? null : undefined);
+      queueMicrotask(() => setAcceptance(user === null ? null : undefined));
       return;
     }
     getGmDnaAcceptance(user.id)

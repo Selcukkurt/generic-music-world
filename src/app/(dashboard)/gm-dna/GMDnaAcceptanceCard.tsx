@@ -23,7 +23,7 @@ export default function GMDnaAcceptanceCard() {
       const data = await getGmDnaAcceptance(user.id);
       setAcceptance(data);
       setError(null);
-    } catch (e) {
+    } catch {
       setError("Onay durumu yüklenemedi.");
       setAcceptance(null);
     }
@@ -41,7 +41,7 @@ export default function GMDnaAcceptanceCard() {
     try {
       const data = await saveGmDnaAcceptance(user.id);
       setAcceptance(data);
-    } catch (e) {
+    } catch {
       setError("Onay kaydedilemedi. Lütfen tekrar deneyin.");
     } finally {
       setSaving(false);
@@ -56,6 +56,7 @@ export default function GMDnaAcceptanceCard() {
       <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5 shadow-sm backdrop-blur-sm sm:p-6">
         <h2 className="mb-3 text-lg font-medium">GM DNA Onayı</h2>
         <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element -- animated GIF loader */}
           <img src="/brand-loader.gif" alt="" className="h-5 w-5" />
           <span className="text-[15px] text-[var(--color-text)]/70">Yükleniyor...</span>
         </div>

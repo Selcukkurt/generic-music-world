@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import RequireAccess from "@/components/auth/RequireAccess";
 import PageHeader from "@/components/shell/PageHeader";
-import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
   title: "Personel Yönetimi",
