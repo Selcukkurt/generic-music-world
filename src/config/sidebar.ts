@@ -35,7 +35,7 @@ export const coreItems: SidebarNavItem[] = [
     action: "view",
   },
   {
-    href: "/m01",
+    href: "/gm-dna",
     labelKey: "shell_core_item_2",
     icon: "core",
     iconType: "atom",
