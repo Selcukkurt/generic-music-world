@@ -1,4 +1,4 @@
-import type { Role, Permission, UserAssignment, ModuleKey, RoleLevel } from "./types";
+import type { Role, Permission, UserAssignment, ModuleKey } from "./types";
 import { MODULE_KEYS, MODULE_LABELS } from "./types";
 
 const STORAGE_KEY = "gmw_role_management";

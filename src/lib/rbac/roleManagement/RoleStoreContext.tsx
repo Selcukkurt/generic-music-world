@@ -42,7 +42,8 @@ export function RoleStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<StoreState>(getDefaultState);
 
   useEffect(() => {
-    setState(loadState());
+    const loaded = loadState();
+    queueMicrotask(() => setState(loaded));
   }, []);
 
   useEffect(() => {

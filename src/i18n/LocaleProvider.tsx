@@ -32,7 +32,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("tr");
 
   useEffect(() => {
-    setLocaleState(getLocale());
+    const stored = getLocale();
+    queueMicrotask(() => setLocaleState(stored));
   }, []);
 
   useEffect(() => {

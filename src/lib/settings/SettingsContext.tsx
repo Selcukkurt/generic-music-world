@@ -48,9 +48,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loaded = loadSettings();
-    setSettings(loaded);
-    setInitialSettings(loaded);
-    setIsLoading(false);
+    queueMicrotask(() => {
+      setSettings(loaded);
+      setInitialSettings(loaded);
+      setIsLoading(false);
+    });
   }, []);
 
   const isDirty = useMemo(

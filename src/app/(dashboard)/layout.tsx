@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -53,9 +54,11 @@ export default function DashboardLayout({
   if (isChecking) {
     return (
       <div className="ui-page flex min-h-[100dvh] items-center justify-center">
-        <img
+        <Image
           src="/brand-loader.gif"
           alt={t("common_loading")}
+          width={64}
+          height={64}
           className="h-16 w-16"
         />
       </div>

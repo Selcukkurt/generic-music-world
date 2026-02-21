@@ -20,7 +20,6 @@ function RbacPageContent() {
     updateRole,
     deleteRole,
     assignUserToRole,
-    getUserCount,
   } = useRoleStore();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -103,6 +102,7 @@ function RbacPageContent() {
       <PermissionMatrix />
 
       <RoleFormModal
+        key={createModalOpen ? "create-open" : "create-closed"}
         isOpen={createModalOpen}
         onClose={() => {
           setCreateModalOpen(false);
@@ -112,6 +112,7 @@ function RbacPageContent() {
         error={formError}
       />
       <RoleFormModal
+        key={editModalOpen ? (editRole?.id ?? "edit-new") : "edit-closed"}
         isOpen={editModalOpen}
         onClose={() => {
           setEditModalOpen(false);

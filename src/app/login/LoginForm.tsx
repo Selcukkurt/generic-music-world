@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -180,11 +181,13 @@ export default function LoginForm() {
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="relative h-5 w-5">
-            <img
-              src="/brand-loader.gif"
-              alt={t("common_loading")}
-              className="h-5 w-5"
-            />
+              <Image
+                src="/brand-loader.gif"
+                alt={t("common_loading")}
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
             </span>
           {t("login_loading")}
           </span>

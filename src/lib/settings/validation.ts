@@ -1,4 +1,4 @@
-import type { SystemSettings, MailSettings, SecuritySettings } from "./types";
+import type { SystemSettings } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

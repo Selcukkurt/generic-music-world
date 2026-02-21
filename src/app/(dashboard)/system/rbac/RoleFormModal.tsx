@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Role, RoleLevel } from "@/lib/rbac/roleManagement/types";
 import { LEVEL_LABELS } from "@/lib/rbac/roleManagement/types";
 
@@ -21,17 +21,9 @@ export default function RoleFormModal({
   initialRole,
   error,
 }: RoleFormModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [level, setLevel] = useState<RoleLevel>(3);
-
-  useEffect(() => {
-    if (isOpen) {
-      setName(initialRole?.name ?? "");
-      setDescription(initialRole?.description ?? "");
-      setLevel(initialRole?.level ?? 3);
-    }
-  }, [isOpen, initialRole]);
+  const [name, setName] = useState(() => initialRole?.name ?? "");
+  const [description, setDescription] = useState(() => initialRole?.description ?? "");
+  const [level, setLevel] = useState<RoleLevel>(() => initialRole?.level ?? 3);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
