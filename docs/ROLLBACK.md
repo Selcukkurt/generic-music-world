@@ -7,6 +7,7 @@
 | RB-006 | — | Sidebar UX + Active route fix + Login stabilization |
 | RB-007 | — | GM DNA Okudum & Anladım acceptance + Kurumsal Onaylar |
 | **RB-008** | — | Supabase profiles + Seed users setup (PROFILES-v1) |
+| **RB-004-version-management** | — | Version Management (Sürüm Yönetimi) – production-ready |
 | **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
 
 ## GMW-RBAC-v1.0: Role Management Module
@@ -75,3 +76,25 @@
 
 ### Rollback
 `git checkout tags/RB-007` (or prior tag)
+
+---
+
+## RB-004: Version Management (Sürüm Yönetimi)
+
+**RB ID:** RB-004  
+**Date:** 2026-02-21  
+**Module:** Version Management (Sürüm Yönetimi)  
+**Tag:** RB-004-version-management  
+
+**What changed:**
+- DB tables: `releases`, `deployments`, `rollbacks`, `audit_log` (insert policy)
+- RLS policies for authenticated users on these tables
+- UI tabs: Genel Bakış / Release'ler / Deploy Geçmişi / Rollback
+- API routes: `/api/version/overview`, `/api/version/releases`, `/api/version/deployments`, `/api/version/rollbacks`
+- Auth: anon key + user token (no service role required for version endpoints)
+
+**Status:** Production'a alındı  
+
+**Next step:** Add test data + simulate flows  
+
+**Rollback:** `git checkout tags/RB-008` (or prior tag). Tables remain; drop manually if needed.

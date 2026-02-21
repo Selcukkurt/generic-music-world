@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   mapAuthUserToCurrentUser,
   type CurrentUser,
-} from "@/lib/auth/getCurrentUser";
+} from "@/lib/auth/mapAuthUser";
 
 export function useCurrentUser(): {
   user: CurrentUser | null;
