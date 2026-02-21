@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   mapAuthUserToCurrentUser,
@@ -15,7 +16,7 @@ export function useCurrentUser(): {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const applySession = (session: { user: { id: string } } | null) => {
+    const applySession = (session: Session | null) => {
       if (session?.user) {
         setUser(mapAuthUserToCurrentUser(session.user));
       } else {
