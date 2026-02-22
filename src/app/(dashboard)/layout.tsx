@@ -67,7 +67,7 @@ export default function DashboardLayout({
 
   return (
     <ShellUIProvider>
-      <div className="ui-page flex min-h-screen min-h-[100dvh] flex-col overflow-x-hidden">
+      <div className="ui-page flex min-h-screen min-h-[100dvh] flex-col overflow-x-visible">
         <GlobalHeader
           showMenuButton
           menuLabel={t("header_menu")}
