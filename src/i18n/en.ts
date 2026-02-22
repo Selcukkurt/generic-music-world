@@ -64,6 +64,7 @@ export const en = {
   shell_personal_item_3: "Calendar & Planning",
   shell_personal_item_4: "Task Center",
   shell_personal_item_5: "Staff Directory",
+  shell_personal_item_5b: "Personnel Settings",
   shell_personal_item_6: "Chat",
   shell_personal_item_7: "Settings",
   shell_context_module_label: "MODULE",

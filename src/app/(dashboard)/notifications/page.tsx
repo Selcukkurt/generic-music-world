@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import PageSlot from "@/components/shell/PageSlot";
+import NotificationsClient from "./NotificationsClient";
 import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
@@ -8,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function NotificationsPage() {
-  return (
-    <PageSlot
-      title={tr.shell_page_title}
-      subtitle={tr.shell_page_subtitle}
-    />
-  );
+  return <NotificationsClient />;
 }

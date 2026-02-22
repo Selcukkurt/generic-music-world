@@ -15,6 +15,7 @@ function parseRole(value: unknown): Role | null {
   if (lower === "system_owner" || lower === "system owner") return "system_owner";
   if (lower === "ceo") return "ceo";
   if (lower === "admin") return "admin";
+  if (lower === "lead") return "lead";
   if (lower === "staff") return "staff";
   if (lower === "viewer") return "viewer";
   return null;

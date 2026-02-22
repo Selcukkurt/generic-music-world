@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import ChatClient from "./ChatClient";
 import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
@@ -7,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ChatPage() {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{tr.shell_personal_item_6}</h1>
-      <p className="ui-text-muted">Chat placeholder</p>
-    </div>
-  );
+  return <ChatClient />;
 }

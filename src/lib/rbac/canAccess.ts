@@ -33,6 +33,14 @@ const BUSINESS_MATRIX: Partial<Record<Role, Partial<Record<Resource, Action[]>>>
     settings: ["view", "manage"],
     notifications: ["view", "manage"],
   },
+  lead: {
+    dashboard: ["view"],
+    modules: ["view"],
+    personnel: ["view", "manage"],
+    profile: ["view", "manage"],
+    settings: ["view"],
+    notifications: ["view"],
+  },
   staff: {
     dashboard: ["view"],
     modules: ["view"],
@@ -78,5 +86,5 @@ export function canAccessSystemResource(
 /** Check if role can access business resources (dashboard, modules, etc.). */
 export function canAccessBusiness(role: Role | null): boolean {
   if (!role) return false;
-  return ["system_owner", "ceo", "admin", "staff", "viewer"].includes(role);
+  return ["system_owner", "ceo", "admin", "lead", "staff", "viewer"].includes(role);
 }

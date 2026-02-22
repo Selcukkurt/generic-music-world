@@ -1,15 +1,12 @@
-"use client";
+import type { Metadata } from "next";
 
-import { EmptyState } from "@/components/ui/EmptyState";
-import { useI18n } from "@/i18n/LocaleProvider";
+import CalendarClient from "./CalendarClient";
+import { tr } from "@/i18n/tr";
+
+export const metadata: Metadata = {
+  title: tr.shell_personal_item_3,
+};
 
 export default function CalendarPage() {
-  const { t } = useI18n();
-
-  return (
-    <EmptyState
-      title={t("placeholder_calendar_title")}
-      description={t("placeholder_calendar_description")}
-    />
-  );
+  return <CalendarClient />;
 }

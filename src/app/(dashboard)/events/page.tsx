@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import PlaceholderPageClient from "../PlaceholderPageClient";
+import TasksClient from "./TasksClient";
 import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
@@ -8,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function EventsPage() {
-  return (
-    <PlaceholderPageClient
-      titleKey="page_events_title"
-      descriptionKey="page_events_description"
-    />
-  );
+  return <TasksClient />;
 }
