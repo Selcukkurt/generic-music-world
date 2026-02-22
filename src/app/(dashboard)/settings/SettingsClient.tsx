@@ -34,10 +34,10 @@ export default function SettingsClient() {
   });
 
   useEffect(() => {
-    if (tabParam && TABS.some((t) => t.id === tabParam) && tabParam !== activeTab) {
-      setActiveTab(tabParam);
+    if (tabParam && TABS.some((t) => t.id === tabParam)) {
+      queueMicrotask(() => setActiveTab(tabParam));
     }
-  }, [tabParam, activeTab]);
+  }, [tabParam]);
 
   const handleTabChange = useCallback(
     (id: TabId) => {
