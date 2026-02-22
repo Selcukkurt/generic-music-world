@@ -20,10 +20,10 @@ import type {
 import {
   loadSettings,
   saveSettings,
-  appendAuditLog,
   getChangedFields,
   DEFAULT_SETTINGS,
 } from "./store";
+import { fetchSettings, updateSettings } from "./api";
 
 type SettingsContextValue = {
   settings: SystemSettings;
@@ -34,7 +34,7 @@ type SettingsContextValue = {
   setModules: (m: Partial<ModulesSettings>) => void;
   setMail: (m: Partial<MailSettings>) => void;
   setSecurity: (s: Partial<SecuritySettings>) => void;
-  save: (actorUserId?: string, actorRole?: string) => void;
+  save: () => void;
   reset: () => void;
   resetToDefaults: () => void;
 };
@@ -47,12 +47,31 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loaded = loadSettings();
-    queueMicrotask(() => {
-      setSettings(loaded);
-      setInitialSettings(loaded);
-      setIsLoading(false);
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const fromApi = await fetchSettings();
+        const loaded =
+          fromApi && typeof fromApi === "object"
+            ? { ...DEFAULT_SETTINGS, ...fromApi }
+            : loadSettings();
+        if (!cancelled) {
+          setSettings(loaded);
+          setInitialSettings(loaded);
+        }
+      } catch {
+        const loaded = loadSettings();
+        if (!cancelled) {
+          setSettings(loaded);
+          setInitialSettings(loaded);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isDirty = useMemo(
@@ -95,20 +114,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const save = useCallback(
-    (actorUserId = "system", actorRole = "system_owner") => {
+  const save = useCallback(async () => {
       const changed = getChangedFields(initialSettings, settings);
+      await updateSettings(settings, changed);
       saveSettings(settings);
       setInitialSettings(settings);
-      if (changed.length > 0) {
-        appendAuditLog({
-          actorUserId,
-          actorRole,
-          action: "SYSTEM_SETTINGS_UPDATED",
-          changedFields: changed,
-          timestamp: new Date().toISOString(),
-        });
-      }
     },
     [settings, initialSettings]
   );

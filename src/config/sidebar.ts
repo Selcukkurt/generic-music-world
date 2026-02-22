@@ -74,6 +74,7 @@ export const coreItems: SidebarNavItem[] = [
     iconType: "file-text",
     resource: "dashboard",
     action: "view",
+    systemOnly: true,
   },
   {
     href: "/notifications",

@@ -5,7 +5,6 @@ import PageHeader from "@/components/shell/PageHeader";
 import { SettingsProvider, useSettings } from "@/lib/settings/SettingsContext";
 import { validateSettings } from "@/lib/settings/validation";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import GenelTab from "./GenelTab";
 import ParametrelerTab from "./ParametrelerTab";
 import ModullerTab from "./ModullerTab";
@@ -24,20 +23,27 @@ function SettingsContent() {
   const { settings, isLoading, isDirty, save, reset, resetToDefaults } =
     useSettings();
   const toast = useToast();
-  const { user } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]["id"]>("genel");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const handleSave = useCallback(() => {
+  const [saving, setSaving] = useState(false);
+  const handleSave = useCallback(async () => {
     const { valid, errors } = validateSettings(settings);
     setValidationErrors(errors);
     if (!valid) {
       toast.error("Doğrulama hatası", Object.values(errors)[0] ?? "Lütfen alanları kontrol edin.");
       return;
     }
-    save(user?.id ?? "system", user?.role ?? "system_owner");
-    toast.success("Ayarlar kaydedildi.");
-  }, [settings, save, user, toast]);
+    setSaving(true);
+    try {
+      await save();
+      toast.success("Ayarlar kaydedildi.");
+    } catch (err) {
+      toast.error("Kaydetme hatası", err instanceof Error ? err.message : "Ayarlar kaydedilemedi.");
+    } finally {
+      setSaving(false);
+    }
+  }, [settings, save, toast]);
 
   const handleReset = useCallback(() => {
     reset();
@@ -119,10 +125,10 @@ function SettingsContent() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={!isDirty}
+              disabled={!isDirty || saving}
               className="ui-button-primary rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Kaydet
+              {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>
             <button
               type="button"

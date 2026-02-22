@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapAuthUserToCurrentUser } from "@/lib/auth/mapAuthUser";
 
-export type ApiUser = { id: string; role: string; accessToken: string };
+export type ApiUser = { id: string; email?: string; role: string; accessToken: string };
 
 /** Return 401 JSON (no throw). */
 function unauthorized(message = "Unauthorized") {
@@ -42,7 +42,7 @@ export async function getApiUser(
 
     const currentUser = mapAuthUserToCurrentUser(authUser, profile?.role);
     return {
-      user: { id: currentUser.id, role: currentUser.role, accessToken: token },
+      user: { id: currentUser.id, email: currentUser.email, role: currentUser.role, accessToken: token },
       error: null,
     };
   } catch (err) {

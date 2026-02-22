@@ -98,3 +98,24 @@
 **Next step:** Add test data + simulate flows  
 
 **Rollback:** `git checkout tags/RB-008` (or prior tag). Tables remain; drop manually if needed.
+
+---
+
+## RB-013: Audit Logs (Log Kayıtları)
+
+**RB ID:** RB-013  
+**Date:** 2026-02-22  
+**Module:** Log Kayıtları (/audit-log)  
+**Tag:** RB-013-audit-logs  
+
+**What changed:**
+- Added `public.audit_logs` table + indexes (meta, target_type, target_id, ip, user_agent)
+- API `/api/audit-logs` with filters, pagination, service-role fetch
+- Wired `/audit-log` UI to Supabase (filters, table, details drawer, empty/error states)
+- Fixed column mismatches: target_entity→target_type, metadata→meta, request_ip→ip, request_user_agent→user_agent
+- PUT `/api/settings` persists to Supabase + inserts audit_logs on System Settings update
+- Veri Taşıma page (5 tabs), Log Kayıtları sidebar (systemOnly)
+
+**Status:** Local OK  
+
+**Rollback:** `git checkout tags/RB-013-audit-logs` (or prior tag)
