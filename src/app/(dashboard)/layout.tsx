@@ -23,9 +23,27 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
   const activeModule = getModuleForPath(pathname);
-  const isM01 = activeModule?.id === "m01";
+  const isInModule = !!activeModule;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModuleMenuCollapsed, setIsModuleMenuCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("gmw_module_menu_collapsed");
+      if (stored === "true") setIsModuleMenuCollapsed(true);
+      else if (stored === "false") setIsModuleMenuCollapsed(false);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("gmw_module_menu_collapsed", String(isModuleMenuCollapsed));
+    } catch {
+      /* ignore */
+    }
+  }, [isModuleMenuCollapsed]);
   const { t } = useI18n();
 
   const effectiveSidebarCollapsed = activeModule ? true : isSidebarCollapsed;
@@ -71,7 +89,7 @@ export default function DashboardLayout({
         <GlobalHeader
           showMenuButton
           menuLabel={t("header_menu")}
-          showModuleMenuButton={isM01}
+          showModuleMenuButton={isInModule}
         />
 
         <div className="flex min-h-0 flex-1">
@@ -82,14 +100,15 @@ export default function DashboardLayout({
           <div
             className={`flex min-h-0 flex-1 flex-col px-4 py-6 transition-[margin] duration-200 sm:px-6 lg:px-8 ${
               effectiveSidebarCollapsed ? "lg:ml-14" : "lg:ml-56"
-            } ${isM01 ? (isModuleMenuCollapsed ? "lg:mr-14" : "lg:mr-80") : ""}`}
+            } ${isInModule ? (isModuleMenuCollapsed ? "lg:mr-14" : "lg:mr-80") : ""}`}
           >
             <ContentArea className="min-h-0 flex-1 ui-fade-slide ui-section">
               {children}
             </ContentArea>
           </div>
-          {isM01 ? (
+          {activeModule ? (
             <ModuleRightPanel
+              moduleId={activeModule.id}
               collapsed={isModuleMenuCollapsed}
               onToggleCollapse={() => setIsModuleMenuCollapsed((prev) => !prev)}
             />

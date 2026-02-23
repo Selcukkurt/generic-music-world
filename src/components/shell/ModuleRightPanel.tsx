@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { contextPanelItems } from "@/config/sidebar";
+import { getModuleSubnavConfig } from "@/config/module-subnav";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -25,12 +25,16 @@ const IconChevron = ({ className }: { className?: string }) => (
 );
 
 type ModuleRightPanelProps = {
+  moduleId: string;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 };
 
-/** Right context slot. Hidden on /dashboard, visible on /m01* routes. On mobile: slide-in overlay. */
+const STORAGE_KEY = "gmw_module_menu_collapsed";
+
+/** Right context slot. Visible on /m0x/* routes. On mobile: slide-in overlay. */
 export default function ModuleRightPanel({
+  moduleId,
   collapsed = false,
   onToggleCollapse,
 }: ModuleRightPanelProps) {
@@ -38,6 +42,8 @@ export default function ModuleRightPanel({
   const { t } = useI18n();
   const { modulePanelOpen, closeModulePanel } = useShellUI();
   const panelRef = useRef<HTMLElement>(null);
+  const config = getModuleSubnavConfig(moduleId);
+  const items = config?.items ?? [];
 
   useBodyScrollLock(modulePanelOpen);
   useFocusTrap(panelRef, modulePanelOpen);
@@ -65,6 +71,9 @@ export default function ModuleRightPanel({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [modulePanelOpen, closeModulePanel]);
 
+  const isActive = (item: { href: string }) =>
+    pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
+
   return (
     <>
       <button
@@ -85,86 +94,74 @@ export default function ModuleRightPanel({
         } ${modulePanelOpen ? "translate-x-0" : "-translate-x-full"} ${
           modulePanelOpen ? "flex" : "hidden"
         } lg:flex lg:translate-x-0`}
-      style={{ boxShadow: "-4px 0 24px rgba(0,0,0,0.15)" }}
-    >
-      <div className="flex flex-1 flex-col overflow-y-auto p-3">
-        {!collapsed && (
-          <>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider ui-text-muted">
-                {t("shell_context_module_label")}
-              </p>
-              <p className="mt-0.5 text-sm font-medium text-[var(--color-text)]">
-                {t("shell_context_module_title")}
-              </p>
-            </div>
-            <nav className="mt-4 space-y-0.5">
-              {contextPanelItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/m01" && pathname?.startsWith(`${item.href}/`));
-                return (
+        style={{ boxShadow: "-4px 0 24px rgba(0,0,0,0.15)" }}
+      >
+        <div className="flex flex-1 flex-col overflow-y-auto p-3">
+          {!collapsed && (
+            <>
+              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider ui-text-muted">
+                  {t("shell_context_module_label")}
+                </p>
+                <p className="mt-0.5 text-sm font-medium text-[var(--color-text)]">
+                  {config?.titleKey ? t(config.titleKey) : t("shell_context_module_title")}
+                </p>
+              </div>
+              <nav className="mt-4 space-y-0.5">
+                {items.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={`block rounded-lg px-3 py-2 text-sm transition ${
-                      isActive
+                      isActive(item)
                         ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
                         : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >
                     {t(item.labelKey)}
                   </Link>
-                );
-              })}
-            </nav>
-          </>
-        )}
-        {collapsed && (
-          <nav className="flex flex-col items-center gap-1">
-            {contextPanelItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/m01" && pathname?.startsWith(`${item.href}/`));
-              return (
+                ))}
+              </nav>
+            </>
+          )}
+          {collapsed && (
+            <nav className="flex flex-col items-center gap-1">
+              {items.map((item, idx) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   title={t(item.labelKey)}
                   className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition ${
-                    isActive
+                    isActive(item)
                       ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
                       : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
                   }`}
                 >
-                  <span className="text-xs font-medium">
-                    {contextPanelItems.indexOf(item) + 1}
-                  </span>
+                  <span className="text-xs font-medium">{idx + 1}</span>
                 </Link>
-              );
-            })}
-          </nav>
-        )}
-      </div>
-      <div className="shrink-0 border-t border-[var(--color-border)] p-2">
-        <button
-          type="button"
-          onClick={onToggleCollapse ?? (() => {})}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs ui-text-muted transition hover:bg-[var(--color-surface-hover)]"
-          aria-label={collapsed ? t("module_menu_expand") : t("module_menu_collapse")}
-          title={collapsed ? t("module_menu_expand") : t("module_menu_collapse")}
-        >
-          <IconChevron
-            className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ease-out ${
-              collapsed ? "rotate-180" : ""
-            }`}
-          />
-          {!collapsed && (
-            <span className="opacity-80">{t("module_menu_collapse")}</span>
+              ))}
+            </nav>
           )}
-        </button>
-      </div>
-    </aside>
+        </div>
+        <div className="shrink-0 border-t border-[var(--color-border)] p-2">
+          <button
+            type="button"
+            onClick={onToggleCollapse ?? (() => {})}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs ui-text-muted transition hover:bg-[var(--color-surface-hover)]"
+            aria-label={collapsed ? t("module_menu_expand") : t("module_menu_collapse")}
+            title={collapsed ? t("module_menu_expand") : t("module_menu_collapse")}
+          >
+            <IconChevron
+              className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ease-out ${
+                collapsed ? "rotate-180" : ""
+              }`}
+            />
+            {!collapsed && (
+              <span className="opacity-80">{t("module_menu_collapse")}</span>
+            )}
+          </button>
+        </div>
+      </aside>
     </>
   );
 }

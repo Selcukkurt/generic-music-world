@@ -13,7 +13,8 @@ export type LogCategory =
   | "releases"
   | "security"
   | "import_export"
-  | "system";
+  | "system"
+  | "events";
 
 export type LogStatus = "success" | "failure";
 

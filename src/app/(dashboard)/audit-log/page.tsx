@@ -23,6 +23,7 @@ const CATEGORIES: { id: LogCategory; label: string }[] = [
   { id: "security", label: "Security" },
   { id: "import_export", label: "Import/Export" },
   { id: "system", label: "System" },
+  { id: "events", label: "Events" },
 ];
 
 const STATUSES: { id: LogStatus; label: string }[] = [

@@ -4,14 +4,14 @@ import PageSlot from "@/components/shell/PageSlot";
 import { tr } from "@/i18n/tr";
 
 export const metadata: Metadata = {
-  title: tr.m01_subnav_title,
+  title: `${tr.module_name_m02} - ${tr.sidebar_sub_settings}`,
 };
 
-export default function M01Page() {
+export default function M02SettingsPage() {
   return (
     <PageSlot
-      title={tr.m01_subnav_title}
-      subtitle={tr.m01_page_subtitle}
+      title={tr.sidebar_sub_settings}
+      subtitle={tr.module_summary_m02}
     />
   );
 }
