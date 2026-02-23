@@ -30,8 +30,10 @@ export default function DashboardLayout({
   useEffect(() => {
     try {
       const stored = localStorage.getItem("gmw_module_menu_collapsed");
-      if (stored === "true") setIsModuleMenuCollapsed(true);
-      else if (stored === "false") setIsModuleMenuCollapsed(false);
+      queueMicrotask(() => {
+        if (stored === "true") setIsModuleMenuCollapsed(true);
+        else if (stored === "false") setIsModuleMenuCollapsed(false);
+      });
     } catch {
       /* ignore */
     }
