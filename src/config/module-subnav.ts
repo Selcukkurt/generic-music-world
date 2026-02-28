@@ -38,8 +38,10 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
   m02: {
     titleKey: "module_name_m02",
     items: [
-      { href: "/m02", labelKey: "sidebar_sub_overview" },
+      { href: "/m02/overview", labelKey: "sidebar_sub_overview" },
       { href: "/m02/events", labelKey: "m02_events_title" },
+      { href: "/m02/pnl", labelKey: "m02_pnl_title" },
+      { href: "/m02/workflow", labelKey: "m02_workflow_title" },
       { href: "/m02/reports", labelKey: "sidebar_sub_reports" },
       { href: "/m02/settings", labelKey: "sidebar_sub_settings" },
     ],

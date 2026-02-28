@@ -71,6 +71,40 @@ export async function updateEventStatus(
   return data as EtkinlikEvent;
 }
 
+export async function updateEvent(
+  eventId: string,
+  payload: {
+    name?: string;
+    date?: string;
+    end_date?: string | null;
+    venue?: string | null;
+    status?: string;
+    budget_planned?: number | null;
+  }
+): Promise<EtkinlikEvent> {
+  const row: Record<string, unknown> = {};
+  if (payload.name != null) row.name = payload.name;
+  if (payload.date != null) row.date = payload.date;
+  if (payload.venue != null) row.venue = payload.venue;
+  if (payload.status != null) row.status = payload.status;
+  if (payload.budget_planned != null || payload.end_date != null) {
+    row.metadata = {
+      ...(payload.budget_planned != null && { budget_planned: payload.budget_planned }),
+      ...(payload.end_date != null && { end_date: payload.end_date }),
+    };
+  }
+
+  const { data, error } = await supabaseBrowser
+    .from("etkinlik_events")
+    .update(row)
+    .eq("id", eventId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EtkinlikEvent;
+}
+
 export async function fetchEventRevenues(eventId: string): Promise<EventRevenue[]> {
   const { data, error } = await supabaseBrowser
     .from("event_revenues")
@@ -448,19 +482,29 @@ export async function linkTaskToEvent(taskId: string, eventId: string): Promise<
 export async function createEvent(payload: {
   name: string;
   date: string;
+  end_date?: string | null;
   venue?: string | null;
   description?: string | null;
+  status?: string;
+  budget_planned?: number | null;
   created_by?: string | null;
 }): Promise<EtkinlikEvent> {
+  const row: Record<string, unknown> = {
+    name: payload.name,
+    date: payload.date,
+    venue: payload.venue ?? null,
+    description: payload.description ?? null,
+    created_by: payload.created_by ?? null,
+    status: payload.status ?? "TASLAK",
+    metadata: {
+      ...(payload.end_date && { end_date: payload.end_date }),
+      ...(payload.budget_planned != null && { budget_planned: payload.budget_planned }),
+    },
+  };
+
   const { data, error } = await supabaseBrowser
     .from("etkinlik_events")
-    .insert({
-      name: payload.name,
-      date: payload.date,
-      venue: payload.venue ?? null,
-      description: payload.description ?? null,
-      created_by: payload.created_by ?? null,
-    })
+    .insert(row)
     .select()
     .single();
   if (error) throw error;
