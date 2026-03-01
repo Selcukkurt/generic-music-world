@@ -1,0 +1,355 @@
+/**
+ * GMW Pulse – module roadmap & progress tracking
+ * Mock data (v1.0)
+ */
+
+export type ModuleStatus = "planned" | "in_progress" | "done" | "blocked";
+export type ModulePriority = "low" | "medium" | "high" | "critical";
+export type ModuleHealth = "on_track" | "behind" | "overdue" | "blocked";
+
+export interface PulseModule {
+  id: string;
+  code: string;
+  name: string;
+  shortCode: string;
+  description: string;
+  status: ModuleStatus;
+  priority: ModulePriority;
+  risk: "none" | "low" | "medium" | "high" | "critical";
+  progress: number;
+  plan_start: string;
+  plan_end: string;
+  actual_start: string | null;
+  eta: string | null;
+  actual_end: string | null;
+  owner: string;
+  team: string;
+  watchers: string[];
+  dependencies: string[];
+  milestones: { id: string; title: string; done: boolean }[];
+  last_update: string;
+  notes: string;
+  links: { label: string; url: string }[];
+}
+
+const today = new Date();
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+export const PULSE_MODULES: PulseModule[] = [
+  {
+    id: "m01",
+    code: "M01",
+    name: "Katılımcı ve Bilet Operasyonları",
+    shortCode: "BiletOps",
+    description: "Bilet satış, katılımcı yönetimi",
+    status: "done",
+    priority: "high",
+    risk: "low",
+    progress: 100,
+    plan_start: "2025-01-01",
+    plan_end: "2025-06-30",
+    actual_start: "2025-01-15",
+    eta: null,
+    actual_end: "2025-06-20",
+    owner: "Ali Yılmaz",
+    team: "Bilet",
+    watchers: ["Ayşe K."],
+    dependencies: [],
+    milestones: [
+      { id: "m1", title: "Platform entegrasyonu", done: true },
+      { id: "m2", title: "Ödeme akışları", done: true },
+    ],
+    last_update: fmt(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    notes: "Tamamlandı.",
+    links: [{ label: "Docs", url: "#" }],
+  },
+  {
+    id: "m02",
+    code: "M02",
+    name: "Etkinlik Operasyonları",
+    shortCode: "EtkinlikOps",
+    description: "Etkinlik planlama, P&L, workflow",
+    status: "in_progress",
+    priority: "high",
+    risk: "medium",
+    progress: 45,
+    plan_start: "2025-03-01",
+    plan_end: "2025-09-30",
+    actual_start: "2025-03-10",
+    eta: "2025-10-15",
+    actual_end: null,
+    owner: "Mehmet Demir",
+    team: "Etkinlik",
+    watchers: ["Fatma S."],
+    dependencies: ["m01"],
+    milestones: [
+      { id: "m1", title: "P&L Workspace", done: true },
+      { id: "m2", title: "Workflow Tracker", done: true },
+      { id: "m3", title: "Event closure", done: false },
+    ],
+    last_update: fmt(today),
+    notes: "P&L ve Workflow tamamlandı.",
+    links: [{ label: "Figma", url: "#" }],
+  },
+  {
+    id: "m03",
+    code: "M03",
+    name: "Finans ve Muhasebe Operasyonları",
+    shortCode: "FinansOps",
+    description: "Muhasebe, raporlama",
+    status: "planned",
+    priority: "high",
+    risk: "high",
+    progress: 0,
+    plan_start: "2025-06-01",
+    plan_end: "2025-12-31",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Zeynep A.",
+    team: "Finans",
+    watchers: [],
+    dependencies: ["m01", "m02"],
+    milestones: [
+      { id: "m1", title: "Hesap planı", done: false },
+      { id: "m2", title: "Entegrasyon", done: false },
+    ],
+    last_update: fmt(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)),
+    notes: "Başlangıç Q2.",
+    links: [],
+  },
+  {
+    id: "m04",
+    code: "M04",
+    name: "İK ve Organizasyon Operasyonları",
+    shortCode: "PeopleOps",
+    description: "Personel, vardiya",
+    status: "planned",
+    priority: "medium",
+    risk: "low",
+    progress: 0,
+    plan_start: "2025-07-01",
+    plan_end: "2026-01-31",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Can Ö.",
+    team: "İK",
+    watchers: [],
+    dependencies: [],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m05",
+    code: "M05",
+    name: "Pazarlama ve İletişim Operasyonları",
+    shortCode: "MarketingOps",
+    description: "Kampanya, iletişim",
+    status: "planned",
+    priority: "medium",
+    risk: "low",
+    progress: 0,
+    plan_start: "2025-08-01",
+    plan_end: "2026-02-28",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Elif T.",
+    team: "Pazarlama",
+    watchers: [],
+    dependencies: ["m01"],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m06",
+    code: "M06",
+    name: "Kurumsal İlişkiler ve Sponsorluk",
+    shortCode: "CorporateOps",
+    description: "Sponsorluk, kurumsal",
+    status: "planned",
+    priority: "medium",
+    risk: "medium",
+    progress: 0,
+    plan_start: "2025-09-01",
+    plan_end: "2026-03-31",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Burak K.",
+    team: "Kurumsal",
+    watchers: [],
+    dependencies: [],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m07",
+    code: "M07",
+    name: "Kreatif Operasyonları",
+    shortCode: "KreatifOps",
+    description: "GMS – Kreatif",
+    status: "planned",
+    priority: "low",
+    risk: "low",
+    progress: 0,
+    plan_start: "2025-10-01",
+    plan_end: "2026-04-30",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Selin Y.",
+    team: "Kreatif",
+    watchers: [],
+    dependencies: ["m05"],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m08",
+    code: "M08",
+    name: "Dahili Biletleme Modülü",
+    shortCode: "InternalTicketing",
+    description: "Dahili bilet",
+    status: "blocked",
+    priority: "high",
+    risk: "critical",
+    progress: 20,
+    plan_start: "2025-05-01",
+    plan_end: "2025-08-31",
+    actual_start: "2025-05-15",
+    eta: null,
+    actual_end: null,
+    owner: "Deniz M.",
+    team: "Bilet",
+    watchers: ["Ali Y."],
+    dependencies: ["m01"],
+    milestones: [
+      { id: "m1", title: "API tasarımı", done: true },
+      { id: "m2", title: "Entegrasyon", done: false },
+    ],
+    last_update: fmt(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    notes: "M01 API gecikmesi.",
+    links: [],
+  },
+  {
+    id: "m09",
+    code: "M09",
+    name: "Veri ve Analiz Operasyonları",
+    shortCode: "BI-Ops",
+    description: "BI, raporlama",
+    status: "planned",
+    priority: "medium",
+    risk: "medium",
+    progress: 0,
+    plan_start: "2025-11-01",
+    plan_end: "2026-05-31",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Emre D.",
+    team: "Veri",
+    watchers: [],
+    dependencies: ["m01", "m02", "m03"],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 21 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m10",
+    code: "M10",
+    name: "Yönetim ve Strateji Operasyonları",
+    shortCode: "ManagementOps",
+    description: "Yönetim",
+    status: "planned",
+    priority: "low",
+    risk: "low",
+    progress: 0,
+    plan_start: "2026-01-01",
+    plan_end: "2026-06-30",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "CEO",
+    team: "Yönetim",
+    watchers: [],
+    dependencies: [],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m11",
+    code: "M11",
+    name: "Web Sitesi ve İçerik Yönetimi",
+    shortCode: "WebOps",
+    description: "Web, CMS",
+    status: "planned",
+    priority: "medium",
+    risk: "low",
+    progress: 0,
+    plan_start: "2025-12-01",
+    plan_end: "2026-06-30",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Kerem V.",
+    team: "Web",
+    watchers: [],
+    dependencies: ["m05"],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+  {
+    id: "m12",
+    code: "M12",
+    name: "Sanatçı ve Ajans Operasyonları",
+    shortCode: "GMA-Ops",
+    description: "GMA-Ops",
+    status: "planned",
+    priority: "medium",
+    risk: "medium",
+    progress: 0,
+    plan_start: "2026-02-01",
+    plan_end: "2026-08-31",
+    actual_start: null,
+    eta: null,
+    actual_end: null,
+    owner: "Leyla S.",
+    team: "Sanatçı",
+    watchers: [],
+    dependencies: ["m02"],
+    milestones: [],
+    last_update: fmt(new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000)),
+    notes: "",
+    links: [],
+  },
+];
+
+export type PulseModuleWithHealth = PulseModule & { health: ModuleHealth };
+
+export function computeHealth(m: PulseModule): ModuleHealth {
+  const todayStr = fmt(new Date());
+  if (m.status === "blocked") return "blocked";
+  if (m.status === "done") return "on_track";
+  if (todayStr > m.plan_end) return "overdue";
+  const planStart = new Date(m.plan_start).getTime();
+  const planEnd = new Date(m.plan_end).getTime();
+  const elapsed = (new Date().getTime() - planStart) / (planEnd - planStart);
+  const expectedProgress = Math.min(100, Math.max(0, elapsed * 100));
+  if (m.progress < expectedProgress - 10) return "behind";
+  return "on_track";
+}

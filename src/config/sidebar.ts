@@ -27,7 +27,8 @@ export type SidebarIconType =
   | "target"
   | "users"
   | "message-square"
-  | "settings";
+  | "settings"
+  | "trending-up";
 
 export type SidebarNavItem = {
   href: string;
@@ -64,6 +65,14 @@ export const coreItems: SidebarNavItem[] = [
     labelKey: "shell_core_item_3",
     icon: "core",
     iconType: "activity",
+    resource: "dashboard",
+    action: "view",
+  },
+  {
+    href: "/gmw-pulse",
+    labelKey: "shell_core_gmw_pulse",
+    icon: "core",
+    iconType: "trending-up",
     resource: "dashboard",
     action: "view",
   },

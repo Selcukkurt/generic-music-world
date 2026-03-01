@@ -4,9 +4,12 @@ import Link from "next/link";
 
 import { modulesM01ToM12, type ModuleStatus } from "@/config/modules";
 import { useI18n } from "@/i18n/LocaleProvider";
+import { useModulePlansStore, getEffectiveProgress } from "@/lib/module-plans";
+
+type DashboardStatus = ModuleStatus | "blocked";
 
 const STATUS_STYLES: Record<
-  ModuleStatus,
+  DashboardStatus,
   { dot: string; badge: string; bg: string }
 > = {
   active: {
@@ -24,11 +27,27 @@ const STATUS_STYLES: Record<
     badge: "text-zinc-400",
     bg: "bg-zinc-500/10",
   },
+  blocked: {
+    dot: "bg-red-500",
+    badge: "text-red-400",
+    bg: "bg-red-500/10",
+  },
 };
+
+function mapPlanStatusToDashboard(
+  planStatus: string | undefined
+): DashboardStatus {
+  if (!planStatus) return "planned";
+  if (planStatus === "done") return "active";
+  if (planStatus === "blocked") return "blocked";
+  if (planStatus === "in_progress") return "in_progress";
+  return "planned";
+}
 
 export default function DashboardHomeClient() {
   const { t } = useI18n();
   const userName = t("header_user_name");
+  const plansMap = useModulePlansStore((s) => s.plans);
 
   return (
     <div className="flex w-full flex-col overflow-visible">
@@ -63,13 +82,23 @@ export default function DashboardHomeClient() {
         </div>
         <div className="grid grid-cols-1 gap-4 overflow-visible px-4 md:px-6 md:grid-cols-2 xl:grid-cols-4">
           {modulesM01ToM12.map((module) => {
-            const styles = STATUS_STYLES[module.status];
+            const plan = plansMap?.[module.id];
+            const status = plan
+              ? mapPlanStatusToDashboard(plan.status)
+              : (module.status as DashboardStatus);
+            const progressInfo = plan ? getEffectiveProgress(plan) : { progress: module.progress, label: `%${module.progress}` };
+            const etaOrEnd = plan?.eta ?? plan?.plan_end ?? null;
+            const showWarning =
+              (plan?.status === "blocked" || plan?.risk_level === "high") ?? false;
+            const styles = STATUS_STYLES[status];
             const statusKey =
-              module.status === "active"
+              status === "active"
                 ? "module_status_active"
-                : module.status === "in_progress"
+                : status === "in_progress"
                   ? "module_status_in_progress"
-                  : "module_status_planned";
+                  : status === "blocked"
+                    ? "module_status_blocked"
+                    : "module_status_planned";
             return (
               <Link
                 key={module.id}
@@ -77,7 +106,7 @@ export default function DashboardHomeClient() {
                 className="group relative flex min-h-[220px] cursor-pointer flex-col rounded-2xl overflow-visible transition-all duration-300 hover:z-10 hover:ring-1 hover:ring-primary/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]"
               >
                 <div className="flex min-h-[220px] flex-col rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-b from-white/5 to-white/[0.02] p-6 backdrop-blur-sm">
-                  <div className="mb-4 flex justify-start">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${styles.bg} ${styles.badge}`}
                     >
@@ -87,6 +116,11 @@ export default function DashboardHomeClient() {
                       />
                       {t(statusKey)}
                     </span>
+                    {showWarning && (
+                      <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                        ⚠ Uyarı
+                      </span>
+                    )}
                   </div>
                   <h2 className="min-h-[56px] text-xl font-semibold leading-snug line-clamp-2 text-[var(--color-text)]">
                     {module.displayName}
@@ -96,8 +130,22 @@ export default function DashboardHomeClient() {
                       {t(module.summaryKey)}
                     </p>
                   </div>
-                  <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full bg-[var(--color-primary)]"
+                        style={{ width: `${progressInfo.progress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium">{progressInfo.label}</span>
+                  </div>
+                  <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
                     {module.shortCode}
+                    {etaOrEnd && (
+                      <span className="ml-1 normal-case text-[var(--color-text-muted)]">
+                        · ETA {etaOrEnd}
+                      </span>
+                    )}
                   </p>
                 </div>
               </Link>
