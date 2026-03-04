@@ -39,7 +39,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Database Migrations (RBAC)
 
-To apply the RBAC migration (`supabase/migrations/20260233000000_rbac_v1.sql`):
+To apply RBAC migrations (`20260233000000_rbac_v1.sql`, `20260234000000_event_scoped_rbac.sql`):
 
 **Option A – Direct connection (recommended):**
 
