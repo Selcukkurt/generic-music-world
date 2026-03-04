@@ -3,16 +3,16 @@ import { notFound } from "next/navigation";
 import { modules } from "@/config/modules";
 import ModuleRootClient from "../ModuleRootClient";
 
-export default function ModuleRootPage({
+export default async function ModuleRootPage({
   params,
 }: {
-  params: { module: string };
+  params: Promise<{ module?: string }>;
 }) {
-  const activeModule = modules.find((item) => item.id === params.module);
+  const { module: moduleId } = await params;
+  if (!moduleId) notFound();
 
-  if (!activeModule) {
-    notFound();
-  }
+  const activeModule = (modules ?? []).find((item) => item.id === moduleId);
+  if (!activeModule) notFound();
 
   return (
     <ModuleRootClient

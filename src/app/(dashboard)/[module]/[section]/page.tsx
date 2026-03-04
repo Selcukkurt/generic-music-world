@@ -3,24 +3,21 @@ import { notFound } from "next/navigation";
 import { modules } from "@/config/modules";
 import ModuleSectionClient from "../../ModuleSectionClient";
 
-export default function ModuleSectionPage({
+export default async function ModuleSectionPage({
   params,
 }: {
-  params: { module: string; section: string };
+  params: Promise<{ module?: string; section?: string }>;
 }) {
-  const activeModule = modules.find((item) => item.id === params.module);
+  const { module: moduleId, section: sectionId } = await params;
+  if (!moduleId || !sectionId) notFound();
 
-  if (!activeModule) {
-    notFound();
-  }
+  const activeModule = (modules ?? []).find((item) => item.id === moduleId);
+  if (!activeModule) notFound();
 
   const section = activeModule.menuItems.find(
-    (item) => item.href === `/${activeModule.id}/${params.section}`
+    (item) => item.href === `/${activeModule.id}/${sectionId}`
   );
-
-  if (!section) {
-    notFound();
-  }
+  if (!section) notFound();
 
   return (
     <ModuleSectionClient
