@@ -14,14 +14,24 @@
 
 import { config } from "dotenv";
 import { resolve } from "path";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { Client } from "pg";
 
 const root = resolve(process.cwd());
+const envLocal = resolve(root, ".env.local");
 
-// Load .env and .env.local (dotenv handles quoted values and special chars reliably)
+// Load .env and .env.local (dotenv handles quoted values and special chars)
 config({ path: resolve(root, ".env") });
-config({ path: resolve(root, ".env.local"), override: true });
+config({ path: envLocal, override: true });
+
+// Fallback: if DATABASE_URL still not set, parse .env.local directly (handles edge cases)
+if (!process.env.DATABASE_URL?.trim() && existsSync(envLocal)) {
+  const raw = readFileSync(envLocal, "utf-8");
+  const match = raw.match(/^DATABASE_URL\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/m);
+  if (match) {
+    process.env.DATABASE_URL = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+  }
+}
 
 async function main() {
   const DATABASE_URL = process.env.DATABASE_URL?.trim();
@@ -40,15 +50,25 @@ async function main() {
     process.exit(1);
   }
 
-  const migrationPath = resolve(root, "supabase/migrations/20260233000000_rbac_v1.sql");
-  const sql = readFileSync(migrationPath, "utf-8");
+  const migrations = [
+    "20260233000000_rbac_v1.sql",
+    "20260234000000_event_scoped_rbac.sql",
+  ];
 
   const client = new Client({ connectionString: DATABASE_URL });
   try {
     await client.connect();
-    console.log("[db-push-rbac] Connected. Applying RBAC migration...");
-    await client.query(sql);
-    console.log("[db-push-rbac] Migration applied successfully.");
+    for (const name of migrations) {
+      const path = resolve(root, "supabase/migrations", name);
+      if (!existsSync(path)) {
+        console.log(`[db-push-rbac] Skipping ${name} (not found)`);
+        continue;
+      }
+      const sql = readFileSync(path, "utf-8");
+      console.log(`[db-push-rbac] Applying ${name}...`);
+      await client.query(sql);
+    }
+    console.log("[db-push-rbac] Migrations applied successfully.");
 
     // Assign owner role to system_owner profiles (for RBAC v1)
     const assignOwner = `

@@ -96,3 +96,24 @@ export async function fetchMyPermissions(): Promise<string[]> {
 export async function fetchRolePermissions(roleId: string): Promise<string[]> {
   return rbacFetch<string[]>(`/roles/${roleId}/permissions`);
 }
+
+export type EventAccessEntry = {
+  event_id: string;
+  profile_id: string;
+  access_level: "view" | "edit";
+  event?: { id: string; name: string; date: string; venue?: string; status?: string } | null;
+};
+
+export async function fetchUserEventAccess(userId: string): Promise<EventAccessEntry[]> {
+  return rbacFetch<EventAccessEntry[]>(`/users/${userId}/event-access`);
+}
+
+export async function updateUserEventAccess(
+  userId: string,
+  entries: Array<{ event_id: string; access_level: "view" | "edit" }>
+): Promise<void> {
+  await rbacFetch(`/users/${userId}/event-access`, {
+    method: "PUT",
+    body: JSON.stringify({ entries }),
+  });
+}

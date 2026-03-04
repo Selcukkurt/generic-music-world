@@ -1,24 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { fetchUsers, updateUserActive, assignUserRoles } from "@/lib/rbac-v1/api";
-import { fetchRoles } from "@/lib/rbac-v1/api";
+import { useState, useEffect, useCallback } from "react";
+import {
+  fetchUsers,
+  updateUserActive,
+  assignUserRoles,
+  fetchRoles,
+  fetchUserEventAccess,
+  updateUserEventAccess,
+} from "@/lib/rbac-v1/api";
 import type { AppUserWithRoles, Role } from "@/lib/rbac-v1/types";
+import type { EventAccessEntry } from "@/lib/rbac-v1/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { fetchEvents } from "@/lib/events/data";
 
 export default function UsersTab() {
   const toast = useToast();
   const { hasPermission } = usePermissions();
   const [users, setUsers] = useState<AppUserWithRoles[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; venue?: string }>>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AppUserWithRoles | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [eventAccess, setEventAccess] = useState<EventAccessEntry[]>([]);
+  const [eventAccessLoading, setEventAccessLoading] = useState(false);
+  const [newEventId, setNewEventId] = useState("");
+  const [newEventLevel, setNewEventLevel] = useState<"view" | "edit">("view");
 
   const canDisable = hasPermission("users.disable");
   const canRead = hasPermission("users.read");
+  const canWriteRoles = hasPermission("rbac.roles.write");
 
   useEffect(() => {
     if (!canRead) return;
@@ -31,9 +45,32 @@ export default function UsersTab() {
       .finally(() => setLoading(false));
   }, [search, canRead, toast]);
 
+  useEffect(() => {
+    fetchEvents()
+      .then((list) => setEvents(list.map((e) => ({ id: e.id, name: e.name, date: e.date, venue: e.venue ?? undefined }))))
+      .catch(() => setEvents([]));
+  }, []);
+
+  const loadEventAccess = useCallback(
+    async (userId: string) => {
+      if (!canWriteRoles) return;
+      setEventAccessLoading(true);
+      try {
+        const entries = await fetchUserEventAccess(userId);
+        setEventAccess(entries);
+      } catch {
+        setEventAccess([]);
+      } finally {
+        setEventAccessLoading(false);
+      }
+    },
+    [canWriteRoles]
+  );
+
   const handleSelectUser = (u: AppUserWithRoles) => {
     setSelectedUser(u);
     setSelectedRoleIds(new Set(u.roles.map((r) => r.id)));
+    loadEventAccess(u.id);
   };
 
   const handleToggleActive = async (u: AppUserWithRoles) => {
@@ -74,6 +111,43 @@ export default function UsersTab() {
       toast.success("Kaydedildi", "Roller güncellendi.");
     } catch {
       toast.error("Hata", "Roller kaydedilemedi.");
+    }
+  };
+
+  const handleAddEventAccess = () => {
+    if (!newEventId || !selectedUser) return;
+    const already = eventAccess.some((e) => e.event_id === newEventId);
+    if (already) {
+      toast.error("Zaten ekli", "Bu etkinlik zaten atanmış.");
+      return;
+    }
+    const ev = events.find((e) => e.id === newEventId);
+    setEventAccess((prev) => [
+      ...prev,
+      {
+        event_id: newEventId,
+        profile_id: selectedUser.id,
+        access_level: newEventLevel,
+        event: ev ? { id: ev.id, name: ev.name, date: ev.date, venue: ev.venue } : null,
+      },
+    ]);
+    setNewEventId("");
+  };
+
+  const handleRemoveEventAccess = (eventId: string) => {
+    setEventAccess((prev) => prev.filter((e) => e.event_id !== eventId));
+  };
+
+  const handleSaveEventAccess = async () => {
+    if (!selectedUser || !canWriteRoles) return;
+    try {
+      await updateUserEventAccess(
+        selectedUser.id,
+        eventAccess.map((e) => ({ event_id: e.event_id, access_level: e.access_level }))
+      );
+      toast.success("Kaydedildi", "Etkinlik erişimi güncellendi.");
+    } catch {
+      toast.error("Hata", "Etkinlik erişimi kaydedilemedi.");
     }
   };
 
@@ -164,7 +238,7 @@ export default function UsersTab() {
           </table>
         </div>
         {selectedUser && (
-          <div className="w-80 shrink-0 border-l border-[var(--color-border)] p-4">
+          <div className="w-96 shrink-0 border-l border-[var(--color-border)] p-4">
             <h3 className="mb-3 text-sm font-semibold">Rol ata</h3>
             <div className="space-y-2">
               {roles.map((r) => (
@@ -184,8 +258,82 @@ export default function UsersTab() {
               onClick={handleSaveRoles}
               className="mt-4 w-full rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
             >
-              Kaydet
+              Rolleri kaydet
             </button>
+
+            {canWriteRoles && (
+              <>
+                <h3 className="mt-6 mb-3 text-sm font-semibold">Etkinlik erişimi</h3>
+                <p className="mb-3 text-xs ui-text-muted">
+                  Partner kullanıcılar sadece atandıkları etkinlikleri görebilir.
+                </p>
+                {eventAccessLoading ? (
+                  <p className="text-xs ui-text-muted">Yükleniyor...</p>
+                ) : (
+                  <>
+                    <div className="mb-3 space-y-2">
+                      {eventAccess.map((e) => (
+                        <div
+                          key={e.event_id}
+                          className="flex items-center justify-between rounded border border-[var(--color-border)] px-2 py-1.5 text-xs"
+                        >
+                          <span>
+                            {(e.event as { name?: string })?.name ?? e.event_id.slice(0, 8)}… (
+                            {e.access_level === "edit" ? "düzenle" : "görüntüle"})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEventAccess(e.event_id)}
+                            className="text-red-400 hover:underline"
+                          >
+                            Kaldır
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={newEventId}
+                        onChange={(e) => setNewEventId(e.target.value)}
+                        className="ui-input flex-1 text-xs"
+                      >
+                        <option value="">Etkinlik seç</option>
+                        {events
+                          .filter((ev) => !eventAccess.some((ea) => ea.event_id === ev.id))
+                          .map((ev) => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.name} ({ev.date})
+                            </option>
+                          ))}
+                      </select>
+                      <select
+                        value={newEventLevel}
+                        onChange={(e) => setNewEventLevel(e.target.value as "view" | "edit")}
+                        className="ui-input w-24 text-xs"
+                      >
+                        <option value="view">Görüntüle</option>
+                        <option value="edit">Düzenle</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleAddEventAccess}
+                        disabled={!newEventId}
+                        className="rounded bg-[var(--color-surface-elevated)] px-2 py-1 text-xs hover:opacity-90 disabled:opacity-50"
+                      >
+                        Ekle
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSaveEventAccess}
+                      className="mt-3 w-full rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-hover)]"
+                    >
+                      Erişimi kaydet
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
