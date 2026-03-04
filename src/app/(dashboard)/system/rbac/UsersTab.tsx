@@ -18,7 +18,6 @@ export default function UsersTab() {
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
 
   const canDisable = hasPermission("users.disable");
-  const canInvite = hasPermission("users.invite");
   const canRead = hasPermission("users.read");
 
   useEffect(() => {
@@ -32,11 +31,10 @@ export default function UsersTab() {
       .finally(() => setLoading(false));
   }, [search, canRead, toast]);
 
-  useEffect(() => {
-    if (selectedUser) {
-      setSelectedRoleIds(new Set(selectedUser.roles.map((r) => r.id)));
-    }
-  }, [selectedUser]);
+  const handleSelectUser = (u: AppUserWithRoles) => {
+    setSelectedUser(u);
+    setSelectedRoleIds(new Set(u.roles.map((r) => r.id)));
+  };
 
   const handleToggleActive = async (u: AppUserWithRoles) => {
     if (!canDisable) return;
@@ -45,7 +43,7 @@ export default function UsersTab() {
       setUsers((prev) =>
         prev.map((x) => (x.id === u.id ? { ...x, is_active: !u.is_active } : x))
       );
-      if (selectedUser?.id === u.id) setSelectedUser({ ...selectedUser, is_active: !u.is_active });
+      if (selectedUser?.id === u.id) handleSelectUser({ ...selectedUser, is_active: !u.is_active });
       toast.success("Güncellendi", u.is_active ? "Kullanıcı devre dışı bırakıldı." : "Kullanıcı etkinleştirildi.");
     } catch {
       toast.error("Hata", "İşlem başarısız.");
@@ -72,7 +70,7 @@ export default function UsersTab() {
           return { ...x, roles: newRoles };
         })
       );
-      setSelectedUser({ ...selectedUser, roles: roles.filter((r) => selectedRoleIds.has(r.id)) });
+      handleSelectUser({ ...selectedUser, roles: roles.filter((r) => selectedRoleIds.has(r.id)) });
       toast.success("Kaydedildi", "Roller güncellendi.");
     } catch {
       toast.error("Hata", "Roller kaydedilemedi.");
@@ -126,7 +124,7 @@ export default function UsersTab() {
                 users.map((u) => (
                   <tr
                     key={u.id}
-                    onClick={() => setSelectedUser(u)}
+                    onClick={() => handleSelectUser(u)}
                     className={`cursor-pointer transition hover:bg-[var(--color-surface-hover)]/50 ${
                       selectedUser?.id === u.id ? "bg-[var(--color-primary)]/5" : ""
                     }`}

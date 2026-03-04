@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import PageHeader from "@/components/shell/PageHeader";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -259,19 +259,15 @@ function DeepDiveDrawer({
   defaultOwner?: string;
 }) {
   const updatePlan = useModulePlansStore((s) => s.updatePlan);
-  const [form, setForm] = useState<Partial<ModulePlan>>({});
+  const current = module ?? null;
+  const isOpen = !!current;
+  const [form, setForm] = useState<Partial<ModulePlan>>(() => (current ? { ...current } : {}));
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [accordionMilestones, setAccordionMilestones] = useState(true);
   const [accordionNotes, setAccordionNotes] = useState(false);
   const [accordionTechnical, setAccordionTechnical] = useState(false);
   const [blockedReasonOpen, setBlockedReasonOpen] = useState(false);
   const [blockedReason, setBlockedReason] = useState("");
-  const current = module ?? null;
-  const isOpen = !!current;
-
-  useEffect(() => {
-    if (current) setForm({ ...current });
-  }, [current?.module_code]);
 
   const doSave = (updates?: Partial<ModulePlan>) => {
     if (!current) return;
@@ -1430,7 +1426,7 @@ export default function GMWPulseClient() {
       />
 
       {/* Deep Dive Drawer */}
-      <DeepDiveDrawer module={selectedModule} onClose={() => setSelectedModule(null)} onSave={() => setSelectedModule(null)} defaultOwner={defaultOwner} />
+      <DeepDiveDrawer key={selectedModule?.module_code ?? "closed"} module={selectedModule} onClose={() => setSelectedModule(null)} onSave={() => setSelectedModule(null)} defaultOwner={defaultOwner} />
 
       {/* Single-module shift dates modal */}
       {shiftModuleId && (
