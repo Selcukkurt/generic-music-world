@@ -138,6 +138,14 @@ export const personalItems: SidebarNavItem[] = [
     action: "view",
   },
   {
+    href: "/dashboard/peopleops",
+    labelKey: "peopleops_nav",
+    icon: "personal",
+    iconType: "users",
+    resource: "personnel",
+    action: "view",
+  },
+  {
     href: "/chat",
     labelKey: "shell_personal_item_6",
     icon: "personal",

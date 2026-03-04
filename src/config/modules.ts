@@ -80,8 +80,32 @@ export const modules: AppModule[] = [
   moduleMeta("m12", "M12", "module_name_m12", "Sanatçı ve Ajans Operasyonları", "GMA-Ops", "/m12", "planned", 0, "module_summary_m12", "module_purpose_m12"),
 ];
 
+/** PeopleOps module (dashboard sub-module) */
+export const peopleOpsModule: AppModule = {
+  id: "peopleops",
+  code: "PeopleOps",
+  nameKey: "peopleops_title",
+  displayName: "İK ve Organizasyon Operasyonları",
+  shortCode: "PeopleOps",
+  basePath: "/dashboard/peopleops",
+  menuItems: [
+    { id: "peopleops-overview", labelKey: "peopleops_overview", href: "/dashboard/peopleops" },
+    { id: "peopleops-users", labelKey: "peopleops_users", href: "/dashboard/peopleops/users" },
+    { id: "peopleops-rbac", labelKey: "peopleops_rbac", href: "/dashboard/peopleops/rbac" },
+    { id: "peopleops-org", labelKey: "peopleops_org", href: "/dashboard/peopleops/org" },
+    { id: "peopleops-settings", labelKey: "peopleops_settings", href: "/dashboard/peopleops/settings" },
+  ],
+  status: "active",
+  progress: 60,
+  summaryKey: "module_summary_m04",
+  purposeKey: "module_purpose_m04",
+};
+
 export const getModuleForPath = (pathname: string | null) => {
   if (!pathname) return null;
+  if (pathname === "/dashboard/peopleops" || pathname.startsWith("/dashboard/peopleops/")) {
+    return peopleOpsModule;
+  }
   return (
     modules.find((module) => pathname === module.basePath) ??
     modules.find((module) => pathname.startsWith(`${module.basePath}/`)) ??

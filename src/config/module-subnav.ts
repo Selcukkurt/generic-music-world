@@ -86,6 +86,16 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
     titleKey: "module_name_m12",
     items: defaultSubnavItems("/m12"),
   },
+  peopleops: {
+    titleKey: "peopleops_title",
+    items: [
+      { href: "/dashboard/peopleops", labelKey: "peopleops_overview" },
+      { href: "/dashboard/peopleops/users", labelKey: "peopleops_users" },
+      { href: "/dashboard/peopleops/rbac", labelKey: "peopleops_rbac" },
+      { href: "/dashboard/peopleops/org", labelKey: "peopleops_org" },
+      { href: "/dashboard/peopleops/settings", labelKey: "peopleops_settings" },
+    ],
+  },
 };
 
 export function getModuleSubnavConfig(moduleId: string): ModuleSubnavConfig | null {

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createVersionClient(user!.accessToken);
     const search = request.nextUrl.searchParams.get("search")?.trim();
+    const activeParam = request.nextUrl.searchParams.get("active");
 
     let query = supabase
       .from("app_users")
@@ -34,6 +35,11 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+    }
+    if (activeParam === "true") {
+      query = query.eq("is_active", true);
+    } else if (activeParam === "false") {
+      query = query.eq("is_active", false);
     }
 
     const { data: rows, error } = await query;

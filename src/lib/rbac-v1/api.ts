@@ -24,8 +24,15 @@ async function rbacFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function fetchUsers(search?: string): Promise<AppUserWithRoles[]> {
-  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+export async function fetchUsers(
+  search?: string,
+  active?: boolean | null
+): Promise<AppUserWithRoles[]> {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (active === true) params.set("active", "true");
+  if (active === false) params.set("active", "false");
+  const q = params.toString() ? `?${params.toString()}` : "";
   return rbacFetch<AppUserWithRoles[]>(`/users${q}`);
 }
 
@@ -42,6 +49,30 @@ export async function updateUserActive(userId: string, isActive: boolean): Promi
     method: "PATCH",
     body: JSON.stringify({ is_active: isActive }),
   });
+}
+
+export async function updateUser(
+  userId: string,
+  data: { full_name?: string; is_active?: boolean }
+): Promise<void> {
+  await rbacFetch(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function inviteUser(params: {
+  email: string;
+  full_name?: string;
+  role_id?: string;
+}): Promise<{ user: { id: string; email: string | null; full_name: string | null } }> {
+  return rbacFetch<{ user: { id: string; email: string | null; full_name: string | null } }>(
+    "/users/invite",
+    {
+      method: "POST",
+      body: JSON.stringify(params),
+    }
+  );
 }
 
 export async function assignUserRoles(userId: string, roleIds: string[]): Promise<void> {
