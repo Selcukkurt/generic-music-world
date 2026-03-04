@@ -2,151 +2,68 @@
 
 import { useState } from "react";
 import PageHeader from "@/components/shell/PageHeader";
-import RolesTable from "./RolesTable";
-import PermissionMatrix from "./PermissionMatrix";
-import RoleFormModal from "./RoleFormModal";
-import DeleteConfirmModal from "./DeleteConfirmModal";
-import UserAssignModal from "./UserAssignModal";
-import { RoleStoreProvider, useRoleStore } from "@/lib/rbac/roleManagement/RoleStoreContext";
-import { useToast } from "@/components/ui/ToastProvider";
-import type { Role, RoleLevel } from "@/lib/rbac/roleManagement/types";
+import { usePermissions } from "@/hooks/usePermissions";
+import { canAccessSystemResource } from "@/lib/rbac/canAccess";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import UsersTab from "./UsersTab";
+import RolesTab from "./RolesTab";
+import PermissionsTab from "./PermissionsTab";
 
-function RbacPageContent() {
-  const toast = useToast();
-  const {
-    roles,
-    userAssignments,
-    createRole,
-    updateRole,
-    deleteRole,
-    assignUserToRole,
-  } = useRoleStore();
+const TABS = [
+  { id: "users" as const, label: "Kullanıcılar" },
+  { id: "roles" as const, label: "Roller" },
+  { id: "permissions" as const, label: "İzinler" },
+] as const;
 
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editRole, setEditRole] = useState<Role | null>(null);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-  const [userAssignModalOpen, setUserAssignModalOpen] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+export default function SystemRbacPage() {
+  const { user } = useCurrentUser();
+  const canAccess = user ? canAccessSystemResource(user.role, "system_rbac") : false;
+  const [tab, setTab] = useState<"users" | "roles" | "permissions">("users");
 
-  const handleCreateRole = (data: { name: string; description: string; level: RoleLevel }) => {
-    setFormError(null);
-    const role = createRole(data);
-    if (role) {
-      setCreateModalOpen(false);
-      toast.success("Rol oluşturuldu", role.name);
-    } else {
-      setFormError("Bu rol adı zaten kullanılıyor.");
-    }
-  };
+  if (!user) {
+    return (
+      <div className="flex w-full items-center justify-center p-12">
+        <p className="ui-text-muted">Yükleniyor...</p>
+      </div>
+    );
+  }
 
-  const handleEditRole = (data: { name: string; description: string; level: RoleLevel }) => {
-    if (!editRole) return;
-    setFormError(null);
-    const updated = updateRole(editRole.id, data);
-    if (updated) {
-      setEditModalOpen(false);
-      setEditRole(null);
-      toast.success("Rol güncellendi", updated.name);
-    } else {
-      setFormError("Bu rol adı zaten kullanılıyor veya rol kilitli.");
-    }
-  };
-
-  const handleDeleteClick = (role: Role) => {
-    setRoleToDelete(role);
-    setDeleteModalOpen(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!roleToDelete) return;
-    const name = roleToDelete.name;
-    const ok = deleteRole(roleToDelete.id);
-    if (ok) {
-      setDeleteModalOpen(false);
-      setRoleToDelete(null);
-      toast.success("Rol silindi", name);
-    }
-  };
-
-  const handleAssignUser = (userId: string, roleId: string) => {
-    assignUserToRole(userId, roleId);
-    toast.success("Kullanıcı atandı", "Rol başarıyla güncellendi.");
-  };
+  if (!canAccess) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader title="Rol Yönetimi" subtitle="Yetkisiz erişim" />
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center ui-text-muted">
+          Bu sayfaya erişim yetkiniz yok.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader
-        title="Rol Yönetimi"
-        subtitle="Kullanıcı rollerini ve erişim yetkilerini yönetin."
-      >
-        <button
-          type="button"
-          onClick={() => setCreateModalOpen(true)}
-          className="ui-button-primary rounded-lg px-4 py-2.5 text-sm font-semibold"
-        >
-          + Yeni Rol Oluştur
-        </button>
-      </PageHeader>
-
-      <RolesTable
-        onEdit={(role) => {
-          setEditRole(role);
-          setEditModalOpen(true);
-          setFormError(null);
-        }}
-        onDelete={handleDeleteClick}
-        onUserAssign={() => setUserAssignModalOpen(true)}
+        title="Rol Yönetimi (RBAC V1)"
+        subtitle="Kullanıcılar, roller ve izinleri yönetin."
       />
-      <PermissionMatrix />
-
-      <RoleFormModal
-        key={createModalOpen ? "create-open" : "create-closed"}
-        isOpen={createModalOpen}
-        onClose={() => {
-          setCreateModalOpen(false);
-          setFormError(null);
-        }}
-        onSubmit={handleCreateRole}
-        error={formError}
-      />
-      <RoleFormModal
-        key={editModalOpen ? (editRole?.id ?? "edit-new") : "edit-closed"}
-        isOpen={editModalOpen}
-        onClose={() => {
-          setEditModalOpen(false);
-          setEditRole(null);
-          setFormError(null);
-        }}
-        onSubmit={handleEditRole}
-        initialRole={editRole}
-        error={formError}
-      />
-      <DeleteConfirmModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setRoleToDelete(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        roleName={roleToDelete?.name ?? ""}
-      />
-      <UserAssignModal
-        isOpen={userAssignModalOpen}
-        onClose={() => setUserAssignModalOpen(false)}
-        roles={roles}
-        assignments={userAssignments.map((a) => ({ userId: a.userId, roleId: a.roleId }))}
-        onAssign={handleAssignUser}
-      />
+      <div className="flex gap-2 border-b border-[var(--color-border)]">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`border-b-2 px-4 py-2 text-sm font-medium transition ${
+              tab === t.id
+                ? "border-[var(--color-primary)] text-[var(--color-primary)]"
+                : "border-transparent ui-text-muted hover:ui-text-secondary"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "users" && <UsersTab />}
+      {tab === "roles" && <RolesTab />}
+      {tab === "permissions" && <PermissionsTab />}
     </div>
-  );
-}
-
-export default function SystemRbacPage() {
-  return (
-    <RoleStoreProvider>
-      <RbacPageContent />
-    </RoleStoreProvider>
   );
 }
