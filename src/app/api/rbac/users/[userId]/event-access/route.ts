@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiUser, requireSystemOwner, createVersionClient } from "@/lib/version/api-auth";
+import { getApiUser, requireOwnerOrAdmin, createVersionClient } from "@/lib/version/api-auth";
 
 /** GET: List event_access entries for a user */
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { user, error: authError } = await getApiUser(request);
     if (authError) return authError;
-    const forbidden = requireSystemOwner(user);
+    const forbidden = requireOwnerOrAdmin(user);
     if (forbidden) return forbidden;
 
     const { userId } = await params;
@@ -62,7 +62,7 @@ export async function PUT(
   try {
     const { user, error: authError } = await getApiUser(request);
     if (authError) return authError;
-    const forbidden = requireSystemOwner(user);
+    const forbidden = requireOwnerOrAdmin(user);
     if (forbidden) return forbidden;
 
     const { userId } = await params;

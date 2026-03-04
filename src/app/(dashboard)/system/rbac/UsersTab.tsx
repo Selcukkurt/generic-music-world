@@ -14,12 +14,14 @@ import type { EventAccessEntry } from "@/lib/rbac-v1/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchEvents } from "@/lib/events/data";
+import { isNewRole } from "@/lib/rbac-v1/constants";
 
 export default function UsersTab() {
   const toast = useToast();
   const { hasPermission } = usePermissions();
   const [users, setUsers] = useState<AppUserWithRoles[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [showLegacyRoles, setShowLegacyRoles] = useState(false);
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; venue?: string }>>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,8 @@ export default function UsersTab() {
   const [newEventLevel, setNewEventLevel] = useState<"view" | "edit">("view");
 
   const canDisable = hasPermission("users.disable");
-  const canRead = hasPermission("users.read");
-  const canWriteRoles = hasPermission("rbac.roles.write");
+  const canRead = hasPermission("users.read") || hasPermission("system.manage");
+  const canWriteRoles = hasPermission("rbac.roles.write") || hasPermission("system.manage");
 
   useEffect(() => {
     if (!canRead) return;
@@ -97,7 +99,7 @@ export default function UsersTab() {
   };
 
   const handleSaveRoles = async () => {
-    if (!selectedUser || !hasPermission("rbac.roles.write")) return;
+    if (!selectedUser || !canWriteRoles) return;
     try {
       await assignUserRoles(selectedUser.id, Array.from(selectedRoleIds));
       setUsers((prev) =>
@@ -240,8 +242,22 @@ export default function UsersTab() {
         {selectedUser && (
           <div className="w-96 shrink-0 border-l border-[var(--color-border)] p-4">
             <h3 className="mb-3 text-sm font-semibold">Rol ata</h3>
+            {roles.some((r) => !isNewRole(r.key)) && (
+              <label className="mb-3 flex items-center gap-2 text-xs ui-text-muted">
+                <input
+                  type="checkbox"
+                  checked={showLegacyRoles}
+                  onChange={(e) => setShowLegacyRoles(e.target.checked)}
+                  className="rounded"
+                />
+                Legacy roller
+              </label>
+            )}
             <div className="space-y-2">
-              {roles.map((r) => (
+              {roles
+                .filter((r) => isNewRole(r.key) || showLegacyRoles)
+                .sort((a, b) => (isNewRole(a.key) ? 0 : 1) - (isNewRole(b.key) ? 0 : 1))
+                .map((r) => (
                 <label key={r.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -249,7 +265,12 @@ export default function UsersTab() {
                     onChange={() => handleRoleToggle(r.id)}
                     className="rounded"
                   />
-                  <span className="text-sm">{r.name_tr ?? r.key}</span>
+                  <span className="text-sm">
+                    {r.name_tr ?? r.key}
+                    {!isNewRole(r.key) && (
+                      <span className="ml-1 text-[10px] ui-text-muted">(legacy)</span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>
@@ -263,9 +284,9 @@ export default function UsersTab() {
 
             {canWriteRoles && (
               <>
-                <h3 className="mt-6 mb-3 text-sm font-semibold">Etkinlik erişimi</h3>
+                <h3 className="mt-6 mb-3 text-sm font-semibold">Event Access</h3>
                 <p className="mb-3 text-xs ui-text-muted">
-                  Partner kullanıcılar sadece atandıkları etkinlikleri görebilir.
+                  Bu kullanıcının erişebileceği etkinlikleri atayın. Partner kullanıcılar sadece atandıkları etkinlikleri görebilir.
                 </p>
                 {eventAccessLoading ? (
                   <p className="text-xs ui-text-muted">Yükleniyor...</p>

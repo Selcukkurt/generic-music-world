@@ -53,6 +53,7 @@ async function main() {
   const migrations = [
     "20260233000000_rbac_v1.sql",
     "20260234000000_event_scoped_rbac.sql",
+    "20260235000000_rbac_v1_clean_model.sql",
   ];
 
   const client = new Client({ connectionString: DATABASE_URL });

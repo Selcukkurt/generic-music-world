@@ -9,6 +9,23 @@
 | **RB-008** | — | Supabase profiles + Seed users setup (PROFILES-v1) |
 | **RB-004-version-management** | — | Version Management (Sürüm Yönetimi) – production-ready |
 | **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
+| **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
+
+## RBAC-V1-roles-checkpoint: RBAC Roles Restored and Aligned
+
+**Date:** 2026-03  
+**Scope:** RBAC V1 roles fixed and synchronized with database  
+
+**Summary:**
+- RBAC V1 roles correctly visible in `/system/rbac`
+- Roles: Owner, Admin, Director, Manager, Staff, Field (+ Viewer legacy)
+- Missing roles inserted: director, staff, field
+- Migration `20260235000000_rbac_v1_clean_model.sql` applied
+- UI shows new roles/permissions by default; legacy behind toggle
+
+**Rollback:** `git checkout <prior-commit>` before this checkpoint.
+
+---
 
 ## GMW-RBAC-v1.0: Role Management Module
 
