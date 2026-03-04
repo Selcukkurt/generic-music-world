@@ -69,7 +69,16 @@ export const modules: AppModule[] = [
   moduleMeta("m01", "M01", "module_name_m01", "Katılımcı ve Bilet Operasyonları", "BiletOps", "/m01", "active", 100, "module_summary_m01", "module_purpose_m01"),
   moduleMeta("m02", "M02", "module_name_m02", "Etkinlik Operasyonları", "EtkinlikOps", "/m02", "in_progress", 45, "module_summary_m02", "module_purpose_m02"),
   moduleMeta("m03", "M03", "module_name_m03", "Finans ve Muhasebe Operasyonları", "FinansOps", "/m03", "planned", 0, "module_summary_m03", "module_purpose_m03"),
-  moduleMeta("m04", "M04", "module_name_m04", "İK ve Organizasyon Operasyonları", "PeopleOps", "/m04", "planned", 0, "module_summary_m04", "module_purpose_m04"),
+  {
+    ...moduleMeta("m04", "M04", "module_name_m04", "İK ve Organizasyon Operasyonları", "PeopleOps", "/m04", "planned", 0, "module_summary_m04", "module_purpose_m04"),
+    menuItems: [
+      { id: "m04-overview", labelKey: "m04_subnav_overview", href: "/m04" },
+      { id: "m04-users", labelKey: "m04_subnav_users", href: "/m04/users" },
+      { id: "m04-roles", labelKey: "m04_subnav_roles", href: "/m04/roles" },
+      { id: "m04-org", labelKey: "m04_subnav_org", href: "/m04/org" },
+      { id: "m04-settings", labelKey: "m04_subnav_settings", href: "/m04/settings" },
+    ],
+  },
   moduleMeta("m05", "M05", "module_name_m05", "Pazarlama ve İletişim Operasyonları", "MarketingOps", "/m05", "planned", 0, "module_summary_m05", "module_purpose_m05"),
   moduleMeta("m06", "M06", "module_name_m06", "Kurumsal İlişkiler ve Sponsorluk Operasyonları", "CorporateOps", "/m06", "planned", 0, "module_summary_m06", "module_purpose_m06"),
   moduleMeta("m07", "M07", "module_name_m07", "Kreatif Operasyonları", "GMS – KreatifOps", "/m07", "planned", 0, "module_summary_m07", "module_purpose_m07"),

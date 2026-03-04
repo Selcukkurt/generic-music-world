@@ -37,5 +37,33 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## Database Migrations (RBAC)
+
+To apply the RBAC migration (`supabase/migrations/20260233000000_rbac_v1.sql`):
+
+**Option A – Direct connection (recommended):**
+
+1. In Supabase Dashboard → Project Settings → Database, copy the **Connection string (URI)**.
+2. Add to `.env.local`:
+   ```
+   DATABASE_URL=postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres
+   ```
+3. Run:
+   ```bash
+   npm run db:push
+   ```
+
+**Option B – Supabase CLI:**
+
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>   # ref from NEXT_PUBLIC_SUPABASE_URL
+supabase db push
+```
+
+After migration, the RBAC page (`/system/rbac`) should load users without errors.
+
+---
+
 Rollback için: git checkout main && git pull && git checkout tags/GMW-2026-02-10-ROLLBACK
 Gerekirse: git switch -c rollback/GMW-2026-02-10-ROLLBACK

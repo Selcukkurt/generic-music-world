@@ -52,7 +52,13 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
   },
   m04: {
     titleKey: "module_name_m04",
-    items: defaultSubnavItems("/m04"),
+    items: [
+      { href: "/m04", labelKey: "m04_subnav_overview" },
+      { href: "/m04/users", labelKey: "m04_subnav_users" },
+      { href: "/m04/roles", labelKey: "m04_subnav_roles" },
+      { href: "/m04/org", labelKey: "m04_subnav_org" },
+      { href: "/m04/settings", labelKey: "m04_subnav_settings" },
+    ],
   },
   m05: {
     titleKey: "module_name_m05",
