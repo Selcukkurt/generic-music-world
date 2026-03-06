@@ -48,7 +48,7 @@ function matchesSearch(a: PersonAssignmentWithDetails, q: string): boolean {
   const name = (a.person?.full_name ?? "").toLowerCase();
   const email = (a.person?.email ?? "").toLowerCase();
   const title = (a.job_title?.name ?? "").toLowerCase();
-  const dept = (a.org_unit?.name ?? a.person?.department ?? "").toLowerCase();
+  const dept = (a.org_unit?.name ?? "").toLowerCase();
   return name.includes(lower) || email.includes(lower) || title.includes(lower) || dept.includes(lower);
 }
 
@@ -144,7 +144,7 @@ export default function OrgTreeClient() {
   };
 
   const isHighlighted = (a: PersonAssignmentWithDetails) =>
-    search.trim() && matchesSearch(a, search);
+    Boolean(search.trim() && matchesSearch(a, search));
 
   const hasData = assignments.length > 0 || orgUnits.length > 0;
 
