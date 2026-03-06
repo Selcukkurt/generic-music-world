@@ -94,6 +94,8 @@ export const tr = {
   sidebar_sub_settings: "Ayarlar",
   peopleops_title: "PeopleOps",
   peopleops_nav: "PeopleOps",
+  hr_org_nav: "Organizasyon Yapısı",
+  hr_assignments_nav: "Atamalar",
   peopleops_overview: "Genel Bakış",
   peopleops_users: "Kullanıcılar",
   peopleops_rbac: "Roller & Yetkiler",

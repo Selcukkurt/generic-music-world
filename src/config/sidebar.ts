@@ -146,6 +146,14 @@ export const personalItems: SidebarNavItem[] = [
     action: "view",
   },
   {
+    href: "/hr/organization",
+    labelKey: "hr_org_nav",
+    icon: "personal",
+    iconType: "users",
+    resource: "personnel",
+    action: "view",
+  },
+  {
     href: "/chat",
     labelKey: "shell_personal_item_6",
     icon: "personal",

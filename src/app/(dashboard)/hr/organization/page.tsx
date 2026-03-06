@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import RequireAccess from "@/components/auth/RequireAccess";
-import OrgStructureClient from "./OrgStructureClient";
+import OrgTreeClient from "./OrgTreeClient";
 
 export const metadata: Metadata = {
-  title: "Organizasyon - İK ve Organizasyon",
+  title: "Organizasyon Yapısı - İK",
 };
 
-export default function M04OrgPage() {
+export default function HrOrganizationPage() {
   return (
     <RequireAccess resource="personnel" action="view">
-      <OrgStructureClient />
+      <OrgTreeClient />
     </RequireAccess>
   );
 }

@@ -21,6 +21,29 @@ export async function PUT(
 
     const supabase = createVersionClient(user!.accessToken);
 
+    // Get owner role id for single-owner enforcement
+    const { data: ownerRole } = await supabase
+      .from("roles")
+      .select("id")
+      .eq("key", "owner")
+      .single();
+
+    const isAssigningOwner = ownerRole && role_ids.includes(ownerRole.id);
+
+    // Single owner: when assigning owner to this user, remove owner from all others first
+    if (isAssigningOwner && ownerRole) {
+      const { error: removeOwnerError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("role_id", ownerRole.id)
+        .neq("user_id", userId);
+
+      if (removeOwnerError) {
+        console.error("[api/rbac/users] PUT roles remove-owner error:", removeOwnerError);
+        return NextResponse.json({ error: removeOwnerError.message }, { status: 500 });
+      }
+    }
+
     const { error: delError } = await supabase
       .from("user_roles")
       .delete()

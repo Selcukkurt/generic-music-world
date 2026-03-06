@@ -8,6 +8,15 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { isNewRole, isNewPermissionGroup } from "@/lib/rbac-v1/constants";
 
 const NEW_GROUP_ORDER = ["dashboard", "event", "finance", "marketing", "artist_ops", "ticketing", "system"];
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  owner: "Tam sistem erişimi. Tüm modüllerde admin yetkisi.",
+  admin: "Sistem yönetimi ve yapılandırma. Modül düzenlemeleri.",
+  director: "Departman düzeyinde onay ve denetim.",
+  manager: "Ekip ve modül yönetimi.",
+  staff: "Operasyonel erişim.",
+  field: "Saha operasyonları erişimi.",
+  viewer: "Salt okunur erişim.",
+};
 
 export default function RolesTab() {
   const toast = useToast();
@@ -102,61 +111,60 @@ export default function RolesTab() {
 
   if (!canRead) {
     return (
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center ui-text-muted">
+      <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center backdrop-blur-sm ui-text-muted">
         Bu sayfayı görüntüleme yetkiniz yok.
       </div>
     );
   }
 
   return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80">
-      <div className="flex">
-        <div className="w-64 shrink-0 border-r border-[var(--color-border)] p-4">
-          <h2 className="mb-3 text-sm font-semibold">Roller</h2>
-          {(hasLegacyRoles || hasLegacyPermissions) && (
-            <label className="mb-3 flex items-center gap-2 text-xs ui-text-muted">
-              <input
-                type="checkbox"
-                checked={showLegacy}
-                onChange={(e) => setShowLegacy(e.target.checked)}
-                className="rounded"
-              />
-              Legacy göster
-            </label>
-          )}
-          {loading ? (
-            <p className="text-sm ui-text-muted">Yükleniyor...</p>
-          ) : (
-            <ul className="space-y-1">
-              {filteredRoles.map((r) => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole(r)}
-                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                      selectedRole?.id === r.id
-                        ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
-                        : "hover:bg-[var(--color-surface-hover)]"
-                    }`}
-                  >
-                    {r.name_tr ?? r.key}
-                    {!isNewRole(r.key) && (
-                      <span className="ml-1 text-[10px] ui-text-muted">(legacy)</span>
-                    )}
-                    {r.is_system && isNewRole(r.key) && (
-                      <span className="ml-1 text-[10px] ui-text-muted">(sistem)</span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="flex-1 p-4">
-          {selectedRole ? (
-            <>
+    <section className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-[var(--color-text)]">Roller</h2>
+        {(hasLegacyRoles || hasLegacyPermissions) && (
+          <label className="flex items-center gap-2 text-sm ui-text-muted">
+            <input
+              type="checkbox"
+              checked={showLegacy}
+              onChange={(e) => setShowLegacy(e.target.checked)}
+              className="rounded"
+            />
+            Legacy göster
+          </label>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="text-sm ui-text-muted">Yükleniyor...</p>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredRoles.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setSelectedRole(r)}
+                className={`ui-glass rounded-xl border p-4 text-left backdrop-blur-sm transition ${
+                  selectedRole?.id === r.id
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)]/80 hover:border-[var(--color-border)]/80"
+                }`}
+              >
+                <h3 className="font-semibold text-[var(--color-text)]">{r.name_tr ?? r.key}</h3>
+                <p className="mt-1 text-sm ui-text-muted line-clamp-2">
+                  {ROLE_DESCRIPTIONS[r.key] ?? r.description_tr ?? ""}
+                </p>
+                {!isNewRole(r.key) && (
+                  <span className="mt-2 inline-block text-[10px] ui-text-muted">(legacy)</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {selectedRole && (
+            <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-4 backdrop-blur-sm sm:p-6">
               <h3 className="mb-2 text-base font-semibold">{selectedRole.name_tr ?? selectedRole.key}</h3>
-              <p className="mb-4 text-sm ui-text-muted">{selectedRole.description_tr ?? ""}</p>
+              <p className="mb-4 text-sm ui-text-muted">{selectedRole.description_tr ?? ROLE_DESCRIPTIONS[selectedRole.key] ?? ""}</p>
               <div className="space-y-4">
                 {grouped.map(({ label, perms }) => (
                   <div key={label}>
@@ -192,12 +200,10 @@ export default function RolesTab() {
                   Kaydet
                 </button>
               )}
-            </>
-          ) : (
-            <p className="text-sm ui-text-muted">Rol seçin</p>
+            </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
     </section>
   );
 }

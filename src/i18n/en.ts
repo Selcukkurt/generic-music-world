@@ -94,6 +94,8 @@ export const en = {
   sidebar_sub_settings: "Settings",
   peopleops_title: "PeopleOps",
   peopleops_nav: "PeopleOps",
+  hr_org_nav: "Organization Structure",
+  hr_assignments_nav: "Assignments",
   peopleops_overview: "Overview",
   peopleops_users: "Users",
   peopleops_rbac: "Roles & Permissions",

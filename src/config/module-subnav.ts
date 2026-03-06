@@ -99,10 +99,13 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
       { href: "/dashboard/peopleops/users", labelKey: "peopleops_users" },
       { href: "/dashboard/peopleops/rbac", labelKey: "peopleops_rbac" },
       { href: "/dashboard/peopleops/org", labelKey: "peopleops_org" },
+      { href: "/hr/organization", labelKey: "hr_org_nav" },
+      { href: "/hr/assignments", labelKey: "hr_assignments_nav" },
       { href: "/dashboard/peopleops/settings", labelKey: "peopleops_settings" },
     ],
   },
 };
+
 
 export function getModuleSubnavConfig(moduleId: string): ModuleSubnavConfig | null {
   return moduleSubnavConfig[moduleId] ?? null;

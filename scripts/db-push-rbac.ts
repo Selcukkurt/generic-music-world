@@ -54,6 +54,8 @@ async function main() {
     "20260233000000_rbac_v1.sql",
     "20260234000000_event_scoped_rbac.sql",
     "20260235000000_rbac_v1_clean_model.sql",
+    "20260236000000_org_structure.sql",
+    "20260237000000_rbac_owner_consistency.sql",
   ];
 
   const client = new Client({ connectionString: DATABASE_URL });
