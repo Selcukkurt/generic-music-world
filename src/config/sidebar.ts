@@ -95,7 +95,7 @@ export const coreItems: SidebarNavItem[] = [
   },
 ];
 
-/** PERSONEL / Workforce items. */
+/** PERSONEL / Workforce items – personnel management only. */
 export const personalItems: SidebarNavItem[] = [
   {
     href: "/profile",
@@ -132,22 +132,6 @@ export const personalItems: SidebarNavItem[] = [
   {
     href: "/personnel",
     labelKey: "shell_personal_item_5",
-    icon: "personal",
-    iconType: "users",
-    resource: "personnel",
-    action: "view",
-  },
-  {
-    href: "/dashboard/peopleops",
-    labelKey: "peopleops_nav",
-    icon: "personal",
-    iconType: "users",
-    resource: "personnel",
-    action: "view",
-  },
-  {
-    href: "/hr/organization",
-    labelKey: "hr_org_nav",
     icon: "personal",
     iconType: "users",
     resource: "personnel",

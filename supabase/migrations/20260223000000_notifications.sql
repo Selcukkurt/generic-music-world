@@ -23,12 +23,14 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_created
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Select: only owner can read
+DROP POLICY IF EXISTS "Users can select own notifications" ON public.notifications;
 CREATE POLICY "Users can select own notifications"
   ON public.notifications FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- Update: only owner can update (is_read, read_at via app logic)
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications"
   ON public.notifications FOR UPDATE
   TO authenticated

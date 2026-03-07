@@ -48,6 +48,7 @@ CREATE TRIGGER calendar_events_updated_at
 ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 
 -- Select: creator sees own
+DROP POLICY IF EXISTS "Creator can select own calendar_events" ON public.calendar_events;
 CREATE POLICY "Creator can select own calendar_events"
   ON public.calendar_events FOR SELECT
   TO authenticated
@@ -60,18 +61,21 @@ CREATE POLICY "Team can select approved team events"
   USING (visibility = 'team' AND status = 'approved');
 
 -- Select: admins see all
+DROP POLICY IF EXISTS "Admins can select all calendar_events" ON public.calendar_events;
 CREATE POLICY "Admins can select all calendar_events"
   ON public.calendar_events FOR SELECT
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
 -- Insert: creator can insert own
+DROP POLICY IF EXISTS "Creator can insert own calendar_events" ON public.calendar_events;
 CREATE POLICY "Creator can insert own calendar_events"
   ON public.calendar_events FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = created_by);
 
 -- Update: creator or admin
+DROP POLICY IF EXISTS "Creator or admin can update calendar_events" ON public.calendar_events;
 CREATE POLICY "Creator or admin can update calendar_events"
   ON public.calendar_events FOR UPDATE
   TO authenticated

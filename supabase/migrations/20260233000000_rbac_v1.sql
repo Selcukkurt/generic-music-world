@@ -52,6 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON public.user_roles(role_id);
 -- 2. TRIGGER: Sync app_users from auth.users on INSERT
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.sync_app_user_from_auth() CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_app_user_from_auth()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -122,18 +123,21 @@ AS $$
 $$;
 
 -- app_users: system owner manages all; users read own row
+DROP POLICY IF EXISTS "System owner can manage app_users" ON public.app_users;
 CREATE POLICY "System owner can manage app_users"
   ON public.app_users FOR ALL
   TO authenticated
   USING (public.is_system_owner())
   WITH CHECK (public.is_system_owner());
 
+DROP POLICY IF EXISTS "Users can read own app_users row" ON public.app_users;
 CREATE POLICY "Users can read own app_users row"
   ON public.app_users FOR SELECT
   TO authenticated
   USING (auth.uid() = id);
 
 -- roles: system owner manages
+DROP POLICY IF EXISTS "System owner can manage roles" ON public.roles;
 CREATE POLICY "System owner can manage roles"
   ON public.roles FOR ALL
   TO authenticated
@@ -141,6 +145,7 @@ CREATE POLICY "System owner can manage roles"
   WITH CHECK (public.is_system_owner());
 
 -- permissions: system owner manages
+DROP POLICY IF EXISTS "System owner can manage permissions" ON public.permissions;
 CREATE POLICY "System owner can manage permissions"
   ON public.permissions FOR ALL
   TO authenticated
@@ -148,6 +153,7 @@ CREATE POLICY "System owner can manage permissions"
   WITH CHECK (public.is_system_owner());
 
 -- role_permissions: system owner manages
+DROP POLICY IF EXISTS "System owner can manage role_permissions" ON public.role_permissions;
 CREATE POLICY "System owner can manage role_permissions"
   ON public.role_permissions FOR ALL
   TO authenticated
@@ -155,6 +161,7 @@ CREATE POLICY "System owner can manage role_permissions"
   WITH CHECK (public.is_system_owner());
 
 -- user_roles: system owner manages
+DROP POLICY IF EXISTS "System owner can manage user_roles" ON public.user_roles;
 CREATE POLICY "System owner can manage user_roles"
   ON public.user_roles FOR ALL
   TO authenticated
@@ -162,12 +169,14 @@ CREATE POLICY "System owner can manage user_roles"
   WITH CHECK (public.is_system_owner());
 
 -- Allow users to read their own roles (for permission resolution)
+DROP POLICY IF EXISTS "Users can read own user_roles" ON public.user_roles;
 CREATE POLICY "Users can read own user_roles"
   ON public.user_roles FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- Allow users to read roles they are assigned to
+DROP POLICY IF EXISTS "Users can read assigned roles" ON public.roles;
 CREATE POLICY "Users can read assigned roles"
   ON public.roles FOR SELECT
   TO authenticated
@@ -180,6 +189,7 @@ CREATE POLICY "Users can read assigned roles"
   );
 
 -- Allow users to read permissions for their roles
+DROP POLICY IF EXISTS "Users can read permissions for own roles" ON public.role_permissions;
 CREATE POLICY "Users can read permissions for own roles"
   ON public.role_permissions FOR SELECT
   TO authenticated
@@ -192,6 +202,7 @@ CREATE POLICY "Users can read permissions for own roles"
   );
 
 -- Allow all authenticated to read permissions catalog (for UI)
+DROP POLICY IF EXISTS "Authenticated can read permissions catalog" ON public.permissions;
 CREATE POLICY "Authenticated can read permissions catalog"
   ON public.permissions FOR SELECT
   TO authenticated

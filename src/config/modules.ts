@@ -70,13 +70,11 @@ export const modules: AppModule[] = [
   moduleMeta("m02", "M02", "module_name_m02", "Etkinlik Operasyonları", "EtkinlikOps", "/m02", "in_progress", 45, "module_summary_m02", "module_purpose_m02"),
   moduleMeta("m03", "M03", "module_name_m03", "Finans ve Muhasebe Operasyonları", "FinansOps", "/m03", "planned", 0, "module_summary_m03", "module_purpose_m03"),
   {
-    ...moduleMeta("m04", "M04", "module_name_m04", "İK ve Organizasyon Operasyonları", "PeopleOps", "/m04", "planned", 0, "module_summary_m04", "module_purpose_m04"),
+    ...moduleMeta("m04", "M04", "module_name_m04", "İK ve Organizasyon Operasyonları", "PeopleOps", "/m04", "active", 60, "module_summary_m04", "module_purpose_m04"),
     menuItems: [
       { id: "m04-overview", labelKey: "m04_subnav_overview", href: "/m04" },
-      { id: "m04-users", labelKey: "m04_subnav_users", href: "/m04/users" },
-      { id: "m04-roles", labelKey: "m04_subnav_roles", href: "/m04/roles" },
-      { id: "m04-org", labelKey: "m04_subnav_org", href: "/m04/org" },
-      { id: "m04-settings", labelKey: "m04_subnav_settings", href: "/m04/settings" },
+      { id: "m04-personel", labelKey: "m04_nav_personel_tum", href: "/m04/personel" },
+      { id: "m04-hiyerarsi", labelKey: "m04_nav_org_hiyerarsi", href: "/m04/organizasyon/hiyerarsi" },
     ],
   },
   moduleMeta("m05", "M05", "module_name_m05", "Pazarlama ve İletişim Operasyonları", "MarketingOps", "/m05", "planned", 0, "module_summary_m05", "module_purpose_m05"),
@@ -112,9 +110,6 @@ export const peopleOpsModule: AppModule = {
 
 export const getModuleForPath = (pathname: string | null) => {
   if (!pathname) return null;
-  if (pathname === "/dashboard/peopleops" || pathname.startsWith("/dashboard/peopleops/")) {
-    return peopleOpsModule;
-  }
   return (
     modules.find((module) => pathname === module.basePath) ??
     modules.find((module) => pathname.startsWith(`${module.basePath}/`)) ??

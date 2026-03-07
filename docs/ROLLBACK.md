@@ -10,6 +10,26 @@
 | **RB-004-version-management** | — | Version Management (Sürüm Yönetimi) – production-ready |
 | **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
+| **RBAC-M04-STABLE** | 276411d | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
+
+## RBAC-M04-STABLE: RBAC + M04 İK & Organizasyon Stabilization
+
+**Tag:** RBAC-M04-STABLE  
+**Date:** 2026-02  
+**Scope:** RBAC stabilized; M04 right-panel architecture finalized; Organizational, Personnel, and Field & Planning cores implemented; Supabase migrations stabilized and applied.
+
+**Summary:**
+- RBAC stabilized (is_admin, is_lead_or_admin, is_system_owner, can_access_event)
+- M04 right-panel architecture finalized (Personel Üssü, Organizasyonel Yapı, Saha ve Planlama)
+- Organizational Core: Organizasyon Birimleri, Hiyerarşi Şeması, Vekalet Paneli
+- Personnel Core: 360° Personel Kartı, Dijital Sicil & Feedback, Kara Liste
+- Field & Planning Core: Etkinlik Kadro Atama, Açık Pozisyonlar, Çakışma Kontrolü, Hak Ediş Onayı, Finans Aktarım
+- Supabase migrations stabilized (idempotent policies, enums, functions) and applied
+- Local app + RBAC screens verified
+
+**Rollback:** `git checkout RBAC-M04-STABLE` (or prior tag)
+
+---
 
 ## RBAC-V1-roles-checkpoint: RBAC Roles Restored and Aligned
 

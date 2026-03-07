@@ -86,33 +86,40 @@ ALTER TABLE public.org_units ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.job_titles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.person_assignments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins manage org_units" ON public.org_units;
 CREATE POLICY "Admins manage org_units"
   ON public.org_units FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Authenticated read org_units" ON public.org_units;
 CREATE POLICY "Authenticated read org_units"
   ON public.org_units FOR SELECT TO authenticated
   USING (active = true);
 
+DROP POLICY IF EXISTS "Admins manage job_titles" ON public.job_titles;
 CREATE POLICY "Admins manage job_titles"
   ON public.job_titles FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Authenticated read job_titles" ON public.job_titles;
 CREATE POLICY "Authenticated read job_titles"
   ON public.job_titles FOR SELECT TO authenticated
   USING (active = true);
 
+DROP POLICY IF EXISTS "Admins manage person_assignments" ON public.person_assignments;
 CREATE POLICY "Admins manage person_assignments"
   ON public.person_assignments FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Leads and admins read person_assignments" ON public.person_assignments;
 CREATE POLICY "Leads and admins read person_assignments"
   ON public.person_assignments FOR SELECT TO authenticated
   USING (public.is_lead_or_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users read own person_assignments" ON public.person_assignments;
 CREATE POLICY "Users read own person_assignments"
   ON public.person_assignments FOR SELECT TO authenticated
   USING (person_id = auth.uid());

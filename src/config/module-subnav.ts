@@ -8,10 +8,18 @@ export type ModuleSubnavItem = {
   labelKey: string;
 };
 
+export type ModuleSubnavSection = {
+  labelKey: string;
+  items: ModuleSubnavItem[];
+};
+
 export type ModuleSubnavConfig = {
   /** i18n key for module title in right panel header */
   titleKey: string;
-  items: ModuleSubnavItem[];
+  /** Flat items (used when sections not provided) */
+  items?: ModuleSubnavItem[];
+  /** Sectioned items (when provided, used instead of items) */
+  sections?: ModuleSubnavSection[];
 };
 
 const defaultSubnavItems = (basePath: string): ModuleSubnavItem[] => [
@@ -52,12 +60,37 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
   },
   m04: {
     titleKey: "module_name_m04",
-    items: [
-      { href: "/m04", labelKey: "m04_subnav_overview" },
-      { href: "/m04/users", labelKey: "m04_subnav_users" },
-      { href: "/m04/roles", labelKey: "m04_subnav_roles" },
-      { href: "/m04/org", labelKey: "m04_subnav_org" },
-      { href: "/m04/settings", labelKey: "m04_subnav_settings" },
+    sections: [
+      {
+        labelKey: "m04_nav_section_personnel_base",
+        items: [
+          { href: "/m04/personel", labelKey: "m04_nav_personnel_list" },
+          { href: "/m04/personel/yeni", labelKey: "m04_nav_add_personnel" },
+          { href: "/m04/personel/kart", labelKey: "m04_nav_personnel_card_360" },
+          { href: "/m04/personel/sicil", labelKey: "m04_nav_digital_record_feedback" },
+          { href: "/m04/personel/kara-liste", labelKey: "m04_nav_blacklist" },
+        ],
+      },
+      {
+        labelKey: "m04_nav_section_org_structure",
+        items: [
+          { href: "/m04/organizasyon/hiyerarsi", labelKey: "m04_nav_hierarchy" },
+          { href: "/m04/organizasyon/vekalet", labelKey: "m04_nav_delegation" },
+          { href: "/m04/organizasyon/unvanlar", labelKey: "m04_nav_job_titles" },
+          { href: "/system/rbac", labelKey: "m04_nav_rbac_mappings" },
+          { href: "/m04/organizasyon/birimler", labelKey: "m04_nav_org_units" },
+        ],
+      },
+      {
+        labelKey: "m04_nav_section_field_planning",
+        items: [
+          { href: "/m04/kadro/atama", labelKey: "m04_nav_event_assignment" },
+          { href: "/m04/kadro/pozisyonlar", labelKey: "m04_nav_open_positions" },
+          { href: "/m04/kadro/cakisma", labelKey: "m04_nav_conflict_check" },
+          { href: "/m04/kadro/hak-edis", labelKey: "m04_nav_payroll_approval" },
+          { href: "/m04/kadro/finans", labelKey: "m04_nav_finance_transfer" },
+        ],
+      },
     ],
   },
   m05: {

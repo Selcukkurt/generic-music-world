@@ -86,11 +86,13 @@ ALTER TABLE public.event_organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_access ENABLE ROW LEVEL SECURITY;
 
 -- organizations: admins manage; members read own orgs
+DROP POLICY IF EXISTS "Admins manage organizations" ON public.organizations;
 CREATE POLICY "Admins manage organizations"
   ON public.organizations FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Members read own organizations" ON public.organizations;
 CREATE POLICY "Members read own organizations"
   ON public.organizations FOR SELECT TO authenticated
   USING (
@@ -101,31 +103,37 @@ CREATE POLICY "Members read own organizations"
   );
 
 -- organization_members: admins manage; users read own
+DROP POLICY IF EXISTS "Admins manage organization_members" ON public.organization_members;
 CREATE POLICY "Admins manage organization_members"
   ON public.organization_members FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users read own organization_members" ON public.organization_members;
 CREATE POLICY "Users read own organization_members"
   ON public.organization_members FOR SELECT TO authenticated
   USING (profile_id = auth.uid());
 
 -- event_organizations: admins manage; users read if they have event access
+DROP POLICY IF EXISTS "Admins manage event_organizations" ON public.event_organizations;
 CREATE POLICY "Admins manage event_organizations"
   ON public.event_organizations FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users read event_organizations for accessible events" ON public.event_organizations;
 CREATE POLICY "Users read event_organizations for accessible events"
   ON public.event_organizations FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_access: admins manage; users read own
+DROP POLICY IF EXISTS "Admins manage event_access" ON public.event_access;
 CREATE POLICY "Admins manage event_access"
   ON public.event_access FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users read own event_access" ON public.event_access;
 CREATE POLICY "Users read own event_access"
   ON public.event_access FOR SELECT TO authenticated
   USING (profile_id = auth.uid());
@@ -135,6 +143,8 @@ CREATE POLICY "Users read own event_access"
 -- ============================================================
 
 DROP POLICY IF EXISTS "Authenticated can select etkinlik_events" ON public.etkinlik_events;
+DROP POLICY IF EXISTS "Internal staff select all etkinlik_events" ON public.etkinlik_events;
+DROP POLICY IF EXISTS "Partners select assigned etkinlik_events" ON public.etkinlik_events;
 
 -- Owner/Admin/Director/Manager/Staff: full access
 CREATE POLICY "Internal staff select all etkinlik_events"
@@ -165,54 +175,63 @@ CREATE POLICY "Partners select assigned etkinlik_events"
 
 -- event_revenues
 DROP POLICY IF EXISTS "Authenticated can select event_revenues" ON public.event_revenues;
+DROP POLICY IF EXISTS "Admins or event access select event_revenues" ON public.event_revenues;
 CREATE POLICY "Admins or event access select event_revenues"
   ON public.event_revenues FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_expenses
 DROP POLICY IF EXISTS "Authenticated can select event_expenses" ON public.event_expenses;
+DROP POLICY IF EXISTS "Admins or event access select event_expenses" ON public.event_expenses;
 CREATE POLICY "Admins or event access select event_expenses"
   ON public.event_expenses FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_incidents
 DROP POLICY IF EXISTS "Authenticated can select event_incidents" ON public.event_incidents;
+DROP POLICY IF EXISTS "Admins or event access select event_incidents" ON public.event_incidents;
 CREATE POLICY "Admins or event access select event_incidents"
   ON public.event_incidents FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_documents
 DROP POLICY IF EXISTS "Authenticated can select event_documents" ON public.event_documents;
+DROP POLICY IF EXISTS "Admins or event access select event_documents" ON public.event_documents;
 CREATE POLICY "Admins or event access select event_documents"
   ON public.event_documents FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_crew
 DROP POLICY IF EXISTS "Authenticated can select event_crew" ON public.event_crew;
+DROP POLICY IF EXISTS "Admins or event access select event_crew" ON public.event_crew;
 CREATE POLICY "Admins or event access select event_crew"
   ON public.event_crew FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_logistics
 DROP POLICY IF EXISTS "Authenticated can select event_logistics" ON public.event_logistics;
+DROP POLICY IF EXISTS "Admins or event access select event_logistics" ON public.event_logistics;
 CREATE POLICY "Admins or event access select event_logistics"
   ON public.event_logistics FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- accounting_event_ledger
 DROP POLICY IF EXISTS "Authenticated can select accounting_event_ledger" ON public.accounting_event_ledger;
+DROP POLICY IF EXISTS "Admins or event access select accounting_event_ledger" ON public.accounting_event_ledger;
 CREATE POLICY "Admins or event access select accounting_event_ledger"
   ON public.accounting_event_ledger FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_closure_snapshot
 DROP POLICY IF EXISTS "Authenticated can select event_closure_snapshot" ON public.event_closure_snapshot;
+DROP POLICY IF EXISTS "Admins or event access select event_closure_snapshot" ON public.event_closure_snapshot;
 CREATE POLICY "Admins or event access select event_closure_snapshot"
   ON public.event_closure_snapshot FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
 
 -- event_tasks
 DROP POLICY IF EXISTS "Authenticated can select event_tasks" ON public.event_tasks;
+DROP POLICY IF EXISTS "Admins or event access select event_tasks" ON public.event_tasks;
 CREATE POLICY "Admins or event access select event_tasks"
   ON public.event_tasks FOR SELECT TO authenticated
   USING (public.can_access_event(auth.uid(), event_id, 'view'));
@@ -223,6 +242,8 @@ CREATE POLICY "Admins or event access select event_tasks"
 
 -- event_revenues: admins + event edit
 DROP POLICY IF EXISTS "Admins can manage event_revenues" ON public.event_revenues;
+DROP POLICY IF EXISTS "Admins manage event_revenues" ON public.event_revenues;
+DROP POLICY IF EXISTS "Event edit access manage event_revenues" ON public.event_revenues;
 CREATE POLICY "Admins manage event_revenues"
   ON public.event_revenues FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -234,6 +255,8 @@ CREATE POLICY "Event edit access manage event_revenues"
 
 -- event_expenses
 DROP POLICY IF EXISTS "Admins can manage event_expenses" ON public.event_expenses;
+DROP POLICY IF EXISTS "Admins manage event_expenses" ON public.event_expenses;
+DROP POLICY IF EXISTS "Event edit access manage event_expenses" ON public.event_expenses;
 CREATE POLICY "Admins manage event_expenses"
   ON public.event_expenses FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -245,6 +268,8 @@ CREATE POLICY "Event edit access manage event_expenses"
 
 -- event_incidents
 DROP POLICY IF EXISTS "Admins can manage event_incidents" ON public.event_incidents;
+DROP POLICY IF EXISTS "Admins manage event_incidents" ON public.event_incidents;
+DROP POLICY IF EXISTS "Event edit access manage event_incidents" ON public.event_incidents;
 CREATE POLICY "Admins manage event_incidents"
   ON public.event_incidents FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -256,6 +281,8 @@ CREATE POLICY "Event edit access manage event_incidents"
 
 -- event_documents
 DROP POLICY IF EXISTS "Admins can manage event_documents" ON public.event_documents;
+DROP POLICY IF EXISTS "Admins manage event_documents" ON public.event_documents;
+DROP POLICY IF EXISTS "Event edit access manage event_documents" ON public.event_documents;
 CREATE POLICY "Admins manage event_documents"
   ON public.event_documents FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -267,6 +294,8 @@ CREATE POLICY "Event edit access manage event_documents"
 
 -- event_crew
 DROP POLICY IF EXISTS "Admins can manage event_crew" ON public.event_crew;
+DROP POLICY IF EXISTS "Admins manage event_crew" ON public.event_crew;
+DROP POLICY IF EXISTS "Event edit access manage event_crew" ON public.event_crew;
 CREATE POLICY "Admins manage event_crew"
   ON public.event_crew FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -278,6 +307,8 @@ CREATE POLICY "Event edit access manage event_crew"
 
 -- event_logistics
 DROP POLICY IF EXISTS "Admins can manage event_logistics" ON public.event_logistics;
+DROP POLICY IF EXISTS "Admins manage event_logistics" ON public.event_logistics;
+DROP POLICY IF EXISTS "Event edit access manage event_logistics" ON public.event_logistics;
 CREATE POLICY "Admins manage event_logistics"
   ON public.event_logistics FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -289,6 +320,8 @@ CREATE POLICY "Event edit access manage event_logistics"
 
 -- accounting_event_ledger
 DROP POLICY IF EXISTS "Admins can manage accounting_event_ledger" ON public.accounting_event_ledger;
+DROP POLICY IF EXISTS "Admins manage accounting_event_ledger" ON public.accounting_event_ledger;
+DROP POLICY IF EXISTS "Event edit access manage accounting_event_ledger" ON public.accounting_event_ledger;
 CREATE POLICY "Admins manage accounting_event_ledger"
   ON public.accounting_event_ledger FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
@@ -300,12 +333,15 @@ CREATE POLICY "Event edit access manage accounting_event_ledger"
 
 -- event_closure_snapshot (insert only for admins)
 DROP POLICY IF EXISTS "Admins can insert event_closure_snapshot" ON public.event_closure_snapshot;
+DROP POLICY IF EXISTS "Admins insert event_closure_snapshot" ON public.event_closure_snapshot;
 CREATE POLICY "Admins insert event_closure_snapshot"
   ON public.event_closure_snapshot FOR INSERT TO authenticated
   WITH CHECK (public.is_admin(auth.uid()));
 
 -- event_tasks
 DROP POLICY IF EXISTS "Admins can manage event_tasks" ON public.event_tasks;
+DROP POLICY IF EXISTS "Admins manage event_tasks" ON public.event_tasks;
+DROP POLICY IF EXISTS "Event edit access manage event_tasks" ON public.event_tasks;
 CREATE POLICY "Admins manage event_tasks"
   ON public.event_tasks FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))

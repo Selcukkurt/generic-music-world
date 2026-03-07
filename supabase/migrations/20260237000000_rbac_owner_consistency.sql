@@ -6,11 +6,14 @@
 -- ============================================================
 -- 1. Remove owner from non-system_owner profiles
 -- ============================================================
-DELETE FROM public.user_roles ur
-USING public.profiles p
-JOIN public.roles r ON r.id = ur.role_id AND r.key = 'owner'
-WHERE ur.user_id = p.id
-  AND p.role != 'system_owner';
+DELETE FROM public.user_roles
+WHERE (user_id, role_id) IN (
+  SELECT ur.user_id, ur.role_id
+  FROM public.user_roles ur
+  JOIN public.profiles p ON ur.user_id = p.id
+  JOIN public.roles r ON r.id = ur.role_id AND r.key = 'owner'
+  WHERE p.role != 'system_owner'
+);
 
 -- ============================================================
 -- 2. Assign admin role to ceo profiles (CEO = business admin, not system owner)

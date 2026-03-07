@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function M04OverviewPage() {
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-6 p-6">
       <PageHeader
         title="İK ve Organizasyon Operasyonları"
         subtitle="İnsan kaynakları ve organizasyon yapısı yönetimi."

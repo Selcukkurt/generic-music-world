@@ -9,8 +9,14 @@ export type OrgUnit = {
   module_code: string | null;
   level: number;
   active: boolean;
+  manager_id?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type OrgUnitWithDetails = OrgUnit & {
+  parent?: { id: string; name: string } | null;
+  manager?: { id: string; full_name: string | null } | null;
 };
 
 export type JobTitle = {
@@ -19,6 +25,9 @@ export type JobTitle = {
   category: string | null;
   rank_order: number;
   active: boolean;
+  org_unit_id?: string | null;
+  rbac_role?: string | null;
+  reports_to_job_title_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -51,4 +60,11 @@ export type PersonAssignmentWithDetails = PersonAssignment & {
 export type OrgTreeNode = {
   assignment: PersonAssignmentWithDetails;
   children: OrgTreeNode[];
+};
+
+/** Tree node for org_units hierarchy (parent_id based). Each node = org unit + primary assignment. */
+export type OrgUnitTreeNode = {
+  unit: OrgUnit;
+  primaryAssignment: PersonAssignmentWithDetails | null;
+  children: OrgUnitTreeNode[];
 };

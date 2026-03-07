@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_sender_created
   ON public.chat_messages(sender_id, created_at DESC);
 
 -- Trigger: update last_message_at on insert
+DROP FUNCTION IF EXISTS public.chat_update_last_message_at() CASCADE;
 CREATE OR REPLACE FUNCTION public.chat_update_last_message_at()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -63,6 +64,7 @@ ALTER TABLE public.chat_thread_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- chat_threads: user can SELECT only if member
+DROP POLICY IF EXISTS "Members can select chat_threads" ON public.chat_threads;
 CREATE POLICY "Members can select chat_threads"
   ON public.chat_threads FOR SELECT TO authenticated
   USING (
@@ -73,16 +75,19 @@ CREATE POLICY "Members can select chat_threads"
   );
 
 -- chat_threads: creator can INSERT
+DROP POLICY IF EXISTS "Creator can insert chat_threads" ON public.chat_threads;
 CREATE POLICY "Creator can insert chat_threads"
   ON public.chat_threads FOR INSERT TO authenticated
   WITH CHECK (created_by = auth.uid());
 
 -- chat_thread_members: user can SELECT own memberships
+DROP POLICY IF EXISTS "Users can select own thread memberships" ON public.chat_thread_members;
 CREATE POLICY "Users can select own thread memberships"
   ON public.chat_thread_members FOR SELECT TO authenticated
   USING (user_id = auth.uid());
 
 -- chat_thread_members: thread creator can INSERT members
+DROP POLICY IF EXISTS "Thread creator can add members" ON public.chat_thread_members;
 CREATE POLICY "Thread creator can add members"
   ON public.chat_thread_members FOR INSERT TO authenticated
   WITH CHECK (
@@ -93,6 +98,7 @@ CREATE POLICY "Thread creator can add members"
   );
 
 -- chat_messages: user can SELECT if member of thread
+DROP POLICY IF EXISTS "Thread members can select chat_messages" ON public.chat_messages;
 CREATE POLICY "Thread members can select chat_messages"
   ON public.chat_messages FOR SELECT TO authenticated
   USING (
@@ -103,6 +109,7 @@ CREATE POLICY "Thread members can select chat_messages"
   );
 
 -- chat_messages: user can INSERT if sender = self AND member of thread
+DROP POLICY IF EXISTS "Thread members can insert chat_messages" ON public.chat_messages;
 CREATE POLICY "Thread members can insert chat_messages"
   ON public.chat_messages FOR INSERT TO authenticated
   WITH CHECK (

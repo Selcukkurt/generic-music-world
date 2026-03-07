@@ -48,10 +48,12 @@ $$;
 DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 
 -- Select: own profile OR lead/admin can see all
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile"
   ON public.profiles FOR SELECT TO authenticated
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Leads and admins can read all profiles" ON public.profiles;
 CREATE POLICY "Leads and admins can read all profiles"
   ON public.profiles FOR SELECT TO authenticated
   USING (public.is_lead_or_admin(auth.uid()));
@@ -59,12 +61,12 @@ CREATE POLICY "Leads and admins can read all profiles"
 -- Update: own profile (full) OR lead/admin can update limited fields for others
 -- For lead/admin updating others, we allow update - app logic restricts which fields
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Leads and admins can update other profiles" ON public.profiles;
 CREATE POLICY "Leads and admins can update other profiles"
   ON public.profiles FOR UPDATE TO authenticated
   USING (public.is_lead_or_admin(auth.uid()))

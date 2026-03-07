@@ -47,16 +47,19 @@ ALTER TABLE public.org_teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.org_settings ENABLE ROW LEVEL SECURITY;
 
 -- Admins only (uses existing is_admin)
+DROP POLICY IF EXISTS "Admins full access org_departments" ON public.org_departments;
 CREATE POLICY "Admins full access org_departments"
   ON public.org_departments FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins full access org_teams" ON public.org_teams;
 CREATE POLICY "Admins full access org_teams"
   ON public.org_teams FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins full access org_settings" ON public.org_settings;
 CREATE POLICY "Admins full access org_settings"
   ON public.org_settings FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))

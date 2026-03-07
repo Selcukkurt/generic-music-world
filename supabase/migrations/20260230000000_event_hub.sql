@@ -250,6 +250,7 @@ ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_category_check
 -- ============================================================
 -- Audit trigger for etkinlik_events status changes
 -- ============================================================
+DROP FUNCTION IF EXISTS public.audit_event_status_change() CASCADE;
 CREATE OR REPLACE FUNCTION public.audit_event_status_change()
 RETURNS trigger
 LANGUAGE plpgsql

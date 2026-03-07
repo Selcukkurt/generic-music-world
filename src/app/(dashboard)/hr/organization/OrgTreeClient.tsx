@@ -121,11 +121,18 @@ export default function OrgTreeClient() {
     const managers = reportsToSet.size;
     const assignedUnitIds = new Set(assignments.map((a) => a.org_unit_id));
     const openAssignments = orgUnits.filter((u) => !assignedUnitIds.has(u.id)).length;
+    const ceo = assignments.find((a) => a.job_title?.name === "Founder/CEO" || a.job_title?.name === "CEO");
+    const actingLabel = ceo?.person?.full_name
+      ? `Acting: ${ceo.person.full_name} (${ceo.job_title?.name ?? "CEO"})`
+      : ceo?.person?.email
+        ? `Acting: ${ceo.person.email} (${ceo.job_title?.name ?? "CEO"})`
+        : "Acting: Selcuk Kurt (CEO)";
     return {
       totalPeople: uniquePeople.size,
       departments: uniqueDepts.size,
       managers,
       openAssignments,
+      actingLabel,
     };
   }, [assignments, orgUnits]);
 
@@ -183,6 +190,9 @@ export default function OrgTreeClient() {
         <div className="rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-bg)]/30 px-4 py-3">
           <p className="text-2xl font-semibold text-[var(--color-text)]">{stats.openAssignments}</p>
           <p className="text-xs ui-text-muted">Açık Atama</p>
+          {stats.openAssignments > 0 && (
+            <p className="mt-1 text-[10px] ui-text-muted italic">{stats.actingLabel}</p>
+          )}
         </div>
       </div>
 

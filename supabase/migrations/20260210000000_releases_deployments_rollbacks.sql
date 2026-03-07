@@ -1,8 +1,18 @@
 -- Release & Deployment management tables
--- Enums
-CREATE TYPE release_status AS ENUM ('DRAFT', 'READY', 'DEPLOYED', 'ROLLED_BACK');
-CREATE TYPE deploy_environment AS ENUM ('LOCAL', 'STAGING', 'PRODUCTION');
-CREATE TYPE deploy_status AS ENUM ('SUCCESS', 'FAILED', 'IN_PROGRESS');
+-- Enums (idempotent: create only if not exists)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'release_status') THEN
+    CREATE TYPE release_status AS ENUM ('DRAFT', 'READY', 'DEPLOYED', 'ROLLED_BACK');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deploy_environment') THEN
+    CREATE TYPE deploy_environment AS ENUM ('LOCAL', 'STAGING', 'PRODUCTION');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deploy_status') THEN
+    CREATE TYPE deploy_status AS ENUM ('SUCCESS', 'FAILED', 'IN_PROGRESS');
+  END IF;
+END
+$$;
 
 -- releases
 CREATE TABLE IF NOT EXISTS public.releases (

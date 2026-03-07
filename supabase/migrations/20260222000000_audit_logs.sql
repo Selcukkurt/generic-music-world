@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON public.audit_logs(act
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- System owner (Super Admin) can SELECT
+DROP POLICY IF EXISTS "System owner can select audit_logs" ON public.audit_logs;
 CREATE POLICY "System owner can select audit_logs"
   ON public.audit_logs FOR SELECT
   TO authenticated
@@ -42,6 +43,7 @@ CREATE POLICY "System owner can select audit_logs"
   );
 
 -- Authenticated can INSERT (for logging from API)
+DROP POLICY IF EXISTS "Authenticated can insert audit_logs" ON public.audit_logs;
 CREATE POLICY "Authenticated can insert audit_logs"
   ON public.audit_logs FOR INSERT
   TO authenticated

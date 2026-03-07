@@ -1,5 +1,6 @@
 -- Helper: is_admin checks if user has admin role (can approve requests)
-CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
+-- Use check_user param name for compatibility with existing signature (CREATE OR REPLACE cannot change param names)
+CREATE OR REPLACE FUNCTION public.is_admin(check_user uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -8,7 +9,7 @@ SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = uid AND role IN ('system_owner', 'ceo', 'admin')
+    WHERE id = check_user AND role IN ('system_owner', 'ceo', 'admin')
   );
 $$;
 
@@ -59,24 +60,28 @@ CREATE TRIGGER approval_requests_updated_at
 ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 
 -- A) Requester can select own rows
+DROP POLICY IF EXISTS "Requester can select own approval_requests" ON public.approval_requests;
 CREATE POLICY "Requester can select own approval_requests"
   ON public.approval_requests FOR SELECT
   TO authenticated
   USING (auth.uid() = requested_by);
 
 -- B) Admins can select all rows
+DROP POLICY IF EXISTS "Admins can select all approval_requests" ON public.approval_requests;
 CREATE POLICY "Admins can select all approval_requests"
   ON public.approval_requests FOR SELECT
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
 -- C) Requester can insert own rows
+DROP POLICY IF EXISTS "Requester can insert own approval_requests" ON public.approval_requests;
 CREATE POLICY "Requester can insert own approval_requests"
   ON public.approval_requests FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = requested_by);
 
 -- D) Admins can update (status/decision fields)
+DROP POLICY IF EXISTS "Admins can update approval_requests" ON public.approval_requests;
 CREATE POLICY "Admins can update approval_requests"
   ON public.approval_requests FOR UPDATE
   TO authenticated

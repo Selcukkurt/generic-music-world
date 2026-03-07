@@ -50,11 +50,13 @@ ALTER TABLE public.task_boards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
 -- task_boards: all authenticated can read
+DROP POLICY IF EXISTS "Authenticated can select task_boards" ON public.task_boards;
 CREATE POLICY "Authenticated can select task_boards"
   ON public.task_boards FOR SELECT TO authenticated
   USING (true);
 
 -- tasks: all authenticated can read
+DROP POLICY IF EXISTS "Authenticated can select tasks" ON public.tasks;
 CREATE POLICY "Authenticated can select tasks"
   ON public.tasks FOR SELECT TO authenticated
   USING (true);
@@ -65,6 +67,7 @@ CREATE POLICY "Creator can insert own tasks"
   WITH CHECK (auth.uid() = created_by);
 
 -- tasks: creator, assignee, or admin can update
+DROP POLICY IF EXISTS "Creator assignee or admin can update tasks" ON public.tasks;
 CREATE POLICY "Creator assignee or admin can update tasks"
   ON public.tasks FOR UPDATE TO authenticated
   USING (

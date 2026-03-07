@@ -43,7 +43,8 @@ export default function ModuleRightPanel({
   const { modulePanelOpen, closeModulePanel } = useShellUI();
   const panelRef = useRef<HTMLElement>(null);
   const config = getModuleSubnavConfig(moduleId);
-  const items = config?.items ?? [];
+  const sections = config?.sections;
+  const items = config?.items ?? (sections ? sections.flatMap((s) => s.items) : []);
 
   useBodyScrollLock(modulePanelOpen);
   useFocusTrap(panelRef, modulePanelOpen);
@@ -107,20 +108,45 @@ export default function ModuleRightPanel({
                   {config?.titleKey ? t(config.titleKey) : t("shell_context_module_title")}
                 </p>
               </div>
-              <nav className="mt-4 space-y-0.5">
-                {items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`block rounded-lg px-3 py-2 text-sm transition ${
-                      isActive(item)
-                        ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
-                        : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
-                    }`}
-                  >
-                    {t(item.labelKey)}
-                  </Link>
-                ))}
+              <nav className="mt-4 space-y-4">
+                {sections ? (
+                  sections.map((section) => (
+                    <div key={section.labelKey} className="space-y-1">
+                      <p className="px-2 text-[10px] font-semibold uppercase tracking-wider ui-text-muted">
+                        {t(section.labelKey)}
+                      </p>
+                      <div className="space-y-0.5">
+                        {section.items.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`block rounded-lg px-3 py-2 text-sm transition ${
+                              isActive(item)
+                                ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
+                                : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
+                            }`}
+                          >
+                            {t(item.labelKey)}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`block rounded-lg px-3 py-2 text-sm transition ${
+                        isActive(item)
+                          ? "bg-[var(--color-surface2)] text-[var(--color-text)]"
+                          : "ui-text-secondary hover:bg-[var(--color-surface-hover)]"
+                      }`}
+                    >
+                      {t(item.labelKey)}
+                    </Link>
+                  ))
+                )}
               </nav>
             </>
           )}
