@@ -1,8 +1,7 @@
 'use client'
 
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClientEnv } from './env'
 
-export const supabaseBrowser = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const { url, anonKey } = getSupabaseClientEnv()
+export const supabaseBrowser = createClient(url, anonKey)

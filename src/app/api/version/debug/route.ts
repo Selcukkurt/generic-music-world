@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSupabaseClientEnv } from "@/lib/supabase/env";
 
 /**
  * Returns the Supabase project ref the app is using.
@@ -6,13 +7,7 @@ import { NextResponse } from "next/server";
  * GET /api/version/debug
  */
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
-    return NextResponse.json(
-      { error: "NEXT_PUBLIC_SUPABASE_URL not set", projectRef: null },
-      { status: 500 }
-    );
-  }
+  const { url } = getSupabaseClientEnv();
   // Extract project ref from https://<ref>.supabase.co
   const match = url.match(/https:\/\/([a-zA-Z0-9-]+)\.supabase\.co/);
   const projectRef = match?.[1] ?? null;

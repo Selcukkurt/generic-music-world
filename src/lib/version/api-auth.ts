@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapAuthUserToCurrentUser } from "@/lib/auth/mapAuthUser";
+import { getSupabaseClientEnv } from "@/lib/supabase/env";
 
 export type ApiUser = { id: string; email?: string; role: string; accessToken: string };
 
@@ -59,12 +60,7 @@ export async function getApiUser(
 
 /** Create Supabase client with user token (anon key). No service role required. */
 export function createVersionClient(accessToken: string): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    console.error("[version/api-auth] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
-    throw new Error("Server misconfigured: missing Supabase env vars");
-  }
+  const { url, anonKey } = getSupabaseClientEnv();
   return createClient(url, anonKey, {
     global: {
       headers: {
