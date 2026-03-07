@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import PageHeader from "@/components/shell/PageHeader";
-import { useI18n } from "@/i18n/LocaleProvider";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { SINGLE_ADMIN_MODE } from "@/config/pulse";
 import { type ModuleHealth } from "@/lib/pulse/data";
@@ -98,35 +97,6 @@ function OwnerAvatar({ name }: { name: string }) {
       title={name}
     >
       {initials}
-    </div>
-  );
-}
-
-function RowMenu({
-  onAction,
-  onClose,
-}: {
-  module: PulseModuleView;
-  onAction: (action: "blocked" | "done" | "note" | "shift") => void;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button type="button" onClick={() => { onAction("done"); onClose(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]">
-        Tamamla
-      </button>
-      <button type="button" onClick={() => { onAction("blocked"); onClose(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]">
-        Engelle
-      </button>
-      <button type="button" onClick={() => { onAction("note"); onClose(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]">
-        Not ekle
-      </button>
-      <button type="button" onClick={() => { onAction("shift"); onClose(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]">
-        Tarih kaydır
-      </button>
     </div>
   );
 }
@@ -608,7 +578,6 @@ function getWeekEnd(date: Date): string {
 }
 
 export default function GMWPulseClient() {
-  const { t } = useI18n();
   const { user } = useCurrentUser();
   const defaultOwner = user?.fullName ?? "";
   const updatePlan = useModulePlansStore((s) => s.updatePlan);

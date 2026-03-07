@@ -8,7 +8,6 @@ import {
   fetchDefaultBoard,
   fetchTasksForBoard,
   createTask,
-  updateTask,
   moveTask,
   archiveTask,
   restoreTask,
