@@ -10,7 +10,7 @@
 | **RB-004-version-management** | — | Version Management (Sürüm Yönetimi) – production-ready |
 | **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
-| **RBAC-M04-STABLE** | 276411d | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
+| **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 
 ## RBAC-M04-STABLE: RBAC + M04 İK & Organizasyon Stabilization
 
