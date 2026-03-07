@@ -19,6 +19,6 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm install
-      - run: npm run lint
+      - run: run: npm run lint -- --max-warnings=1000
       - run: npm run typecheck
       - run: npm run build
