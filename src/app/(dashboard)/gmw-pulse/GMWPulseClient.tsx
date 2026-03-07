@@ -103,7 +103,6 @@ function OwnerAvatar({ name }: { name: string }) {
 }
 
 function RowMenu({
-  module,
   onAction,
   onClose,
 }: {
