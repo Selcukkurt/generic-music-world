@@ -592,7 +592,6 @@ export default function GMWPulseClient() {
   const [viewTab, setViewTab] = useState<"roadmap" | "table" | "cards">("roadmap");
   const [selectedModule, setSelectedModule] = useState<PulseModuleView | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [shiftModuleId, setShiftModuleId] = useState<string | null>(null);
 
@@ -671,7 +670,6 @@ export default function GMWPulseClient() {
     () => [...new Set((modules ?? []).map((m) => m.team).filter((t): t is string => !!t))].sort(),
     [modules]
   );
-  const owners = useMemo(() => [...new Set((modules ?? []).map((m) => m.owner ?? ""))].filter(Boolean).sort(), [modules]);
 
   const highlightsKritik = useMemo(() => {
     const list = modules ?? [];
@@ -1122,7 +1120,7 @@ export default function GMWPulseClient() {
 
                 const isSelected = selectedIds.has(m.module_code);
                 const effectiveEta = getEffectiveEta(m);
-                const { progress: displayProgress, label: progressLabel, doneCount: milestoneDone, totalCount: milestoneTotal } = getEffectiveProgress(m);
+                const { label: progressLabel, doneCount: milestoneDone, totalCount: milestoneTotal } = getEffectiveProgress(m);
                 const showHealthBadge = hasValidPlanDates;
 
                 return (
