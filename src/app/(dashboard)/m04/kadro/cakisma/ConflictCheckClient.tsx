@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/shell/PageHeader";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchAssignmentConflicts } from "@/lib/m04/kadro";
@@ -117,12 +118,12 @@ export default function ConflictCheckClient() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <a
+                      <Link
                         href="/m04/kadro/atama"
                         className="rounded px-2 py-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                       >
                         Atamayı Düzenle
-                      </a>
+                      </Link>
                     </td>
                   </tr>
                 ))}
