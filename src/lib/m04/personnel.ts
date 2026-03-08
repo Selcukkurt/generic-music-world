@@ -16,6 +16,7 @@ type PersonnelRow = {
   email: string | null;
   phone: string | null;
   national_id: string | null;
+  nationality?: string | null;
   iban: string | null;
   insurance_status: "insured" | "freelance";
   salary_type: "monthly" | "daily" | "freelance";
@@ -27,7 +28,8 @@ type PersonnelRow = {
   job_title_id: string | null;
   org_unit_id: string | null;
   reports_to_person_id?: string | null;
-  status: "active" | "inactive" | "blacklist";
+  hire_date?: string | null;
+  status: "active" | "inactive" | "blacklist" | "on_leave";
   is_active?: boolean;
   notes: string | null;
   documents?: unknown[];
@@ -71,6 +73,7 @@ export type PersonnelRecord = {
   email: string | null;
   phone: string | null;
   national_id: string | null;
+  nationality?: string | null;
   iban: string | null;
   insurance_status: "insured" | "freelance";
   salary_type: "monthly" | "daily" | "freelance";
@@ -82,7 +85,8 @@ export type PersonnelRecord = {
   job_title_id: string | null;
   org_unit_id: string | null;
   reports_to_person_id?: string | null;
-  status: "active" | "inactive" | "blacklist";
+  hire_date?: string | null;
+  status: "active" | "inactive" | "blacklist" | "on_leave";
   is_active?: boolean;
   notes: string | null;
   documents?: unknown[];
@@ -95,7 +99,8 @@ export type PersonnelRecord = {
 export type PersonnelFilters = {
   search?: string;
   insurance_status?: "insured" | "freelance" | "all";
-  status?: "active" | "inactive" | "all";
+  status?: "active" | "inactive" | "on_leave" | "all";
+  org_unit_id?: string | null;
   blacklist?: boolean | "all";
   page?: number;
   pageSize?: number;
@@ -132,6 +137,7 @@ export async function fetchPersonnelById(id: string): Promise<PersonnelRecord | 
       email,
       phone,
       national_id,
+      nationality,
       iban,
       insurance_status,
       salary_type,
@@ -142,14 +148,16 @@ export async function fetchPersonnelById(id: string): Promise<PersonnelRecord | 
       rbac_role,
       job_title_id,
       org_unit_id,
+      reports_to_person_id,
+      hire_date,
       status,
       is_active,
       notes,
       documents,
       created_at,
       updated_at,
-      job_titles (id, name),
-      org_units (id, name)
+      job_titles!personnel_job_title_id_fkey (id, name),
+      org_units!personnel_org_unit_id_fkey (id, name)
     `
     )
     .eq("id", id)
@@ -176,6 +184,7 @@ export async function fetchPersonnel(filters: PersonnelFilters): Promise<Personn
       email,
       phone,
       national_id,
+      nationality,
       iban,
       insurance_status,
       salary_type,
@@ -192,8 +201,8 @@ export async function fetchPersonnel(filters: PersonnelFilters): Promise<Personn
       documents,
       created_at,
       updated_at,
-      job_titles (id, name),
-      org_units (id, name)
+      job_titles!personnel_job_title_id_fkey (id, name),
+      org_units!personnel_org_unit_id_fkey (id, name)
     `,
       { count: "exact" }
     )
@@ -203,11 +212,14 @@ export async function fetchPersonnel(filters: PersonnelFilters): Promise<Personn
   if (filters.search?.trim()) {
     const q = `%${filters.search.trim()}%`;
     query = query.or(
-      `first_name.ilike.${q},last_name.ilike.${q},full_name.ilike.${q},email.ilike.${q},national_id.ilike.${q},phone.ilike.${q}`
+      `first_name.ilike.${q},last_name.ilike.${q},full_name.ilike.${q},email.ilike.${q},national_id.ilike.${q},nationality.ilike.${q},phone.ilike.${q}`
     );
   }
   if (filters.insurance_status && filters.insurance_status !== "all") {
     query = query.eq("insurance_status", filters.insurance_status);
+  }
+  if (filters.org_unit_id) {
+    query = query.eq("org_unit_id", filters.org_unit_id);
   }
   if (filters.blacklist === true) {
     query = query.eq("status", "blacklist");
@@ -217,6 +229,8 @@ export async function fetchPersonnel(filters: PersonnelFilters): Promise<Personn
     query = query.eq("status", "active");
   } else if (filters.status === "inactive") {
     query = query.eq("status", "inactive");
+  } else if (filters.status === "on_leave") {
+    query = query.eq("status", "on_leave");
   }
 
   const { data, error, count } = await query;
@@ -237,6 +251,7 @@ export type CreatePersonnelPayload = {
   email?: string;
   phone?: string;
   national_id?: string;
+  nationality?: string;
   iban?: string;
   insurance_status: "insured" | "freelance";
   salary_type: "monthly" | "daily" | "freelance";
@@ -244,6 +259,8 @@ export type CreatePersonnelPayload = {
   rbac_role?: string;
   job_title_id?: string;
   org_unit_id?: string;
+  hire_date?: string;
+  profile_id?: string | null;
   notes?: string;
   documents?: Array<{ name: string; url?: string; type?: string }>;
 };
@@ -260,6 +277,7 @@ export async function createPersonnel(payload: CreatePersonnelPayload): Promise<
     email: payload.email?.trim() || null,
     phone: payload.phone?.trim() || null,
     national_id: payload.national_id?.trim() || null,
+    nationality: payload.nationality?.trim() || null,
     iban: payload.iban?.trim() || null,
     insurance_status: payload.insurance_status,
     salary_type: payload.salary_type,
@@ -267,6 +285,8 @@ export async function createPersonnel(payload: CreatePersonnelPayload): Promise<
     rbac_role: payload.rbac_role?.trim() || "staff",
     job_title_id: payload.job_title_id || null,
     org_unit_id: payload.org_unit_id || null,
+    profile_id: payload.profile_id || null,
+    hire_date: payload.hire_date?.trim() || null,
     notes: payload.notes?.trim() || null,
     documents: payload.documents ?? [],
     status: "active",
@@ -285,8 +305,8 @@ export async function createPersonnel(payload: CreatePersonnelPayload): Promise<
     .select(
       `
       *,
-      job_titles (id, name),
-      org_units (id, name)
+      job_titles!personnel_job_title_id_fkey (id, name),
+      org_units!personnel_org_unit_id_fkey (id, name)
     `
     )
     .single();
@@ -298,13 +318,92 @@ export async function createPersonnel(payload: CreatePersonnelPayload): Promise<
 export type UpdatePersonnelPayload = Partial<Omit<CreatePersonnelPayload, "notes">> & {
   status?: "active" | "inactive" | "blacklist";
   notes?: string | null;
+  profile_id?: string | null;
 };
 
 export async function updatePersonnel(id: string, payload: UpdatePersonnelPayload): Promise<void> {
   const cleanPayload: Record<string, unknown> = { ...payload };
   if ("notes" in payload) cleanPayload.notes = payload.notes ?? null;
+  if ("profile_id" in payload) cleanPayload.profile_id = payload.profile_id ?? null;
   const { error } = await supabaseBrowser.from("personnel").update(cleanPayload).eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+/** Link personnel to a system user (1:1). Clears link from any other personnel first. */
+export async function linkPersonnelToUser(personnelId: string, profileId: string | null): Promise<void> {
+  if (profileId) {
+    await supabaseBrowser.from("personnel").update({ profile_id: null }).eq("profile_id", profileId);
+  }
+  await updatePersonnel(personnelId, { profile_id: profileId });
+}
+
+/** Fetch personnel records linked to the given profile IDs. Returns Map<profileId, PersonnelRecord>. */
+export async function fetchPersonnelByProfileIds(profileIds: string[]): Promise<Map<string, PersonnelRecord>> {
+  if (profileIds.length === 0) return new Map();
+  const ids = [...new Set(profileIds)].filter(Boolean);
+  const { data, error } = await supabaseBrowser
+    .from("personnel")
+    .select("id, profile_id, first_name, last_name, full_name, email, job_titles!personnel_job_title_id_fkey (id, name)")
+    .in("profile_id", ids);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, PersonnelRecord>();
+  for (const row of (data ?? []) as PersonnelRow[]) {
+    const pid = row.profile_id;
+    if (pid) {
+      const rec = toPersonnelRecord(row);
+      map.set(pid, rec);
+    }
+  }
+  return map;
+}
+
+/** Linked system user info for display. */
+export type LinkedUserInfo = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  is_active: boolean;
+  role_key?: string | null;
+};
+
+/** Fetch linked user info for personnel records. Returns Map<profileId, LinkedUserInfo>. */
+export async function fetchLinkedUsers(profileIds: string[]): Promise<Map<string, LinkedUserInfo>> {
+  if (profileIds.length === 0) return new Map();
+  const ids = [...new Set(profileIds)].filter(Boolean);
+  const { data: usersData, error: usersError } = await supabaseBrowser
+    .from("app_users")
+    .select("id, email, full_name, is_active")
+    .in("id", ids);
+  if (usersError) throw new Error(usersError.message);
+  const map = new Map<string, LinkedUserInfo>();
+  for (const row of (usersData ?? []) as Array<{ id: string; email: string | null; full_name: string | null; is_active: boolean }>) {
+    map.set(row.id, { ...row, role_key: null });
+  }
+  const { data: rolesData } = await supabaseBrowser
+    .from("user_roles")
+    .select("user_id, roles(key)")
+    .in("user_id", ids);
+  const roleMap = new Map<string, string>();
+  for (const ur of (rolesData ?? []) as Array<{ user_id: string; roles: { key: string } | { key: string }[] | null }>) {
+    const r = ur.roles;
+    const key = Array.isArray(r) ? r[0]?.key : r?.key;
+    if (key && !roleMap.has(ur.user_id)) roleMap.set(ur.user_id, key);
+  }
+  for (const [id, info] of map) {
+    info.role_key = roleMap.get(id) ?? null;
+  }
+  return map;
+}
+
+/** Fetch system users for linking dropdown (id, email, full_name). */
+export async function fetchUsersForLinking(): Promise<Array<{ id: string; email: string | null; full_name: string | null }>> {
+  const { data, error } = await supabaseBrowser
+    .from("app_users")
+    .select("id, email, full_name")
+    .eq("is_active", true)
+    .order("email", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Array<{ id: string; email: string | null; full_name: string | null }>;
 }
 
 export type PersonnelEventAssignment = {
@@ -313,6 +412,7 @@ export type PersonnelEventAssignment = {
   event_id: string;
   job_title_id: string;
   assignment_type: "primary" | "acting";
+  status?: "active" | "completed" | "cancelled" | null;
   start_date: string | null;
   end_date: string | null;
   created_at: string;
@@ -330,6 +430,7 @@ export async function fetchPersonnelEventAssignments(personnelId: string): Promi
       event_id,
       job_title_id,
       assignment_type,
+      status,
       start_date,
       end_date,
       created_at,

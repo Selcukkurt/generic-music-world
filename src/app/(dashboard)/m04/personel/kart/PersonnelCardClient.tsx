@@ -10,6 +10,9 @@ import {
   fetchPersonnelEventAssignments,
   fetchPersonnelDocuments,
   fetchReportsToPersonnel,
+  fetchLinkedUsers,
+  fetchUsersForLinking,
+  linkPersonnelToUser,
   getFullName,
 } from "@/lib/m04/personnel";
 import type { PersonnelRecord, PersonnelEventAssignment, PersonnelDocument } from "@/lib/m04/personnel";
@@ -77,6 +80,11 @@ export default function PersonnelCardClient() {
   const [documents, setDocuments] = useState<PersonnelDocument[]>([]);
   const [reportsTo, setReportsTo] = useState<PersonnelRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [linkedUser, setLinkedUser] = useState<{ email: string | null; full_name: string | null; is_active: boolean; role_key: string | null } | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkUsers, setLinkUsers] = useState<Array<{ id: string; email: string | null; full_name: string | null }>>([]);
+  const [selectedLinkUserId, setSelectedLinkUserId] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -93,14 +101,25 @@ export default function PersonnelCardClient() {
       setRecord(data);
       setEventAssignments(events);
       setDocuments(docs);
+      if (data?.profile_id) {
+        try {
+          const linked = await fetchLinkedUsers([data.profile_id]);
+          const info = linked.get(data.profile_id);
+          setLinkedUser(info ? { email: info.email, full_name: info.full_name, is_active: info.is_active, role_key: info.role_key ?? null } : null);
+        } catch {
+          setLinkedUser(null);
+        }
+      } else {
+        setLinkedUser(null);
+      }
       if (data?.reports_to_person_id) {
-        const r = await fetchReportsToPersonnel(data.reports_to_person_id);
+        const r = await fetchReportsToPersonnel(data.reports_to_person_id).catch(() => null);
         setReportsTo(r);
       } else {
         setReportsTo(null);
       }
     } catch (err) {
-      toast.error("Hata", err instanceof Error ? err.message : "Personel kaydı yüklenemedi.");
+      toast.error("Error", err instanceof Error ? err.message : "Personnel record could not be loaded.");
       setRecord(null);
     } finally {
       setLoading(false);
@@ -114,14 +133,14 @@ export default function PersonnelCardClient() {
   if (!id) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <PageHeader title="360° Personel Kartı" subtitle="Personel seçin veya listeden tıklayın." />
+        <PageHeader title="360° Personnel Card" subtitle="Select a person or click from the list." />
         <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 backdrop-blur-sm">
-          <p className="text-sm ui-text-secondary">Personel kartı görüntülemek için Personel Listesinden bir kayıt seçin.</p>
+          <p className="text-sm ui-text-secondary">Select a record from the Personnel List to view the 360° card.</p>
           <Link
             href="/m04/personel"
             className="mt-4 inline-flex rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
           >
-            Personel Listesine Git
+            Go to Personnel List
           </Link>
         </div>
       </div>
@@ -131,7 +150,7 @@ export default function PersonnelCardClient() {
   if (loading) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <PageHeader title="360° Personel Kartı" subtitle="Yükleniyor…" />
+        <PageHeader title="360° Personnel Card" subtitle="Loading…" />
         <div className="flex items-center justify-center py-16">
           <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--color-surface2)]" />
         </div>
@@ -142,14 +161,14 @@ export default function PersonnelCardClient() {
   if (!record) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <PageHeader title="360° Personel Kartı" subtitle="Kayıt bulunamadı." />
+        <PageHeader title="360° Personnel Card" subtitle="Record not found." />
         <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 backdrop-blur-sm">
-          <p className="text-sm ui-text-secondary">Belirtilen personel kaydı bulunamadı.</p>
+          <p className="text-sm ui-text-secondary">The specified personnel record was not found.</p>
           <Link
             href="/m04/personel"
             className="mt-4 inline-flex rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
           >
-            Personel Listesine Dön
+            Back to Personnel List
           </Link>
         </div>
       </div>
@@ -157,7 +176,7 @@ export default function PersonnelCardClient() {
   }
 
   const fullName = getFullName(record);
-  const statusLabels: Record<string, string> = { active: "Aktif", inactive: "Pasif", blacklist: "Kara Liste" };
+  const statusLabels: Record<string, string> = { active: "Active", inactive: "Inactive", blacklist: "Blacklist" };
   const statusStyles: Record<string, string> = {
     active: "bg-emerald-500/20 text-emerald-200",
     inactive: "bg-slate-500/20 text-slate-400",
@@ -176,12 +195,13 @@ export default function PersonnelCardClient() {
           href="/m04/personel"
           className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface2)] px-4 py-2 text-sm font-medium ui-text-secondary transition hover:bg-[var(--color-surface-hover)]"
         >
-          Listeye Dön
+          Back to List
         </Link>
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Genel Bilgiler">
+        {/* 1. Profile */}
+        <SectionCard title="Profile">
           <div className="mb-4 flex items-center gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface2)] text-xl font-medium text-[var(--color-text)]">
               {getInitials(record)}
@@ -191,19 +211,14 @@ export default function PersonnelCardClient() {
               <p className="text-sm ui-text-muted">{record.email ?? "—"}</p>
             </div>
           </div>
-          <InfoRow label="Ad Soyad" value={fullName} />
-          <InfoRow label="TC Kimlik No" value={record.national_id} />
-          <InfoRow label="Telefon" value={record.phone} />
-          <InfoRow label="E-posta" value={record.email} />
-        </SectionCard>
-
-        <SectionCard title="İK Bilgileri">
-          <InfoRow label="Sigorta Durumu" value={record.insurance_status === "insured" ? "Sigortalı" : "Freelance"} />
-          <InfoRow label="Maaş Tipi" value={record.salary_type === "monthly" ? "Aylık" : record.salary_type === "daily" ? "Günlük" : "Freelance"} />
-          <InfoRow label="Maaş Tutarı" value={formatCurrency(record.salary_amount ?? record.salary_monthly ?? record.daily_rate)} />
-          <InfoRow label="IBAN" value={record.iban ? `${record.iban.slice(0, 4)}****${record.iban.slice(-4)}` : null} />
+          <InfoRow label="Full Name" value={fullName} />
+          <InfoRow label="Email" value={record.email} />
+          <InfoRow label="Phone" value={record.phone} />
+          <InfoRow label="National ID" value={record.national_id} />
+          <InfoRow label="Nationality" value={record.nationality} />
+          <InfoRow label="Insurance Status" value={record.insurance_status === "insured" ? "Insured" : "Freelance"} />
           <InfoRow
-            label="Durum"
+            label="Status"
             value={
               <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusStyles[record.status ?? "active"] ?? statusStyles.inactive}`}>
                 {statusLabels[record.status ?? "active"] ?? record.status}
@@ -212,35 +227,163 @@ export default function PersonnelCardClient() {
           />
         </SectionCard>
 
-        <SectionCard title="Organizasyon & Rol">
-          <InfoRow label="Unvan" value={record.job_titles?.name} />
-          <InfoRow label="RBAC Rolü" value={record.rbac_role} />
-          <InfoRow label="Organizasyon Birimi" value={record.org_units?.name} />
-          <InfoRow
-            label="Rapor Veren"
-            value={reportsTo ? getFullName(reportsTo) : "—"}
-          />
+        {/* 2. Organizational Info */}
+        <SectionCard title="Organizational Info">
+          <InfoRow label="Job Title" value={record.job_titles?.name} />
+          <InfoRow label="Org Unit" value={record.org_units?.name} />
+          <InfoRow label="Manager" value={reportsTo ? getFullName(reportsTo) : "—"} />
+          <InfoRow label="Hire Date" value={formatDate(record.hire_date)} />
         </SectionCard>
 
-        <SectionCard title="Etkinlik Geçmişi">
-          {eventAssignments.length === 0 ? (
-            <p className="text-sm ui-text-muted">Henüz atanmış etkinlik yok.</p>
+        {/* 3. System Access - linked via personnel.profile_id */}
+        <SectionCard title="System Access">
+          {linkedUser ? (
+            <>
+              <InfoRow label="Linked Account" value={linkedUser.email ?? linkedUser.full_name ?? "—"} />
+              <InfoRow label="System Role" value={linkedUser.role_key ?? "—"} />
+              <InfoRow
+                label="Account Status"
+                value={
+                  <span
+                    className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
+                      linkedUser.is_active ? "bg-emerald-500/20 text-emerald-200" : "bg-red-500/20 text-red-300"
+                    }`}
+                  >
+                    {linkedUser.is_active ? "Active" : "Inactive"}
+                  </span>
+                }
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  setLinkSaving(true);
+                  try {
+                    await linkPersonnelToUser(record.id, null);
+                    setLinkedUser(null);
+                    toast.success("Unlinked", "Personnel record unlinked from system account.");
+                  } catch (err) {
+                    toast.error("Error", err instanceof Error ? err.message : "Could not unlink.");
+                  } finally {
+                    setLinkSaving(false);
+                  }
+                }}
+                disabled={linkSaving}
+                className="mt-2 rounded border border-[var(--color-border)] p-2 text-xs font-medium ui-text-secondary hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+              >
+                Unlink
+              </button>
+            </>
           ) : (
-            <ul className="space-y-2">
-              {eventAssignments.slice(0, 10).map((ea) => {
-                const ev = ea.etkinlik_events as { name?: string; date?: string } | null | undefined;
+            <>
+              <p className="text-sm ui-text-muted">No system account linked. Link this personnel record to a system user to grant access.</p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const users = await fetchUsersForLinking();
+                    setLinkUsers(users);
+                    setSelectedLinkUserId("");
+                    setLinkModalOpen(true);
+                  } catch {
+                    toast.error("Error", "Could not load users for linking.");
+                  }
+                }}
+                className="mt-2 rounded border border-[var(--color-border)] p-2 text-xs font-medium ui-text-secondary hover:bg-[var(--color-surface-hover)]"
+              >
+                Link to User
+              </button>
+            </>
+          )}
+        </SectionCard>
+
+        {linkModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="ui-glass max-h-[80vh] w-full max-w-md overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 backdrop-blur-sm">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider ui-text-muted">Link to System User</h3>
+              <select
+                value={selectedLinkUserId}
+                onChange={(e) => setSelectedLinkUserId(e.target.value)}
+                className="ui-input mb-4 w-full py-2 text-sm"
+              >
+                <option value="">— Select user —</option>
+                {linkUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.email ?? u.full_name ?? u.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!selectedLinkUserId) return;
+                    setLinkSaving(true);
+                    try {
+                      await linkPersonnelToUser(record.id, selectedLinkUserId);
+                      const linked = await fetchLinkedUsers([selectedLinkUserId]);
+                      const info = linked.get(selectedLinkUserId);
+                      setLinkedUser(info ? { email: info.email, full_name: info.full_name, is_active: info.is_active, role_key: info.role_key ?? null } : null);
+                      setLinkModalOpen(false);
+                      toast.success("Linked", "Personnel record linked to system account.");
+                    } catch (err) {
+                      toast.error("Error", err instanceof Error ? err.message : "Could not link.");
+                    } finally {
+                      setLinkSaving(false);
+                    }
+                  }}
+                  disabled={!selectedLinkUserId || linkSaving}
+                  className="ui-button-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                >
+                  Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLinkModalOpen(false)}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface2)] px-4 py-2 text-sm font-medium ui-text-secondary hover:bg-[var(--color-surface-hover)]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Event Assignments */}
+        <SectionCard title="Event Assignments">
+          {eventAssignments.length === 0 ? (
+            <p className="text-sm ui-text-muted">No event assignments yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {eventAssignments.map((ea) => {
+                const ev = ea.etkinlik_events as { name?: string; date?: string; venue?: string | null } | null | undefined;
+                const roleName = ea.job_titles?.name ?? ea.assignment_type ?? "—";
+                const endDate = ea.end_date ? new Date(ea.end_date) : null;
+                const derivedStatus = !endDate || endDate >= new Date() ? "Active" : "Completed";
+                const assignmentStatus = ea.status ?? derivedStatus;
+                const statusStyles: Record<string, string> = {
+                  active: "bg-emerald-500/20 text-emerald-200",
+                  completed: "bg-slate-500/20 text-slate-400",
+                  cancelled: "bg-red-500/20 text-red-300",
+                  Active: "bg-emerald-500/20 text-emerald-200",
+                  Completed: "bg-slate-500/20 text-slate-400",
+                };
                 return (
-                  <li key={ea.id} className="flex justify-between gap-2 text-sm">
-                    <span className="ui-text-secondary">{ev?.name ?? "Etkinlik"}</span>
-                    <span className="text-xs ui-text-muted">
-                      {ea.assignment_type} • {formatDate(ev?.date ?? ea.start_date ?? ea.end_date)}
-                    </span>
+                  <li key={ea.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface2)]/30 p-3 text-sm">
+                    <div className="font-medium text-[var(--color-text)]">{ev?.name ?? "Event"}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ui-text-muted">
+                      <span>Role: {roleName}</span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-xs font-medium capitalize ${statusStyles[assignmentStatus] ?? statusStyles.completed}`}
+                      >
+                        {assignmentStatus}
+                      </span>
+                      <span>
+                        {formatDate(ea.start_date)} – {formatDate(ea.end_date)}
+                      </span>
+                    </div>
                   </li>
                 );
               })}
-              {eventAssignments.length > 10 && (
-                <li className="text-xs ui-text-muted">+{eventAssignments.length - 10} daha</li>
-              )}
             </ul>
           )}
         </SectionCard>

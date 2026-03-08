@@ -97,7 +97,7 @@ export default function AddPersonnelForm() {
         documents: documents.map((d) => ({ name: d.name, url: d.url, type: d.type })),
       });
       toast.success("Success", "Personnel record created.");
-      router.push(`/m04/personel/kart?id=${record.id}`);
+      router.push("/m04/personel");
     } catch (err) {
       toast.error("Error", err instanceof Error ? err.message : "Failed to create personnel.");
     } finally {
