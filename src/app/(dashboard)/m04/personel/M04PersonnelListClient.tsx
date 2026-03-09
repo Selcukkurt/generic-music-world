@@ -127,7 +127,7 @@ export default function M04PersonnelListClient() {
   }, []);
 
   const totalPages = Math.ceil(total / pageSize);
-  const openCard = (id: string) => router.push(`/m04/personel/kart?id=${id}`);
+  const openCard = (id: string) => router.push(`/hr/personnel/${id}`);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -315,7 +315,7 @@ export default function M04PersonnelListClient() {
                         </td>
                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <Link
-                            href={`/m04/personel/kart?id=${record.id}`}
+                            href={`/hr/personnel/${record.id}`}
                             className="rounded px-2 py-1 text-xs font-medium ui-text-secondary transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
                           >
                             Görüntüle

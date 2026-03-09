@@ -10,6 +10,7 @@ import {
   fetchUserEventAccess,
   updateUserEventAccess,
 } from "@/lib/rbac-v1/api";
+import { fetchPersonnelByProfileIds, getFullName } from "@/lib/m04/personnel";
 import type { AppUserWithRoles, Role } from "@/lib/rbac-v1/types";
 import type { EventAccessEntry } from "@/lib/rbac-v1/api";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -58,6 +59,7 @@ export default function UsersTab() {
   const [users, setUsers] = useState<AppUserWithRoles[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [orgTitleMap, setOrgTitleMap] = useState<Record<string, string>>({});
+  const [linkedPersonnelMap, setLinkedPersonnelMap] = useState<Record<string, string>>({});
   const [showLegacyRoles, setShowLegacyRoles] = useState(false);
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; venue?: string }>>([]);
   const [search, setSearch] = useState("");
@@ -76,9 +78,19 @@ export default function UsersTab() {
   useEffect(() => {
     if (!canRead) return;
     Promise.all([fetchUsers(search), fetchRoles()])
-      .then(([u, r]) => {
+      .then(async ([u, r]) => {
         setUsers(u);
         setRoles(r);
+        try {
+          const personnelMap = await fetchPersonnelByProfileIds(u.map((x) => x.id));
+          const nameMap: Record<string, string> = {};
+          personnelMap.forEach((rec, profileId) => {
+            nameMap[profileId] = getFullName(rec);
+          });
+          setLinkedPersonnelMap(nameMap);
+        } catch {
+          setLinkedPersonnelMap({});
+        }
       })
       .catch(() => toast.error("Yüklenemedi", "Kullanıcılar alınamadı."))
       .finally(() => setLoading(false));
@@ -235,6 +247,7 @@ export default function UsersTab() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">E-posta</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Sistem Rolü</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Org. Unvan</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Linked Personnel</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Durum</th>
               <th className="px-4 py-3 text-right text-xs font-semibold uppercase ui-text-muted">İşlem</th>
             </tr>
@@ -242,7 +255,7 @@ export default function UsersTab() {
           <tbody className="divide-y divide-[var(--color-border)]">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center ui-text-muted">
+                <td colSpan={8} className="px-4 py-12 text-center ui-text-muted">
                   Yükleniyor...
                 </td>
               </tr>
@@ -271,6 +284,13 @@ export default function UsersTab() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm ui-text-muted">{orgTitleMap[u.id] ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm ui-text-secondary">
+                    {linkedPersonnelMap[u.id] ? (
+                      <span className="font-medium text-[var(--color-text)]">{linkedPersonnelMap[u.id]}</span>
+                    ) : (
+                      <span className="ui-text-muted">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -361,6 +381,9 @@ export default function UsersTab() {
                     <p className="truncate text-sm ui-text-muted">{selectedUser.email ?? "—"}</p>
                     <p className="mt-0.5 text-xs ui-text-muted">
                       Org. unvan: {orgTitleMap[selectedUser.id] ?? "—"}
+                    </p>
+                    <p className="mt-0.5 text-xs ui-text-muted">
+                      Linked Personnel: {linkedPersonnelMap[selectedUser.id] ?? "—"}
                     </p>
                   </div>
                 </div>
