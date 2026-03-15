@@ -118,6 +118,7 @@ export default function ConflictCheckClient() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      {/* Use Link for internal nav per @next/next/no-html-link-for-pages */}
                       <Link
                         href="/m04/kadro/atama"
                         className="rounded px-2 py-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
