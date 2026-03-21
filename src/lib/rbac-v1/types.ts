@@ -27,4 +27,10 @@ export type Permission = {
 
 export type AppUserWithRoles = AppUser & {
   roles: Role[];
+  /** From profiles.role */
+  role_code?: string | null;
+  /** From profiles.role_level (0-6). */
+  role_level?: number | null;
+  /** From profiles.can_login. role_level 5 implies false. */
+  can_login?: boolean | null;
 };

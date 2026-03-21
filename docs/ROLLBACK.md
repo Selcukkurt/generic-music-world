@@ -12,6 +12,39 @@
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 
+---
+
+## Rollback Tracking Table
+
+| Rollback ID | Tarih | Saat | Ortam | Versiyon/Tag | Sayfa/Modül | Aktif Durum | Kilitle | Yedek | Yayın | Prod |
+|-------------|-------|------|-------|--------------|-------------|-------------|---------|-------|-------|------|
+| RB-021 | 2026-03-21 | 14:49 | Local + Dev | GMW-2026-03-RB021 | System / RBAC | Active | FALSE | TRUE | FALSE | FALSE |
+
+**RB-021 – Yapılan İşlem Özeti:**
+RBAC enforcement phase started.
+- role_level is now used as the single source of truth
+- login restriction implemented (role_level 5 cannot log in)
+- route access rules introduced (e.g. /system/rbac limited to role_level <= 2)
+- UI behavior aligned with role_level (read-only, no-login roles, etc.)
+- permission helpers (canAccessRoute, canLogin, etc.) integrated
+
+RBAC is transitioning from bypass mode to controlled enforcement.
+
+**RB-021 – Son Stabil Durum:** Stabil (Dev - Enforcement Phase)
+
+**RB-021 – Bilinen Sorun:** RBAC enforcement partially active, not fully validated across all modules.
+
+**RB-021 – Risk Seviyesi:** Medium-High
+
+**RB-021 – Rollback Hedefi:** RB-020
+
+**RB-021 – Sıradaki Teknik İş:**
+- full permission matrix implementation
+- module-level access control
+- remove RBAC bypass safely
+
+---
+
 ## RBAC-M04-STABLE: RBAC + M04 İK & Organizasyon Stabilization
 
 **Tag:** RBAC-M04-STABLE  

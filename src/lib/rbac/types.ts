@@ -4,7 +4,7 @@
  * CEO: business-only, no system permissions.
  */
 
-export type Role = "system_owner" | "ceo" | "admin" | "lead" | "staff" | "viewer";
+export type Role = "system_owner" | "ceo" | "coo" | "admin" | "lead" | "staff" | "viewer";
 
 /** Legacy alias – maps to ceo for backward compatibility. */
 export type LegacyRole = "owner";

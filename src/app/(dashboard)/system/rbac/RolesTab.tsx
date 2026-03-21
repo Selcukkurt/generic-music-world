@@ -5,18 +5,17 @@ import { fetchRoles, fetchPermissions, fetchRolePermissions, updateRolePermissio
 import type { Role, Permission } from "@/lib/rbac-v1/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
-import { isNewRole, isNewPermissionGroup } from "@/lib/rbac-v1/constants";
+import { isNewPermissionGroup } from "@/lib/rbac-v1/constants";
+import { ROLE_HIERARCHY_DISPLAY, LEVEL_TO_ROLE_KEY } from "@/lib/rbac/roleConfig";
 
 const NEW_GROUP_ORDER = ["dashboard", "event", "finance", "marketing", "artist_ops", "ticketing", "system"];
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  owner: "Tam sistem erişimi. Tüm modüllerde admin yetkisi.",
-  admin: "Sistem yönetimi ve yapılandırma. Modül düzenlemeleri.",
-  director: "Departman düzeyinde onay ve denetim.",
-  manager: "Ekip ve modül yönetimi.",
-  staff: "Operasyonel erişim.",
-  field: "Saha operasyonları erişimi.",
-  viewer: "Salt okunur erişim.",
-};
+
+const CARD_STYLE =
+  "ui-glass rounded-xl border p-4 text-left backdrop-blur-sm transition border-[var(--color-border)] bg-[var(--color-surface)]/80 hover:border-[var(--color-border)]/80";
+const CARD_STYLE_SELECTED =
+  "ui-glass rounded-xl border p-4 text-left backdrop-blur-sm transition border-[var(--color-primary)] bg-[var(--color-primary)]/10";
+const PANEL_STYLE =
+  "ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-4 backdrop-blur-sm sm:p-6";
 
 export default function RolesTab() {
   const toast = useToast();
@@ -24,13 +23,19 @@ export default function RolesTab() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [rolePermissionKeys, setRolePermissionKeys] = useState<string[]>([]);
   const [draftKeys, setDraftKeys] = useState<Set<string>>(new Set());
-  const [showLegacy, setShowLegacy] = useState(false);
+  const [permsLoading, setPermsLoading] = useState(false);
 
   const canRead = hasPermission("rbac.roles.read") || hasPermission("system.manage");
   const canWrite = hasPermission("rbac.roles.write") || hasPermission("system.manage");
+
+  const selectedDbRole = useMemo(() => {
+    if (selectedLevel == null) return null;
+    const key = LEVEL_TO_ROLE_KEY[selectedLevel];
+    return roles.find((r) => r.key === key) ?? null;
+  }, [selectedLevel, roles]);
 
   useEffect(() => {
     if (!canRead) return;
@@ -44,8 +49,14 @@ export default function RolesTab() {
   }, [canRead, toast]);
 
   useEffect(() => {
-    if (!selectedRole) return;
-    fetchRolePermissions(selectedRole.id)
+    if (!selectedDbRole) {
+      setRolePermissionKeys([]);
+      setDraftKeys(new Set());
+      setPermsLoading(false);
+      return;
+    }
+    setPermsLoading(true);
+    fetchRolePermissions(selectedDbRole.id)
       .then((keys) => {
         setRolePermissionKeys(keys);
         setDraftKeys(new Set(keys));
@@ -53,11 +64,12 @@ export default function RolesTab() {
       .catch(() => {
         setRolePermissionKeys([]);
         setDraftKeys(new Set());
-      });
-  }, [selectedRole]);
+      })
+      .finally(() => setPermsLoading(false));
+  }, [selectedDbRole]);
 
   const handleTogglePermission = (key: string) => {
-    if (!canWrite || selectedRole?.is_system) return;
+    if (!canWrite || selectedDbRole?.is_system) return;
     setDraftKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -67,9 +79,9 @@ export default function RolesTab() {
   };
 
   const handleSave = async () => {
-    if (!selectedRole || !canWrite || selectedRole.is_system) return;
+    if (!selectedDbRole || !canWrite || selectedDbRole.is_system) return;
     try {
-      await updateRolePermissions(selectedRole.id, Array.from(draftKeys));
+      await updateRolePermissions(selectedDbRole.id, Array.from(draftKeys));
       setRolePermissionKeys(Array.from(draftKeys));
       toast.success("Kaydedildi", "Rol yetkileri güncellendi.");
     } catch {
@@ -77,16 +89,9 @@ export default function RolesTab() {
     }
   };
 
-  const sortedRoles = useMemo(() => {
-    const newRoles = roles.filter((r) => isNewRole(r.key));
-    const legacy = roles.filter((r) => !isNewRole(r.key));
-    return [...newRoles, ...legacy];
-  }, [roles]);
-
-  const filteredRoles = useMemo(() => {
-    if (showLegacy) return sortedRoles;
-    return sortedRoles.filter((r) => isNewRole(r.key));
-  }, [sortedRoles, showLegacy]);
+  const handleSelectRole = (level: number) => {
+    setSelectedLevel((prev) => (prev === level ? null : level));
+  };
 
   const grouped = useMemo(() => {
     const acc: Record<string, Permission[]> = {};
@@ -96,22 +101,19 @@ export default function RolesTab() {
       acc[g].push(p);
     }
     const newGroups = NEW_GROUP_ORDER.filter((g) => acc[g]?.length);
-    const legacyGroups = Object.keys(acc).filter((g) => !NEW_GROUP_ORDER.includes(g));
     const result: Array<{ label: string; perms: Permission[] }> = [];
     for (const g of newGroups) result.push({ label: g, perms: acc[g] });
-    if (showLegacy) for (const g of legacyGroups) result.push({ label: `${g} (legacy)`, perms: acc[g] });
     return result;
-  }, [permissions, showLegacy]);
+  }, [permissions]);
 
-  const hasLegacyRoles = useMemo(() => roles.some((r) => !isNewRole(r.key)), [roles]);
-  const hasLegacyPermissions = useMemo(
-    () => permissions.some((p) => !isNewPermissionGroup(p.group)),
-    [permissions]
-  );
+  const selectedDisplay =
+    selectedLevel != null && selectedLevel >= 0 && selectedLevel < ROLE_HIERARCHY_DISPLAY.length
+      ? ROLE_HIERARCHY_DISPLAY[selectedLevel]
+      : null;
 
   if (!canRead) {
     return (
-      <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center backdrop-blur-sm ui-text-muted">
+      <div className={`${PANEL_STYLE} p-8 text-center ui-text-muted`}>
         Bu sayfayı görüntüleme yetkiniz yok.
       </div>
     );
@@ -119,86 +121,89 @@ export default function RolesTab() {
 
   return (
     <section className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-[var(--color-text)]">Roller</h2>
-        {(hasLegacyRoles || hasLegacyPermissions) && (
-          <label className="flex items-center gap-2 text-sm ui-text-muted">
-            <input
-              type="checkbox"
-              checked={showLegacy}
-              onChange={(e) => setShowLegacy(e.target.checked)}
-              className="rounded"
-            />
-            Legacy göster
-          </label>
-        )}
-      </div>
+      <h2 className="text-base font-semibold text-[var(--color-text)]">Roller</h2>
 
       {loading ? (
         <p className="text-sm ui-text-muted">Yükleniyor...</p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredRoles.map((r) => (
+            {ROLE_HIERARCHY_DISPLAY.map((entry) => (
               <button
-                key={r.id}
+                key={entry.level}
                 type="button"
-                onClick={() => setSelectedRole(r)}
-                className={`ui-glass rounded-xl border p-4 text-left backdrop-blur-sm transition ${
-                  selectedRole?.id === r.id
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
-                    : "border-[var(--color-border)] bg-[var(--color-surface)]/80 hover:border-[var(--color-border)]/80"
-                }`}
+                onClick={() => handleSelectRole(entry.level)}
+                className={selectedLevel === entry.level ? CARD_STYLE_SELECTED : CARD_STYLE}
               >
-                <h3 className="font-semibold text-[var(--color-text)]">{r.name_tr ?? r.key}</h3>
-                <p className="mt-1 text-sm ui-text-muted line-clamp-2">
-                  {ROLE_DESCRIPTIONS[r.key] ?? r.description_tr ?? ""}
-                </p>
-                {!isNewRole(r.key) && (
-                  <span className="mt-2 inline-block text-[10px] ui-text-muted">(legacy)</span>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold text-[var(--color-text)]">{entry.label}</h3>
+                  {entry.badge != null && (
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-300">
+                      {entry.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm ui-text-muted line-clamp-2">{entry.description}</p>
               </button>
             ))}
           </div>
 
-          {selectedRole && (
-            <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-4 backdrop-blur-sm sm:p-6">
-              <h3 className="mb-2 text-base font-semibold">{selectedRole.name_tr ?? selectedRole.key}</h3>
-              <p className="mb-4 text-sm ui-text-muted">{selectedRole.description_tr ?? ROLE_DESCRIPTIONS[selectedRole.key] ?? ""}</p>
-              <div className="space-y-4">
-                {grouped.map(({ label, perms }) => (
-                  <div key={label}>
-                    <h4 className="mb-2 text-xs font-semibold uppercase ui-text-muted">{label}</h4>
-                    <div className="flex flex-wrap gap-3">
-                      {perms.map((p) => (
-                        <label
-                          key={p.key}
-                          className={`flex items-center gap-2 ${
-                            selectedRole.is_system || !canWrite ? "cursor-not-allowed opacity-60" : ""
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draftKeys.has(p.key)}
-                            onChange={() => handleTogglePermission(p.key)}
-                            disabled={selectedRole.is_system || !canWrite}
-                            className="rounded"
-                          />
-                          <span className="text-sm">{p.description_tr ?? p.key}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+          {selectedLevel != null && selectedDisplay && (
+            <div className={PANEL_STYLE}>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold text-[var(--color-text)]">{selectedDisplay.label}</h3>
+                {selectedDisplay.badge != null && (
+                  <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-300">
+                    {selectedDisplay.badge}
+                  </span>
+                )}
               </div>
-              {canWrite && !selectedRole.is_system && (
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="mt-6 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-                >
-                  Kaydet
-                </button>
+              <p className="mb-4 text-sm ui-text-muted">{selectedDisplay.description}</p>
+
+              {!selectedDbRole ? (
+                <p className="text-sm ui-text-muted">
+                  Bu rol için veritabanında eşleşen rol bulunamadı. Roller veritabanında tanımlanmalıdır.
+                </p>
+              ) : permsLoading ? (
+                <p className="text-sm ui-text-muted">İzinler yükleniyor...</p>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {grouped.map(({ label, perms }) => (
+                      <div key={label}>
+                        <h4 className="mb-2 text-xs font-semibold uppercase ui-text-muted">{label}</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {perms.map((p) => (
+                            <label
+                              key={p.key}
+                              className={
+                                selectedDbRole.is_system || !canWrite ? "flex cursor-not-allowed gap-2 opacity-60" : "flex cursor-pointer gap-2"
+                              }
+                            >
+                              <input
+                                type="checkbox"
+                                checked={draftKeys.has(p.key)}
+                                onChange={() => handleTogglePermission(p.key)}
+                                disabled={selectedDbRole.is_system || !canWrite}
+                                className="rounded"
+                              />
+                              <span className="text-sm">{p.description_tr ?? p.key}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {canWrite && !selectedDbRole.is_system && (
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="mt-6 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                    >
+                      Kaydet
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}

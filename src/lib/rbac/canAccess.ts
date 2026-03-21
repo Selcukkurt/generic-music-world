@@ -86,5 +86,5 @@ export function canAccessSystemResource(
 /** Check if role can access business resources (dashboard, modules, etc.). */
 export function canAccessBusiness(role: Role | null): boolean {
   if (!role) return false;
-  return ["system_owner", "ceo", "admin", "lead", "staff", "viewer"].includes(role);
+  return ["system_owner", "ceo", "coo", "admin", "lead", "staff", "viewer"].includes(role);
 }

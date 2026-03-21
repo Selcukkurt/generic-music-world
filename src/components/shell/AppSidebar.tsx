@@ -18,8 +18,11 @@ import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useShellUI } from "@/context/ShellUIContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { canAccess, canAccessSystem } from "@/lib/rbac/canAccess";
-import type { Role } from "@/lib/rbac/types";
+import {
+  filterSidebarItemsByRoute,
+  filterSystemItemsByRoute,
+  showSystemSection,
+} from "@/lib/rbac/uiVisibility";
 
 /**
  * Strict active check: only one sidebar item can be active.
@@ -282,18 +285,6 @@ function SidebarSection({
   );
 }
 
-function filterByAccess(
-  items: SidebarNavItem[],
-  role: Role | null
-): SidebarNavItem[] {
-  if (!role) return items;
-  return items.filter((item) => {
-    if ("systemOnly" in item && item.systemOnly) return canAccessSystem(role);
-    if (item.resource == null || item.action == null) return true;
-    return canAccess(role, item.resource, item.action);
-  });
-}
-
 export default function AppSidebar({
   collapsed,
   onToggleCollapse,
@@ -304,10 +295,10 @@ export default function AppSidebar({
   const { user } = useCurrentUser();
   const sidebarRef = useRef<HTMLElement>(null);
 
-  const role = user?.role ?? null;
-  const filteredCoreItems = filterByAccess(coreItems, role);
-  const filteredPersonalItems = filterByAccess(personalItems, role);
-  const showSystemSection = canAccessSystem(role);
+  const filteredCoreItems = filterSidebarItemsByRoute(coreItems, user);
+  const filteredPersonalItems = filterSidebarItemsByRoute(personalItems, user);
+  const filteredSystemItems = filterSystemItemsByRoute(systemItems, user);
+  const showSystem = showSystemSection(user);
 
   useEffect(() => {
     if (DEBUG_SIDEBAR_TOOLTIP) {
@@ -372,12 +363,12 @@ export default function AppSidebar({
               onClose={closeSidebar}
               t={t}
             />
-            {showSystemSection && (
+            {showSystem && filteredSystemItems.length > 0 && (
               <>
                 <div className="border-t border-[var(--color-border)]" />
                 <SidebarSection
                   titleKey="shell_system"
-                  items={systemItems}
+                  items={filteredSystemItems}
                   collapsed={collapsed}
                   isActive={isActive}
                   onClose={closeSidebar}

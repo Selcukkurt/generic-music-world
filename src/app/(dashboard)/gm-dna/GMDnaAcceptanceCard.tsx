@@ -12,14 +12,14 @@ import {
 import Checkbox from "@/components/ui/Checkbox";
 
 export default function GMDnaAcceptanceCard() {
-  const { user, isLoading: userLoading } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
   const [acceptance, setAcceptance] = useState<GmDnaAcceptance | null | undefined>(undefined);
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAcceptance = useCallback(async () => {
-    if (!user?.id) return;
+    if (isLoading || !user?.id) return;
     try {
       const data = await getGmDnaAcceptance(user.id);
       setAcceptance(data);
@@ -28,15 +28,15 @@ export default function GMDnaAcceptanceCard() {
       setError("Onay durumu yüklenemedi.");
       setAcceptance(null);
     }
-  }, [user?.id]);
+  }, [isLoading, user?.id]);
 
   useEffect(() => {
-    if (user?.id) loadAcceptance();
-    else if (!userLoading && !user) setAcceptance(null);
-  }, [user?.id, userLoading, user, loadAcceptance]);
+    if (!isLoading && user?.id) loadAcceptance();
+    else if (!isLoading && !user) setAcceptance(null);
+  }, [isLoading, user?.id, user, loadAcceptance]);
 
   const handleSubmit = async () => {
-    if (!user?.id || !checked || saving) return;
+    if (isLoading || !user?.id || !checked || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -52,7 +52,7 @@ export default function GMDnaAcceptanceCard() {
   const isAccepted = acceptance?.gm_dna_accepted_version != null;
   const acceptedAt = acceptance?.gm_dna_accepted_at;
 
-  if (userLoading) {
+  if (isLoading) {
     return (
       <div className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5 shadow-sm backdrop-blur-sm sm:p-6">
         <h2 className="mb-3 text-lg font-medium">GM DNA Onayı</h2>

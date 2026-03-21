@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { PersonnelTabId } from "./config/tabs";
 import type { Personnel360Data } from "./data/personnel360.types";
 import { getPersonnel360MockData } from "./data/personnel360.mock";
@@ -44,11 +44,7 @@ type Personnel360PageProps = {
 
 export default function Personnel360Page({ personnelId }: Personnel360PageProps) {
   const [activeTab, setActiveTab] = useState<PersonnelTabId>("overview");
-
-  const data = useMemo(
-    () => getPersonnel360MockData(personnelId),
-    [personnelId]
-  );
+  const data: Personnel360Data = getPersonnel360MockData(personnelId);
 
   return (
     <div className="flex w-full flex-col gap-6">

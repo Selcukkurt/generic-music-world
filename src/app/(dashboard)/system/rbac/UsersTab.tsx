@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { fetchEvents } from "@/lib/events/data";
 import { fetchPersonAssignments } from "@/lib/org-structure/data";
 import { isNewRole } from "@/lib/rbac-v1/constants";
+import { ROLE_LABELS, ROLE_CODES, ROLE_KEY_TO_LABEL, ROLE_BADGES, SYSTEM_ACCESS_LEVELS } from "@/lib/rbac/roleConfig";
 
 const ROLE_BADGE_STYLES: Record<string, string> = {
   owner: "bg-purple-500/20 text-purple-300",
@@ -33,6 +34,13 @@ function getRoleBadgeStyle(roleKey: string): string {
   return ROLE_BADGE_STYLES[roleKey.toLowerCase()] ?? "bg-[var(--color-surface2)] ui-text-secondary";
 }
 
+function getRoleDisplay(u: AppUserWithRoles): { label: string; code: string; level: number | null } {
+  const level = u.role_level ?? null;
+  const label = level != null ? (ROLE_LABELS[level] ?? "—") : (u.role_code ?? "—");
+  const code = level != null ? (ROLE_CODES[level] ?? u.role_code ?? "—") : (u.role_code ?? "—");
+  return { label, code, level };
+}
+
 function getInitials(u: AppUserWithRoles): string {
   if (u.full_name?.trim()) {
     const parts = u.full_name.trim().split(/\s+/);
@@ -44,7 +52,7 @@ function getInitials(u: AppUserWithRoles): string {
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const label = role.name_tr ?? role.key;
+  const label = ROLE_KEY_TO_LABEL[role.key] ?? role.name_tr ?? role.key;
   const style = getRoleBadgeStyle(role.key);
   return (
     <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${style}`}>
@@ -245,7 +253,9 @@ export default function UsersTab() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Avatar</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Ad</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">E-posta</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Sistem Rolü</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Rol</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">role_level</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">can_login</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Org. Unvan</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Linked Personnel</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase ui-text-muted">Durum</th>
@@ -276,12 +286,38 @@ export default function UsersTab() {
                   <td className="px-4 py-3 text-sm font-medium text-[var(--color-text)]">{u.full_name ?? "—"}</td>
                   <td className="px-4 py-3 text-sm ui-text-secondary">{u.email ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.map((r) => (
-                        <RoleBadge key={r.id} role={r} />
-                      ))}
-                      {u.roles.length === 0 && <span className="text-xs ui-text-muted">—</span>}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-sm">{getRoleDisplay(u).label}</span>
+                      {u.role_level != null && SYSTEM_ACCESS_LEVELS.includes(u.role_level as 0 | 1 | 2) && (
+                        <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-300">
+                          Sistem Erişimi
+                        </span>
+                      )}
+                      {u.role_level === 5 && ROLE_BADGES[5] && (
+                        <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-orange-500/20 text-orange-300">
+                          {ROLE_BADGES[5]}
+                        </span>
+                      )}
+                      {u.role_level === 6 && ROLE_BADGES[6] && (
+                        <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-500/20 text-gray-400">
+                          {ROLE_BADGES[6]}
+                        </span>
+                      )}
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm ui-text-secondary">
+                    {u.role_level != null ? u.role_level : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        u.can_login === false
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-emerald-500/20 text-emerald-400"
+                      }`}
+                    >
+                      {u.can_login === false ? "Hayır" : "Evet"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm ui-text-muted">{orgTitleMap[u.id] ?? "—"}</td>
                   <td className="px-4 py-3 text-sm ui-text-secondary">
@@ -412,7 +448,7 @@ export default function UsersTab() {
                   <option value="">Rol seçin</option>
                   {filteredRoles.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name_tr ?? r.key}
+                      {ROLE_KEY_TO_LABEL[r.key] ?? r.name_tr ?? r.key}
                       {!isNewRole(r.key) && " (legacy)"}
                     </option>
                   ))}

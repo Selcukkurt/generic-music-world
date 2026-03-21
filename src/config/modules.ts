@@ -66,9 +66,9 @@ const moduleMeta = (
 });
 
 export const modules: AppModule[] = [
-  moduleMeta("m01", "M01", "module_name_m01", "Katılımcı ve Bilet Operasyonları", "BiletOps", "/m01", "active", 100, "module_summary_m01", "module_purpose_m01"),
-  moduleMeta("m02", "M02", "module_name_m02", "Etkinlik Operasyonları", "EtkinlikOps", "/m02", "in_progress", 45, "module_summary_m02", "module_purpose_m02"),
-  moduleMeta("m03", "M03", "module_name_m03", "Finans ve Muhasebe Operasyonları", "FinansOps", "/m03", "planned", 0, "module_summary_m03", "module_purpose_m03"),
+  moduleMeta("m01", "M01", "module_name_m01", "Katılımcı ve Bilet Operasyonları", "BiletOps", "/modules/m01", "active", 100, "module_summary_m01", "module_purpose_m01"),
+  moduleMeta("m02", "M02", "module_name_m02", "Etkinlik Operasyonları", "EtkinlikOps", "/modules/m02", "in_progress", 45, "module_summary_m02", "module_purpose_m02"),
+  moduleMeta("m03", "M03", "module_name_m03", "Finans ve Muhasebe Operasyonları", "FinansOps", "/modules/m03", "planned", 0, "module_summary_m03", "module_purpose_m03"),
   {
     ...moduleMeta("m04", "M04", "module_name_m04", "İK ve Organizasyon Operasyonları", "PeopleOps", "/m04", "active", 60, "module_summary_m04", "module_purpose_m04"),
     menuItems: [
@@ -77,14 +77,14 @@ export const modules: AppModule[] = [
       { id: "m04-hiyerarsi", labelKey: "m04_nav_org_hiyerarsi", href: "/m04/organizasyon/hiyerarsi" },
     ],
   },
-  moduleMeta("m05", "M05", "module_name_m05", "Pazarlama ve İletişim Operasyonları", "MarketingOps", "/m05", "planned", 0, "module_summary_m05", "module_purpose_m05"),
-  moduleMeta("m06", "M06", "module_name_m06", "Kurumsal İlişkiler ve Sponsorluk Operasyonları", "CorporateOps", "/m06", "planned", 0, "module_summary_m06", "module_purpose_m06"),
-  moduleMeta("m07", "M07", "module_name_m07", "Kreatif Operasyonları", "GMS – KreatifOps", "/m07", "planned", 0, "module_summary_m07", "module_purpose_m07"),
-  moduleMeta("m08", "M08", "module_name_m08", "Dahili Biletleme Modülü", "InternalTicketing", "/m08", "planned", 0, "module_summary_m08", "module_purpose_m08"),
-  moduleMeta("m09", "M09", "module_name_m09", "Veri ve Analiz Operasyonları", "BI-Ops", "/m09", "planned", 0, "module_summary_m09", "module_purpose_m09"),
-  moduleMeta("m10", "M10", "module_name_m10", "Yönetim ve Strateji Operasyonları", "ManagementOps", "/m10", "planned", 0, "module_summary_m10", "module_purpose_m10"),
-  moduleMeta("m11", "M11", "module_name_m11", "Web Sitesi ve İçerik Yönetimi", "WebOps", "/m11", "planned", 0, "module_summary_m11", "module_purpose_m11"),
-  moduleMeta("m12", "M12", "module_name_m12", "Sanatçı ve Ajans Operasyonları", "GMA-Ops", "/m12", "planned", 0, "module_summary_m12", "module_purpose_m12"),
+  moduleMeta("m05", "M05", "module_name_m05", "Pazarlama ve İletişim Operasyonları", "MarketingOps", "/modules/m05", "planned", 0, "module_summary_m05", "module_purpose_m05"),
+  moduleMeta("m06", "M06", "module_name_m06", "Kurumsal İlişkiler ve Sponsorluk Operasyonları", "CorporateOps", "/modules/m06", "planned", 0, "module_summary_m06", "module_purpose_m06"),
+  moduleMeta("m07", "M07", "module_name_m07", "Kreatif Operasyonları", "GMS – KreatifOps", "/modules/m07", "planned", 0, "module_summary_m07", "module_purpose_m07"),
+  moduleMeta("m08", "M08", "module_name_m08", "Dahili Biletleme Modülü", "InternalTicketing", "/modules/m08", "planned", 0, "module_summary_m08", "module_purpose_m08"),
+  moduleMeta("m09", "M09", "module_name_m09", "Veri ve Analiz Operasyonları", "BI-Ops", "/modules/m09", "planned", 0, "module_summary_m09", "module_purpose_m09"),
+  moduleMeta("m10", "M10", "module_name_m10", "Yönetim ve Strateji Operasyonları", "ManagementOps", "/modules/m10", "planned", 0, "module_summary_m10", "module_purpose_m10"),
+  moduleMeta("m11", "M11", "module_name_m11", "Web Sitesi ve İçerik Yönetimi", "WebOps", "/modules/m11", "planned", 0, "module_summary_m11", "module_purpose_m11"),
+  moduleMeta("m12", "M12", "module_name_m12", "Sanatçı ve Ajans Operasyonları", "GMA-Ops", "/modules/m12", "planned", 0, "module_summary_m12", "module_purpose_m12"),
 ];
 
 /** PeopleOps module (dashboard sub-module) */
@@ -108,13 +108,22 @@ export const peopleOpsModule: AppModule = {
   purposeKey: "module_purpose_m04",
 };
 
+/** Legacy static paths for m01, m02 (module panel when on /m01/* or /m02/*). */
+const LEGACY_MODULE_PATHS: Record<string, string> = {
+  m01: "/m01",
+  m02: "/m02",
+};
+
 export const getModuleForPath = (pathname: string | null) => {
   if (!pathname) return null;
-  return (
-    modules.find((module) => pathname === module.basePath) ??
-    modules.find((module) => pathname.startsWith(`${module.basePath}/`)) ??
-    null
+  const byBasePath =
+    modules.find((m) => pathname === m.basePath) ??
+    modules.find((m) => pathname.startsWith(`${m.basePath}/`));
+  if (byBasePath) return byBasePath;
+  const byLegacy = modules.find(
+    (m) => LEGACY_MODULE_PATHS[m.id] && pathname.startsWith(LEGACY_MODULE_PATHS[m.id])
   );
+  return byLegacy ?? null;
 };
 
 /** M01–M12 (12 modules for dashboard quick access). */

@@ -1,22 +1,31 @@
 import type { User } from "@supabase/supabase-js";
 import type { Role } from "@/lib/rbac/types";
 
+export type ProfileRow = {
+  role?: string | null;
+  role_level?: number | null;
+  can_login?: boolean | null;
+};
+
 export type CurrentUser = {
   id: string;
   email: string;
   fullName: string;
   title: string;
   role: Role;
+  role_level?: number | null;
+  can_login?: boolean | null;
 };
 
 function parseRole(value: unknown): Role | null {
   if (typeof value !== "string") return null;
   const lower = value.toLowerCase();
-  if (lower === "system_owner" || lower === "system owner") return "system_owner";
-  if (lower === "ceo") return "ceo";
+  if (lower === "system_owner" || lower === "system owner" || lower === "super_admin") return "system_owner";
+  if (lower === "ceo" || lower === "owner") return "ceo";
+  if (lower === "coo") return "coo";
   if (lower === "admin") return "admin";
-  if (lower === "lead") return "lead";
-  if (lower === "staff") return "staff";
+  if (lower === "lead" || lower === "director") return "lead";
+  if (lower === "staff" || lower === "manager") return "staff";
   if (lower === "viewer") return "viewer";
   return null;
 }
@@ -33,13 +42,14 @@ function resolveRoleFallback(email: string, metadata?: Record<string, unknown>):
   return "viewer";
 }
 
-/** Maps Supabase User + optional profile.role to CurrentUser. Pure function, server-safe. */
+/** Maps Supabase User + profile to CurrentUser. Pure function, server-safe. */
 export function mapAuthUserToCurrentUser(
   user: User,
-  profileRole?: string | null
+  profile?: ProfileRow | null
 ): CurrentUser {
   const email = user.email ?? "";
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
+  const profileRole = profile?.role;
   const role =
     parseRole(profileRole) ?? resolveRoleFallback(email, metadata);
 
@@ -51,6 +61,8 @@ export function mapAuthUserToCurrentUser(
       fullName: "GMW Super Admin",
       title: "Super Administrator",
       role,
+      role_level: profile?.role_level ?? null,
+      can_login: profile?.can_login ?? true,
     };
   }
 
@@ -70,5 +82,7 @@ export function mapAuthUserToCurrentUser(
     fullName,
     title,
     role,
+    role_level: profile?.role_level ?? null,
+    can_login: profile?.can_login ?? true,
   };
 }

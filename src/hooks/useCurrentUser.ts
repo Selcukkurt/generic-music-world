@@ -20,10 +20,10 @@ export function useCurrentUser(): {
       if (session?.user) {
         const { data: profile } = await supabaseBrowser
           .from("profiles")
-          .select("role")
+          .select("role, role_level, can_login")
           .eq("id", session.user.id)
           .single();
-        setUser(mapAuthUserToCurrentUser(session.user, profile?.role));
+        setUser(mapAuthUserToCurrentUser(session.user, profile ?? undefined));
       } else {
         setUser(null);
       }

@@ -15,7 +15,7 @@ export default async function HrPersonnel360Page({ params }: Props) {
   return (
     <RequireAccess resource="personnel" action="view">
       <div className="p-6">
-        <Personnel360Page personnelId={id} />
+        <Personnel360Page key={id} personnelId={id} />
       </div>
     </RequireAccess>
   );

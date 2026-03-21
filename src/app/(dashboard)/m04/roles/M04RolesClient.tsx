@@ -6,13 +6,21 @@ import { canAccessSystemResource } from "@/lib/rbac/canAccess";
 
 export default function M04RolesClient() {
   const router = useRouter();
-  const { user } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
   const canAccessRbac = user ? canAccessSystemResource(user.role, "system_rbac") : false;
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center ui-text-muted">
+        Yükleniyor...
+      </div>
+    );
+  }
 
   if (!user) {
     return (
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-8 text-center ui-text-muted">
-        Yükleniyor...
+        Yetkisiz erişim.
       </div>
     );
   }

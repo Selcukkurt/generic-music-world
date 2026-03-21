@@ -5,6 +5,7 @@ import { fetchRoles, fetchPermissions, fetchRolePermissions } from "@/lib/rbac-v
 import type { Role, Permission } from "@/lib/rbac-v1/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import { isNewRole, isNewPermissionGroup } from "@/lib/rbac-v1/constants";
+import { ROLE_KEY_TO_LABEL } from "@/lib/rbac/roleConfig";
 
 const MODULE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -164,7 +165,7 @@ export default function PermissionsTab() {
                 <th className="px-3 py-2 text-left font-semibold ui-text-muted">Modül</th>
                 {filteredRoles.map((r) => (
                   <th key={r.id} className="min-w-[90px] px-3 py-2 text-center text-xs font-semibold ui-text-secondary">
-                    {r.name_tr ?? r.key}
+                    {ROLE_KEY_TO_LABEL[r.key] ?? r.name_tr ?? r.key}
                   </th>
                 ))}
               </tr>

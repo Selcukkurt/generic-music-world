@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { fetchMyPermissions } from "@/lib/rbac-v1/api";
 import { hasPermission as checkPermission } from "@/lib/rbac-v1/hasPermission";
 
+const DISABLE_RBAC =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_DISABLE_RBAC === "true";
+
 export function usePermissions(): {
   permissions: string[];
   isLoading: boolean;
@@ -19,7 +23,8 @@ export function usePermissions(): {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const hasPermission = (key: string) => checkPermission(permissions, key);
+  const hasPermission = (key: string) =>
+    DISABLE_RBAC ? true : checkPermission(permissions, key);
 
   return { permissions, isLoading, hasPermission };
 }

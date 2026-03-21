@@ -56,7 +56,7 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
   },
   m03: {
     titleKey: "module_name_m03",
-    items: defaultSubnavItems("/m03"),
+    items: defaultSubnavItems("/modules/m03"),
   },
   m04: {
     titleKey: "module_name_m04",
@@ -95,35 +95,35 @@ export const moduleSubnavConfig: Record<string, ModuleSubnavConfig> = {
   },
   m05: {
     titleKey: "module_name_m05",
-    items: defaultSubnavItems("/m05"),
+    items: defaultSubnavItems("/modules/m05"),
   },
   m06: {
     titleKey: "module_name_m06",
-    items: defaultSubnavItems("/m06"),
+    items: defaultSubnavItems("/modules/m06"),
   },
   m07: {
     titleKey: "module_name_m07",
-    items: defaultSubnavItems("/m07"),
+    items: defaultSubnavItems("/modules/m07"),
   },
   m08: {
     titleKey: "module_name_m08",
-    items: defaultSubnavItems("/m08"),
+    items: defaultSubnavItems("/modules/m08"),
   },
   m09: {
     titleKey: "module_name_m09",
-    items: defaultSubnavItems("/m09"),
+    items: defaultSubnavItems("/modules/m09"),
   },
   m10: {
     titleKey: "module_name_m10",
-    items: defaultSubnavItems("/m10"),
+    items: defaultSubnavItems("/modules/m10"),
   },
   m11: {
     titleKey: "module_name_m11",
-    items: defaultSubnavItems("/m11"),
+    items: defaultSubnavItems("/modules/m11"),
   },
   m12: {
     titleKey: "module_name_m12",
-    items: defaultSubnavItems("/m12"),
+    items: defaultSubnavItems("/modules/m12"),
   },
   peopleops: {
     titleKey: "peopleops_title",

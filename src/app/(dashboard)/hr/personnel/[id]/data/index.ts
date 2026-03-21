@@ -1,5 +1,5 @@
 /**
- * Personnel 360 data layer.
+ * Personnel 360 data layer (RB-020 baseline).
  * Centralized types and mock data for page-level orchestration.
  */
 

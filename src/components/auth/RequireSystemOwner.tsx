@@ -3,15 +3,16 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { canAccessSystem } from "@/lib/rbac/canAccess";
+import { canAccessRoute, toRBACProfile } from "@/lib/rbac/rbacHelpers";
 
 type RequireSystemOwnerProps = {
   children: React.ReactNode;
 };
 
 /**
- * Protects /system/* routes. Only SYSTEM_OWNER can access.
- * CEO and others get 403 or redirect to dashboard.
+ * Protects /system/* routes.
+ * /system/rbac: SUPER_ADMIN_DEV, CEO, COO allowed.
+ * Other /system/*: Super Admin only.
  */
 export default function RequireSystemOwner({ children }: RequireSystemOwnerProps) {
   const router = useRouter();
@@ -24,7 +25,8 @@ export default function RequireSystemOwner({ children }: RequireSystemOwnerProps
       router.replace("/login");
       return;
     }
-    if (!canAccessSystem(user.role)) {
+    const profile = toRBACProfile(user);
+    if (!canAccessRoute(profile, pathname)) {
       router.replace("/forbidden");
     }
   }, [user, isLoading, router, pathname]);
@@ -37,9 +39,9 @@ export default function RequireSystemOwner({ children }: RequireSystemOwnerProps
     );
   }
 
-  if (!user || !canAccessSystem(user.role)) {
-    return null;
-  }
+  if (!user) return null;
+  const profile = toRBACProfile(user);
+  if (!canAccessRoute(profile, pathname)) return null;
 
   return <>{children}</>;
 }

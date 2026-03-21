@@ -99,8 +99,20 @@ export default function LoginForm() {
         return;
       }
 
-      toast.success(t("login_success_title"), t("login_success_body"));
       const currentUser = await getCurrentUser();
+      const { canLogin, toRBACProfile } = await import("@/lib/rbac/rbacHelpers");
+      const profile = toRBACProfile(currentUser);
+      if (!canLogin(profile)) {
+        await supabaseBrowser.auth.signOut();
+        setErrorMessage({
+          title: t("login_invalid_title"),
+          body: "Saha Personeli / Uzman rolü ile giriş yapılamaz.",
+          helper: t("login_invalid_helper"),
+        });
+        toast.error("Giriş engellendi", "Bu rol ile sisteme giriş yetkiniz bulunmuyor.");
+        return;
+      }
+      toast.success(t("login_success_title"), t("login_success_body"));
       const path = currentUser ? getPostLoginRedirectPath(currentUser.role) : "/dashboard";
       router.replace(path);
     } catch {

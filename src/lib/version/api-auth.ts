@@ -79,10 +79,10 @@ export function requireSystemOwner(user: ApiUser | null): NextResponse | null {
   return null;
 }
 
-/** Require Owner or Admin for event access management. Returns 403 JSON if not. */
+/** Require Owner, Admin, or COO for RBAC and event access. Returns 403 JSON if not. */
 export function requireOwnerOrAdmin(user: ApiUser | null): NextResponse | null {
   if (!user) return unauthorized();
-  if (!["system_owner", "ceo", "admin"].includes(user.role)) {
+  if (!["system_owner", "ceo", "coo", "admin"].includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return null;

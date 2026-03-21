@@ -14,11 +14,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     const { data: profile } = await supabaseBrowser
       .from("profiles")
-      .select("role")
+      .select("role, role_level, can_login")
       .eq("id", user.id)
       .single();
 
-    return mapAuthUserToCurrentUser(user, profile?.role);
+    return mapAuthUserToCurrentUser(user, profile ?? undefined);
   } catch {
     return null;
   }

@@ -23,14 +23,14 @@ const SEARCH_TARGETS: { label: string; path: string; terms: string[] }[] = [
   { label: "Profile", path: "/profile", terms: ["profile"] },
   { label: "Module 01", path: "/m01", terms: ["module 01", "module 1", "m01"] },
   { label: "Module 02", path: "/m02", terms: ["module 02", "module 2", "m02"] },
-  { label: "Module 03", path: "/m03", terms: ["module 03", "module 3", "m03"] },
+  { label: "Module 03", path: "/modules/m03", terms: ["module 03", "module 3", "m03"] },
   { label: "Module 04", path: "/m04", terms: ["module 04", "module 4", "m04"] },
-  { label: "Module 05", path: "/m05", terms: ["module 05", "module 5", "m05"] },
-  { label: "Module 06", path: "/m06", terms: ["module 06", "module 6", "m06"] },
-  { label: "Module 07", path: "/m07", terms: ["module 07", "module 7", "m07"] },
-  { label: "Module 08", path: "/m08", terms: ["module 08", "module 8", "m08"] },
-  { label: "Module 09", path: "/m09", terms: ["module 09", "module 9", "m09"] },
-  { label: "Module 10", path: "/m10", terms: ["module 10", "m10"] },
+  { label: "Module 05", path: "/modules/m05", terms: ["module 05", "module 5", "m05"] },
+  { label: "Module 06", path: "/modules/m06", terms: ["module 06", "module 6", "m06"] },
+  { label: "Module 07", path: "/modules/m07", terms: ["module 07", "module 7", "m07"] },
+  { label: "Module 08", path: "/modules/m08", terms: ["module 08", "module 8", "m08"] },
+  { label: "Module 09", path: "/modules/m09", terms: ["module 09", "module 9", "m09"] },
+  { label: "Module 10", path: "/modules/m10", terms: ["module 10", "m10"] },
 ];
 
 function matchSearchTarget(target: (typeof SEARCH_TARGETS)[0], query: string): boolean {
