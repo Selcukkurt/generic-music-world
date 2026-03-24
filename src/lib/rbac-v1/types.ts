@@ -17,6 +17,8 @@ export type Role = {
   name_tr: string | null;
   description_tr: string | null;
   is_system: boolean;
+  /** Canonical hierarchy 0–6 when set (public.roles.role_level). */
+  role_level?: number | null;
 };
 
 export type Permission = {
@@ -31,6 +33,11 @@ export type AppUserWithRoles = AppUser & {
   role_code?: string | null;
   /** From profiles.role_level (0-6). */
   role_level?: number | null;
-  /** From profiles.can_login. role_level 5 implies false. */
+  /** From app_users.can_login (with derive fallback from role_level / is_active). */
   can_login?: boolean | null;
+  /** Derived or from app_users when migrated */
+  lifecycle_status?: "active" | "passive" | "archived";
+  linked_personnel_id?: string | null;
+  linked_personnel_name?: string | null;
+  last_login_at?: string | null;
 };

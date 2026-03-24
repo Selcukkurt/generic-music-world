@@ -1,6 +1,7 @@
 "use client";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { fetchAppUserForAuth } from "./fetchAppUserForAuth";
 import { mapAuthUserToCurrentUser, type CurrentUser } from "./mapAuthUser";
 import type { Role } from "@/lib/rbac/types";
 
@@ -12,13 +13,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     const user = data?.user;
     if (!user) return null;
 
-    const { data: profile } = await supabaseBrowser
-      .from("profiles")
-      .select("role, role_level, can_login")
-      .eq("id", user.id)
-      .single();
+    const appUser = await fetchAppUserForAuth(supabaseBrowser, user.id);
 
-    return mapAuthUserToCurrentUser(user, profile ?? undefined);
+    return mapAuthUserToCurrentUser(user, appUser ?? undefined);
   } catch {
     return null;
   }

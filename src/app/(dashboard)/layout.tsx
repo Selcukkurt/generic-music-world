@@ -21,7 +21,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
+  const isLoginRoute = pathname === "/login";
+  const [isChecking, setIsChecking] = useState(!isLoginRoute);
   const activeModule = getModuleForPath(pathname);
   const isInModule = !!activeModule;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -51,6 +52,11 @@ export default function DashboardLayout({
   const effectiveSidebarCollapsed = activeModule ? true : isSidebarCollapsed;
 
   useEffect(() => {
+    if (isLoginRoute) {
+      setIsChecking(false);
+      return;
+    }
+
     const checkAccess = async () => {
       const { data } = await supabaseBrowser.auth.getUser();
 
@@ -69,7 +75,11 @@ export default function DashboardLayout({
     };
 
     checkAccess();
-  }, [router]);
+  }, [router, isLoginRoute]);
+
+  if (isLoginRoute) {
+    return <>{children}</>;
+  }
 
   if (isChecking) {
     return (

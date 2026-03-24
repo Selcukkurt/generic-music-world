@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAppUserForAuth } from "@/lib/auth/fetchAppUserForAuth";
 import { mapAuthUserToCurrentUser } from "@/lib/auth/mapAuthUser";
 import { getSupabaseClientEnv } from "@/lib/supabase/env";
 
@@ -35,13 +36,9 @@ export async function getApiUser(
       return { user: null, error: unauthorized() };
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", authUser.id)
-      .single();
+    const appUser = await fetchAppUserForAuth(supabase, authUser.id);
 
-    const currentUser = mapAuthUserToCurrentUser(authUser, profile?.role);
+    const currentUser = mapAuthUserToCurrentUser(authUser, appUser ?? undefined);
     return {
       user: { id: currentUser.id, email: currentUser.email, role: currentUser.role, accessToken: token },
       error: null,
@@ -82,8 +79,11 @@ export function requireSystemOwner(user: ApiUser | null): NextResponse | null {
 /** Require Owner, Admin, or COO for RBAC and event access. Returns 403 JSON if not. */
 export function requireOwnerOrAdmin(user: ApiUser | null): NextResponse | null {
   if (!user) return unauthorized();
+  if (process.env.NEXT_PUBLIC_DISABLE_RBAC === "true") {
+    return null;
+  }
   if (!["system_owner", "ceo", "coo", "admin"].includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden", code: "RBAC_ROLE" }, { status: 403 });
   }
   return null;
 }

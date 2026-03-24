@@ -60,12 +60,12 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const { user, error: authError } = await getApiUser(request);
     if (authError) return authError;
     const forbidden = requireOwnerOrAdmin(user);
     if (forbidden) return forbidden;
 
-    const { userId } = await params;
     const body = await request.json();
     const { entries } = body as { entries?: Array<{ event_id: string; access_level: "view" | "edit" }> };
 

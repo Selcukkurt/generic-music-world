@@ -101,12 +101,77 @@ export const LEGACY_ROLE_TO_LEVEL: Record<string, number> = {
 export const LEVEL_TO_ROLE_KEY: Record<number, string> = {
   0: "admin",
   1: "owner",
-  2: "admin",
+  2: "coo",
   3: "director",
   4: "manager",
   5: "field",
   6: "viewer",
 };
+
+/** Acceptable role keys per level (for Users tab role assignment). */
+export const LEVEL_TO_ROLE_KEYS: Record<number, string[]> = {
+  0: ["admin", "super_admin", "system_owner"],
+  1: ["owner", "ceo"],
+  2: ["coo"],
+  3: ["director", "direktor", "lead"],
+  4: ["manager", "admin_legacy", "staff", "yonetici"],
+  5: ["field", "staff_field", "saha", "saha_personeli"],
+  6: ["viewer", "gozlemci", "ortak"],
+};
+
+/** Role type for API-fetched roles list (minimal). */
+export type RoleRow = { id: string; key: string; role_level?: number | null };
+
+/**
+ * Map UI role level (0–6) → a concrete `roles.id` from the database.
+ * When `public.roles.role_level` is set, that is the source of truth for matching.
+ * Otherwise: canonical LEVEL_TO_ROLE_KEY, LEVEL_TO_ROLE_KEYS, then LEGACY_ROLE_TO_LEVEL.
+ */
+export function resolveRoleIdForLevel(roles: RoleRow[], level: number): string | null {
+  if (level < 0 || level > 6) return null;
+
+  const byDbLevel = roles.filter(
+    (r) => r.role_level != null && Number(r.role_level) === level
+  );
+  if (byDbLevel.length > 0) {
+    const byKey = new Map(byDbLevel.map((r) => [r.key.toLowerCase(), r]));
+    const tryKeys = [LEVEL_TO_ROLE_KEY[level], ...LEVEL_TO_ROLE_KEYS[level]];
+    const seen = new Set<string>();
+    for (const k of tryKeys) {
+      const key = k.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const row = byKey.get(key);
+      if (row) return row.id;
+    }
+    return byDbLevel.sort((a, b) => a.key.localeCompare(b.key))[0]?.id ?? null;
+  }
+
+  const byKey = new Map(roles.map((r) => [r.key.toLowerCase(), r]));
+  const tryKeys = [LEVEL_TO_ROLE_KEY[level], ...LEVEL_TO_ROLE_KEYS[level]];
+  const seen = new Set<string>();
+  for (const k of tryKeys) {
+    const key = k.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const row = byKey.get(key);
+    if (row) return row.id;
+  }
+  const legacyMatches = roles
+    .filter((r) => LEGACY_ROLE_TO_LEVEL[r.key.toLowerCase()] === level)
+    .sort((a, b) => a.key.localeCompare(b.key));
+  return legacyMatches[0]?.id ?? null;
+}
+
+/** All levels that resolve to a role id (for validation). */
+export function buildLevelToRoleIdMap(roles: RoleRow[]): Record<number, string> {
+  const map: Record<number, string> = {};
+  for (let level = 0; level <= 6; level++) {
+    const id = resolveRoleIdForLevel(roles, level);
+    if (id) map[level] = id;
+  }
+  return map;
+}
 
 /** DB role key → Turkish display label (single source of truth for role names in UI). */
 export const ROLE_KEY_TO_LABEL: Record<string, string> = {

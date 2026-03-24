@@ -45,6 +45,14 @@ export type SidebarNavItem = {
 /** GENEL / Core System items. */
 export const coreItems: SidebarNavItem[] = [
   {
+    href: "/home",
+    labelKey: "shell_core_ana_sayfa",
+    icon: "core",
+    iconType: "home",
+    resource: "dashboard",
+    action: "view",
+  },
+  {
     href: "/dashboard",
     labelKey: "shell_core_item_1",
     icon: "core",
@@ -58,14 +66,6 @@ export const coreItems: SidebarNavItem[] = [
     icon: "core",
     iconType: "atom",
     resource: "modules",
-    action: "view",
-  },
-  {
-    href: "/analytics",
-    labelKey: "shell_core_item_3",
-    icon: "core",
-    iconType: "activity",
-    resource: "dashboard",
     action: "view",
   },
   {

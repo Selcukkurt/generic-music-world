@@ -18,8 +18,14 @@ async function rbacFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { ...headers, ...options?.headers } as HeadersInit,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? "Request failed");
+    const body = await res.json().catch(() => ({}));
+    const msg =
+      (body as { error?: string; code?: string }).error ??
+      res.statusText ??
+      "Request failed";
+    const code = (body as { code?: string }).code;
+    console.error("[rbac-v1/api]", options?.method ?? "GET", `/api/rbac${path}`, res.status, code ?? "", msg, body);
+    throw new Error(code ? `${msg} (${code})` : msg);
   }
   return res.json() as Promise<T>;
 }
@@ -53,7 +59,7 @@ export async function updateUserActive(userId: string, isActive: boolean): Promi
 
 export async function updateUser(
   userId: string,
-  data: { full_name?: string; is_active?: boolean }
+  data: { full_name?: string; is_active?: boolean; can_login?: boolean }
 ): Promise<void> {
   await rbacFetch(`/users/${userId}`, {
     method: "PATCH",
@@ -61,12 +67,22 @@ export async function updateUser(
   });
 }
 
+/** System owner: lifecycle transitions (e.g. restore from archived). */
+export async function updateUserLifecycle(
+  userId: string,
+  lifecycle: "active" | "passive" | "archived"
+): Promise<void> {
+  await rbacFetch(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ lifecycle_status: lifecycle }),
+  });
+}
+
 export async function inviteUser(params: {
   email: string;
-  full_name?: string;
   role_id?: string;
-}): Promise<{ user: { id: string; email: string | null; full_name: string | null } }> {
-  return rbacFetch<{ user: { id: string; email: string | null; full_name: string | null } }>(
+}): Promise<{ success: boolean; user: { id: string; email: string | null } }> {
+  return rbacFetch<{ success: boolean; user: { id: string; email: string | null } }>(
     "/users/invite",
     {
       method: "POST",

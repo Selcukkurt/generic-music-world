@@ -341,11 +341,15 @@ export async function linkPersonnelToUser(personnelId: string, profileId: string
 export async function fetchPersonnelByProfileIds(profileIds: string[]): Promise<Map<string, PersonnelRecord>> {
   if (profileIds.length === 0) return new Map();
   const ids = [...new Set(profileIds)].filter(Boolean);
+  // Avoid embedded join so missing FK / job_title rows never break the users table.
   const { data, error } = await supabaseBrowser
     .from("personnel")
-    .select("id, profile_id, first_name, last_name, full_name, email, job_titles!personnel_job_title_id_fkey (id, name)")
+    .select("id, profile_id, first_name, last_name, full_name, email")
     .in("profile_id", ids);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[personnel] fetchPersonnelByProfileIds error:", error.message);
+    return new Map();
+  }
   const map = new Map<string, PersonnelRecord>();
   for (const row of (data ?? []) as PersonnelRow[]) {
     const pid = row.profile_id;

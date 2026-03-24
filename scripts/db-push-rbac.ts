@@ -56,6 +56,9 @@ async function main() {
     "20260235000000_rbac_v1_clean_model.sql",
     "20260236000000_org_structure.sql",
     "20260237000000_rbac_owner_consistency.sql",
+    "20260247000000_profiles_role_level.sql",
+    "20260248000000_profiles_can_login.sql",
+    "20260325120000_app_users_can_login.sql",
   ];
 
   const client = new Client({ connectionString: DATABASE_URL });

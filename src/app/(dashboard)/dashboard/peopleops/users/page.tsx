@@ -27,20 +27,28 @@ export default function PeopleOpsUsersPage() {
   const [editActive, setEditActive] = useState(true);
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteFullName, setInviteFullName] = useState("");
   const [inviteRoleId, setInviteRoleId] = useState("");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const loadData = () => {
     setLoading(true);
-    Promise.all([fetchUsers(search, activeFilter), fetchRoles()])
-      .then(([u, r]) => {
-        setUsers(u);
-        setRoles(r);
-      })
-      .catch(() => toast.error("Yüklenemedi", "Kullanıcılar alınamadı."))
-      .finally(() => setLoading(false));
+    (async () => {
+      const [uOut, rOut] = await Promise.allSettled([fetchUsers(search, activeFilter), fetchRoles()]);
+      if (uOut.status === "rejected") {
+        console.error("[PeopleOpsUsers] fetchUsers:", uOut.reason);
+        toast.error("Yüklenemedi", uOut.reason instanceof Error ? uOut.reason.message : "Kullanıcılar alınamadı.");
+        setUsers([]);
+        setRoles([]);
+        return;
+      }
+      setUsers(uOut.value);
+      if (rOut.status === "fulfilled") setRoles(rOut.value);
+      else {
+        console.error("[PeopleOpsUsers] fetchRoles:", rOut.reason);
+        setRoles([]);
+      }
+    })().finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -65,13 +73,11 @@ export default function PeopleOpsUsersPage() {
     try {
       await inviteUser({
         email: inviteEmail.trim(),
-        full_name: inviteFullName.trim() || undefined,
         role_id: inviteRoleId || undefined,
       });
       toast.success("Davet gönderildi", `${inviteEmail} adresine davet e-postası gönderildi.`);
       setShowInviteModal(false);
       setInviteEmail("");
-      setInviteFullName("");
       setInviteRoleId("");
       loadData();
     } catch (err) {
@@ -319,18 +325,6 @@ export default function PeopleOpsUsersPage() {
                   className="ui-input w-full"
                   required
                   placeholder="ornek@firma.com"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
-                  {t("peopleops_users_invite_full_name")}
-                </label>
-                <input
-                  type="text"
-                  value={inviteFullName}
-                  onChange={(e) => setInviteFullName(e.target.value)}
-                  className="ui-input w-full"
-                  placeholder="Ad Soyad"
                 />
               </div>
               <div>

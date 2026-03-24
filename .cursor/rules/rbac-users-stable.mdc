@@ -1,0 +1,24 @@
+---
+description: RBAC Users / Roles UI and role mapping — frozen stable baseline (bugfixes only)
+globs: "**/system/rbac/**/*,**/lib/rbac/roleConfig.ts"
+alwaysApply: false
+---
+
+# RBAC Users module — locked stable baseline
+
+**Status:** This area is treated as **frozen**. The current implementation is the **stable baseline** (Users tab, user details drawer, role ↔ level mapping, event access for observer, drawer state sync from row click).
+
+## Rules for agents and contributors
+
+1. **Do not refactor** RBAC Users, Roles tab, or `UserDetailsDrawer` structure, data flow, or hooks layout unless fixing a verified bug.
+2. **Bug fixes only** in these paths: minimal diffs, no drive-by rewrites, no “cleanup” refactors.
+3. **Protect without changing behavior:**
+   - **Role mapping:** `src/lib/rbac/roleConfig.ts` (`resolveRoleIdForLevel`, `buildLevelToRoleIdMap`, `LEGACY_ROLE_TO_LEVEL`, level ↔ DB key rules).
+   - **Event access:** observer-only (`ROLE_LEVEL.OBSERVER`), view-only saves, clearing assignments when leaving observer; do not merge with unrelated permission logic.
+   - **Drawer state:** row click as source of truth for role/login/event reset; no restoring old `rolesDirty` / ref-based sync patterns that caused stale UI.
+4. **New features** must be implemented **outside** this flow first, or behind explicit product approval. They must not alter the above behaviors unless separately specified.
+
+## If a change is needed
+
+- Prefer fixes in **callers** or **API routes** outside `system/rbac` when the bug is not in this UI.
+- If the bug is here: **smallest possible change**, preserve existing props and effects order unless unavoidable.

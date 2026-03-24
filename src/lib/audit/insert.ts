@@ -34,11 +34,11 @@ export async function insertAuditLog(
     actor_user_id: payload.actorUserId ?? null,
     actor_email: payload.actorEmail ?? null,
     actor_role: payload.actorRole ?? null,
-    target_type: payload.targetEntity ?? null,
+    target_entity: payload.targetEntity ?? null,
     target_id: payload.targetId ?? null,
     status: payload.status ?? "success",
-    meta: payload.metadata ?? null,
-    ip: payload.requestIp ?? null,
-    user_agent: payload.requestUserAgent ?? null,
+    metadata: payload.metadata ?? null,
+    request_ip: payload.requestIp ?? null,
+    request_user_agent: payload.requestUserAgent ?? null,
   });
 }

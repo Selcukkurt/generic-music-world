@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { fetchAppUserForAuth } from "@/lib/auth/fetchAppUserForAuth";
 import {
   mapAuthUserToCurrentUser,
   type CurrentUser,
@@ -18,12 +19,8 @@ export function useCurrentUser(): {
   useEffect(() => {
     const applySession = async (session: Session | null) => {
       if (session?.user) {
-        const { data: profile } = await supabaseBrowser
-          .from("profiles")
-          .select("role, role_level, can_login")
-          .eq("id", session.user.id)
-          .single();
-        setUser(mapAuthUserToCurrentUser(session.user, profile ?? undefined));
+        const appUser = await fetchAppUserForAuth(supabaseBrowser, session.user.id);
+        setUser(mapAuthUserToCurrentUser(session.user, appUser ?? undefined));
       } else {
         setUser(null);
       }

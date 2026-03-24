@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiUser, requireSystemOwner, createVersionClient } from "@/lib/version/api-auth";
+import { getApiUser, requireOwnerOrAdmin, createVersionClient } from "@/lib/version/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { user, error: authError } = await getApiUser(request);
     if (authError) return authError;
-    const forbidden = requireSystemOwner(user);
+    const forbidden = requireOwnerOrAdmin(user);
     if (forbidden) return forbidden;
 
     const supabase = createVersionClient(user!.accessToken);
     const { data, error } = await supabase
       .from("roles")
-      .select("id, key, name_tr, description_tr, is_system")
+      .select("id, key, name_tr, description_tr, is_system, role_level")
+      .order("role_level", { ascending: true, nullsFirst: false })
       .order("key");
 
     if (error) {

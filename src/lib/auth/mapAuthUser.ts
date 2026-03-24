@@ -1,10 +1,13 @@
 import type { User } from "@supabase/supabase-js";
 import type { Role } from "@/lib/rbac/types";
+import { resolveCanLogin } from "@/lib/rbac/canLoginPolicy";
 
-export type ProfileRow = {
-  role?: string | null;
-  role_level?: number | null;
+export type AppUserLoginRow = {
   can_login?: boolean | null;
+  is_active?: boolean | null;
+  /** Canonical RBAC (app_users). */
+  role_level?: number | null;
+  role?: string | null;
 };
 
 export type CurrentUser = {
@@ -30,7 +33,7 @@ function parseRole(value: unknown): Role | null {
   return null;
 }
 
-/** Fallback when profile.role is missing (dev/legacy). */
+/** Fallback when app_users.role is missing (dev/legacy). */
 function resolveRoleFallback(email: string, metadata?: Record<string, unknown>): Role {
   const metaRole = metadata?.role as string | undefined;
   const parsed = parseRole(metaRole);
@@ -42,16 +45,16 @@ function resolveRoleFallback(email: string, metadata?: Record<string, unknown>):
   return "viewer";
 }
 
-/** Maps Supabase User + profile to CurrentUser. Pure function, server-safe. */
+/** Maps Supabase User + app_users row to CurrentUser. RBAC comes only from app_users. Pure function, server-safe. */
 export function mapAuthUserToCurrentUser(
   user: User,
-  profile?: ProfileRow | null
+  appUser?: AppUserLoginRow | null
 ): CurrentUser {
   const email = user.email ?? "";
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
-  const profileRole = profile?.role;
+  const roleFromApp = appUser?.role;
   const role =
-    parseRole(profileRole) ?? resolveRoleFallback(email, metadata);
+    parseRole(roleFromApp) ?? resolveRoleFallback(email, metadata);
 
   // info@genericmusic.net: fixed display name and title (keeps system_owner)
   if (email === "info@genericmusic.net") {
@@ -61,8 +64,8 @@ export function mapAuthUserToCurrentUser(
       fullName: "GMW Super Admin",
       title: "Super Administrator",
       role,
-      role_level: profile?.role_level ?? null,
-      can_login: profile?.can_login ?? true,
+      role_level: appUser?.role_level ?? null,
+      can_login: true,
     };
   }
 
@@ -82,7 +85,11 @@ export function mapAuthUserToCurrentUser(
     fullName,
     title,
     role,
-    role_level: profile?.role_level ?? null,
-    can_login: profile?.can_login ?? true,
+    role_level: appUser?.role_level ?? null,
+    can_login: resolveCanLogin({
+      can_login: appUser?.can_login,
+      is_active: appUser?.is_active,
+      role_level: appUser?.role_level ?? null,
+    }),
   };
 }
