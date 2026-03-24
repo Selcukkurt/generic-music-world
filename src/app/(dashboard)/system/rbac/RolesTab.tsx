@@ -50,22 +50,26 @@ export default function RolesTab() {
 
   useEffect(() => {
     if (!selectedDbRole) {
-      setRolePermissionKeys([]);
-      setDraftKeys(new Set());
-      setPermsLoading(false);
-      return;
-    }
-    setPermsLoading(true);
-    fetchRolePermissions(selectedDbRole.id)
-      .then((keys) => {
-        setRolePermissionKeys(keys);
-        setDraftKeys(new Set(keys));
-      })
-      .catch(() => {
+      queueMicrotask(() => {
         setRolePermissionKeys([]);
         setDraftKeys(new Set());
-      })
-      .finally(() => setPermsLoading(false));
+        setPermsLoading(false);
+      });
+      return;
+    }
+    queueMicrotask(() => {
+      setPermsLoading(true);
+      fetchRolePermissions(selectedDbRole.id)
+        .then((keys) => {
+          setRolePermissionKeys(keys);
+          setDraftKeys(new Set(keys));
+        })
+        .catch(() => {
+          setRolePermissionKeys([]);
+          setDraftKeys(new Set());
+        })
+        .finally(() => setPermsLoading(false));
+    });
   }, [selectedDbRole]);
 
   const handleTogglePermission = (key: string) => {

@@ -53,7 +53,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (isLoginRoute) {
-      setIsChecking(false);
+      queueMicrotask(() => setIsChecking(false));
       return;
     }
 

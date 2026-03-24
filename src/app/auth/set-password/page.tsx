@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { establishSessionFromUrlHashIfPresent } from "@/lib/supabase/hashSession";
 import { getCurrentUser, getPostLoginRedirectPath } from "@/lib/auth/getCurrentUser";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -22,6 +24,9 @@ export default function SetPasswordPage() {
   const toast = useToast();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  /** Session / invite link failure (shown before the form). */
+  const [initError, setInitError] = useState<{ title: string; body: string } | null>(null);
+  /** Validation or updateUser failure on the form. */
   const [error, setError] = useState<{ title: string; body: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -29,14 +34,30 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     const init = async () => {
+      const fromHash = await establishSessionFromUrlHashIfPresent(supabaseBrowser);
+      if (fromHash.error) {
+        setInitError({
+          title: "Bağlantı kullanılamıyor",
+          body: fromHash.error,
+        });
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabaseBrowser.auth.getSession();
       if (data.session?.user) {
         setHasUser(true);
       } else {
-        setError({
-          title: "Geçersiz veya süresi dolmuş bağlantı",
-          body: "Davet bağlantısı geçersiz veya süresi dolmuş olabilir. Yöneticinizden yeni bir davet isteyin.",
-        });
+        await new Promise((r) => setTimeout(r, 150));
+        const { data: data2 } = await supabaseBrowser.auth.getSession();
+        if (data2.session?.user) {
+          setHasUser(true);
+        } else {
+          setInitError({
+            title: "Geçersiz veya süresi dolmuş bağlantı",
+            body: "Davet bağlantısı geçersiz veya süresi dolmuş olabilir. Yöneticinizden yeni bir davet isteyin.",
+          });
+        }
       }
       setLoading(false);
     };
@@ -107,20 +128,22 @@ export default function SetPasswordPage() {
     );
   }
 
-  if (!hasUser || error) {
+  if (!hasUser) {
     return (
       <main className="ui-page flex min-h-[100dvh] flex-col items-center justify-center p-4">
         <div className="ui-card-plain w-full max-w-md p-6">
           <h1 className="text-xl font-semibold text-[var(--color-text)]">Davet Bağlantısı</h1>
-          {error ? (
-            <ErrorState title={error.title} message={error.body} className="mt-4" />
+          {initError ? (
+            <div className="mt-4">
+              <ErrorState title={initError.title} message={initError.body} />
+            </div>
           ) : null}
-          <a
+          <Link
             href="/login"
             className="mt-6 inline-block text-sm font-medium text-[var(--color-primary)] hover:underline"
           >
             Giriş sayfasına dön
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -167,7 +190,9 @@ export default function SetPasswordPage() {
           </div>
 
           {error ? (
-            <ErrorState title={error.title} message={error.body} className="mt-2" />
+            <div className="mt-2">
+              <ErrorState title={error.title} message={error.body} />
+            </div>
           ) : null}
 
           <button

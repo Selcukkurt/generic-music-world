@@ -40,7 +40,7 @@ export default function AccessLogsTab() {
   }, [filters, page, pageSize]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => load());
   }, [load]);
 
   const applySearch = () => {

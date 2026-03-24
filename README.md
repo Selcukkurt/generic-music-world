@@ -16,7 +16,7 @@ bun dev
 
 Open [http://localhost:3005](http://localhost:3005) with your browser. The dev server always runs on port 3005.
 
-**If port 3005 is in use:** `lsof -i :3005` to find the PID, then `kill -9 <PID>` to free it. Or run `npm run dev:clean` to remove build artifacts and restart.
+**If port 3005 is in use** (`EADDRINUSE`): another dev server is still bound to `127.0.0.1:3005`. Run `npm run dev:free-port` (macOS/Linux; uses `lsof`) to stop it, then `npm run dev` again. Or manually: `lsof -i :3005`, then `kill -9 <PID>`. `npm run dev:clean` only clears `.next` and does not kill the old process.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

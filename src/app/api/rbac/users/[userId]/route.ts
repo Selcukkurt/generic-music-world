@@ -26,15 +26,20 @@ async function syncLifecycleAndLogin(
     canLogin = roleLevel !== 5;
   }
 
-  const payload: { is_active: boolean; can_login?: boolean } = {
+  const payload: { is_active: boolean; can_login?: boolean; lifecycle_status: Lifecycle } = {
     is_active: isActive,
     can_login: canLogin,
+    lifecycle_status: lifecycle,
   };
 
   let { error: auErr } = await supabase.from("app_users").update(payload).eq("id", userId);
   if (auErr && isMissingColumnError(auErr.message, "can_login")) {
     const { can_login: _drop, ...rest } = payload;
     auErr = (await supabase.from("app_users").update(rest).eq("id", userId)).error;
+  }
+  if (auErr && isMissingColumnError(auErr.message, "lifecycle_status")) {
+    const { lifecycle_status: _ls, ...rest2 } = payload;
+    auErr = (await supabase.from("app_users").update(rest2).eq("id", userId)).error;
   }
   if (auErr) throw new Error(auErr.message);
 }

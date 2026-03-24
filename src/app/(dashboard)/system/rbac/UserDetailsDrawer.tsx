@@ -5,6 +5,12 @@ import { Fragment } from "react";
 import { ROLE_BADGES, ROLE_LABELS, ROLE_LEVEL } from "@/lib/rbac/roleConfig";
 import type { AppUserWithRoles } from "@/lib/rbac-v1/types";
 import type { EventAccessEntry } from "@/lib/rbac-v1/api";
+import {
+  getPrimaryRbacStatus,
+  getRbacStatusMetaLines,
+  primaryRbacStatusClass,
+  primaryRbacStatusLabel,
+} from "./usersTableHelpers";
 
 const SAHA_ROLE_LEVEL = 5;
 
@@ -22,17 +28,19 @@ function fmtDateTime(iso: string | null | undefined): string {
   }
 }
 
-function lifecycleLabel(user: AppUserWithRoles): string {
-  const ls = user.lifecycle_status;
-  if (ls === "archived") return "Arşivlendi";
-  if (ls === "passive") return "Pasif";
-  return user.is_active ? "Aktif" : "Pasif";
+function invitePipelineLabelDrawer(p: AppUserWithRoles["invite_pipeline"]): string {
+  if (p === "email_pending") return "E-posta onayı bekleniyor";
+  if (p === "onboarding") return "Giriş bekleniyor";
+  if (p === "complete") return "Tamam";
+  return "—";
 }
 
-function lifecycleTone(user: AppUserWithRoles): "emerald" | "amber" | "slate" {
-  if (user.lifecycle_status === "archived") return "slate";
-  if (!user.is_active || user.lifecycle_status === "passive") return "amber";
-  return "emerald";
+function sectionCardClass() {
+  return "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface2)]/25 p-4";
+}
+
+function sectionTitleClass() {
+  return "mb-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]";
 }
 
 export default function UserDetailsDrawer({
@@ -57,11 +65,18 @@ export default function UserDetailsDrawer({
   setNewEventId,
   events,
   canWriteRoles,
-  canDisable,
+  isSystemOwner,
   lifecycleBusy,
+  adminActionBusy,
   onLifecyclePassive,
   onLifecycleRestore,
   onLifecycleActivate,
+  onLifecycleArchive,
+  onResendInvite,
+  onCopyInviteLink,
+  onPasswordResetLink,
+  currentUserId,
+  onPermanentDelete,
   onClose,
 }: {
   displayUser: DisplayUser;
@@ -86,11 +101,18 @@ export default function UserDetailsDrawer({
   setNewEventId: (id: string) => void;
   events: Array<{ id: string; name: string; date: string; venue?: string }>;
   canWriteRoles: boolean;
-  canDisable: boolean;
+  isSystemOwner: boolean;
   lifecycleBusy: boolean;
+  adminActionBusy: boolean;
   onLifecyclePassive: () => void;
   onLifecycleRestore: () => void;
   onLifecycleActivate: () => void;
+  onLifecycleArchive: () => void;
+  onResendInvite: () => void;
+  onCopyInviteLink: () => void;
+  onPasswordResetLink: () => void;
+  currentUserId?: string | null;
+  onPermanentDelete?: () => void;
   onClose: () => void;
 }) {
   const roleSelectValue = assignableLevels.includes(selectedRoleLevel)
@@ -100,17 +122,15 @@ export default function UserDetailsDrawer({
   const isObserverRole = selectedRoleLevel === ROLE_LEVEL.OBSERVER;
   const lifecycle = selectedUser.lifecycle_status ?? (selectedUser.is_active ? "active" : "passive");
   const isArchived = lifecycle === "archived";
-  const showPassive = canDisable && !isArchived && selectedUser.is_active;
-  const showRestore = canDisable && isArchived;
-  const showActivate = canDisable && !isArchived && !selectedUser.is_active;
+  const showPassive = isSystemOwner && !isArchived && lifecycle !== "passive";
+  const showRestore = isSystemOwner && isArchived;
+  const showActivate = isSystemOwner && !isArchived && lifecycle === "passive";
+  const showArchive = isSystemOwner && !isArchived;
+  const showPermanentDelete =
+    Boolean(isSystemOwner && onPermanentDelete && selectedUser.id !== currentUserId);
 
-  const badgeTone = {
-    emerald: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    amber: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-    slate: "bg-slate-500/15 text-slate-400 border-slate-500/30",
-  };
-
-  const statusTone = lifecycleTone(selectedUser);
+  const primaryStatus = getPrimaryRbacStatus(selectedUser);
+  const statusMeta = getRbacStatusMetaLines(selectedUser);
 
   return (
     <Fragment>
@@ -128,102 +148,80 @@ export default function UserDetailsDrawer({
         aria-labelledby="user-drawer-title"
       >
         {/* Header */}
-        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)]/40 px-5 py-4">
+        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 px-5 py-5">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
-                    selectedUser.can_login === false
-                      ? "border-red-500/35 bg-red-500/10 text-red-400"
-                      : "border-emerald-500/35 bg-emerald-500/10 text-emerald-400"
-                  }`}
-                >
-                  {selectedUser.can_login === false ? "Giriş Yok" : "Giriş Var"}
-                </span>
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${badgeTone[statusTone]}`}
-                >
-                  {lifecycleLabel(selectedUser)}
-                </span>
-              </div>
-              <h2 id="user-drawer-title" className="break-all text-lg font-semibold leading-snug text-[var(--color-text)]">
+            <div className="min-w-0 flex-1 space-y-3">
+              <h2 id="user-drawer-title" className="break-all text-lg font-semibold leading-snug tracking-tight text-[var(--color-text)]">
                 {displayUser.email ?? "—"}
               </h2>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                <span className="ui-text-muted">Bağlı personel:</span>
-                {displayUser.linked_personnel || selectedUser.linked_personnel_name ? (
-                  <>
-                    <span className="font-medium text-[var(--color-text)]">
-                      {displayUser.linked_personnel || selectedUser.linked_personnel_name}
-                    </span>
-                    {selectedUser.linked_personnel_id ? (
-                      <Link
-                        href={`/m04/personel/kart?id=${encodeURIComponent(selectedUser.linked_personnel_id)}`}
-                        className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface2)]/60 px-2 py-0.5 text-xs font-medium text-amber-400 transition hover:bg-[var(--color-surface-hover)]"
-                        title="Personel kartını aç"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Profil
-                      </Link>
-                    ) : null}
-                  </>
-                ) : (
-                  <span className="text-sm ui-text-muted">—</span>
-                )}
+              <div>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${primaryRbacStatusClass(primaryStatus)}`}
+                >
+                  {primaryRbacStatusLabel(primaryStatus)}
+                </span>
+                {statusMeta.length > 0 ? (
+                  <div className="mt-2 space-y-0.5">
+                    {statusMeta.map((line, i) => (
+                      <p key={`drawer-meta-${i}`} className="text-[11px] text-[var(--color-text-muted)]">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
               </div>
+              {displayUser.linked_personnel || selectedUser.linked_personnel_name ? (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-[var(--color-text-secondary)]">
+                    {displayUser.linked_personnel || selectedUser.linked_personnel_name}
+                  </span>
+                  {selectedUser.linked_personnel_id ? (
+                    <Link
+                      href={`/m04/personel/kart?id=${encodeURIComponent(selectedUser.linked_personnel_id)}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface2)]/60 px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)]"
+                      title="Personel kartını aç"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Profil
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg p-2 ui-text-muted transition hover:bg-[var(--color-surface-hover)]"
-                aria-label="Kapat"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              {showPassive && (
-                <button
-                  type="button"
-                  onClick={onLifecyclePassive}
-                  disabled={lifecycleBusy}
-                  className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 transition hover:bg-amber-500/20 disabled:opacity-50"
-                >
-                  {lifecycleBusy ? "…" : "Pasif Yap"}
-                </button>
-              )}
-              {showRestore && (
-                <button
-                  type="button"
-                  onClick={onLifecycleRestore}
-                  disabled={lifecycleBusy}
-                  className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-50"
-                >
-                  {lifecycleBusy ? "…" : "Geri yükle"}
-                </button>
-              )}
-              {showActivate && (
-                <button
-                  type="button"
-                  onClick={onLifecycleActivate}
-                  disabled={lifecycleBusy}
-                  className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-50"
-                >
-                  {lifecycleBusy ? "…" : "Aktif Yap"}
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-lg p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-hover)]"
+              aria-label="Kapat"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-          {/* Access role card */}
-          <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface2)]/30 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider ui-text-muted">Erişim rolü</h3>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          <section className={sectionCardClass()}>
+            <h3 className={sectionTitleClass()}>Özet</h3>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--color-text-muted)]">Oluşturulma</dt>
+                <dd className="text-right text-[var(--color-text-secondary)]">{fmtDateTime(selectedUser.created_at)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--color-text-muted)]">Bağlı personel</dt>
+                <dd className="text-right text-[var(--color-text-secondary)]">
+                  {displayUser.linked_personnel || selectedUser.linked_personnel_name || "—"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className={sectionCardClass()}>
+            <h3 className={sectionTitleClass()}>Erişim</h3>
             <label className="block text-xs font-medium ui-text-muted">Sistem rolü</label>
             <select
               value={roleSelectValue}
@@ -270,28 +268,26 @@ export default function UserDetailsDrawer({
                 </label>
               )}
             </div>
-          </section>
 
-          {/* Event access — only for Gözlemci (observer): scoped to assigned events, view-only */}
-          {canWriteRoles && isObserverRole && (
-            <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface2)]/30 p-4">
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider ui-text-muted">
-                Etkinlik erişimi (Gözlemci)
-              </h3>
-              <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                Bu rolde kullanıcı <span className="font-medium text-[var(--color-text)]">yalnızca aşağıda seçtiğiniz etkinlikleri</span>{" "}
-                görebilir; başka etkinliklere erişemez. Erişim <span className="font-medium">salt görüntüleme</span> düzeyindedir.
-              </p>
-              {eventAccessLoading ? (
-                <p className="text-sm ui-text-muted">Yükleniyor…</p>
-              ) : (
-                <>
-                  <div className="mb-3 flex min-h-[2.5rem] flex-wrap gap-2">
-                    {eventAccess.length === 0 ? (
-                      <span className="text-sm text-amber-400/90">
-                        En az bir etkinlik ekleyin; kayıt için gereklidir.
-                      </span>
-                    ) : (
+            {canWriteRoles && isObserverRole && (
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Etkinlik erişimi (Gözlemci)
+                </h4>
+                <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                  Bu rolde kullanıcı <span className="font-medium text-[var(--color-text)]">yalnızca aşağıda seçtiğiniz etkinlikleri</span>{" "}
+                  görebilir; başka etkinliklere erişemez. Erişim <span className="font-medium">salt görüntüleme</span> düzeyindedir.
+                </p>
+                {eventAccessLoading ? (
+                  <p className="text-sm ui-text-muted">Yükleniyor…</p>
+                ) : (
+                  <>
+                    <div className="mb-3 flex min-h-[2.5rem] flex-wrap gap-2">
+                      {eventAccess.length === 0 ? (
+                        <span className="text-sm text-[var(--color-text-muted)]">
+                          En az bir etkinlik ekleyin; kayıt için gereklidir.
+                        </span>
+                      ) : (
                       eventAccess.map((e) => {
                         const name = (e.event as { name?: string })?.name ?? e.event_id.slice(0, 8);
                         return (
@@ -354,20 +350,121 @@ export default function UserDetailsDrawer({
                   >
                     {savingEvents ? "Kaydediliyor…" : "Etkinlik erişimini kaydet"}
                   </button>
-                </>
-              )}
-            </section>
-          )}
-        </div>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
 
-        {/* Footer meta */}
-        <div className="shrink-0 border-t border-[var(--color-border)] px-5 py-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-          <p>
-            Oluşturulma: <span className="text-[var(--color-text-secondary)]">{fmtDateTime(selectedUser.created_at)}</span>
-          </p>
-          <p className="mt-1">
-            Son giriş: <span className="text-[var(--color-text-secondary)]">{fmtDateTime(selectedUser.last_login_at)}</span>
-          </p>
+          <section className={sectionCardClass()}>
+            <h3 className={sectionTitleClass()}>Hesap durumu</h3>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--color-text-muted)]">Davet / onboarding</dt>
+                <dd className="text-right text-[var(--color-text-secondary)]">
+                  {invitePipelineLabelDrawer(selectedUser.invite_pipeline)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--color-text-muted)]">Son giriş</dt>
+                <dd className="text-right text-[var(--color-text-secondary)]">{fmtDateTime(selectedUser.last_login_at)}</dd>
+              </div>
+            </dl>
+          </section>
+
+          {isSystemOwner ? (
+            <section className={sectionCardClass()}>
+              <h3 className={sectionTitleClass()}>Yönetici işlemleri</h3>
+              <p className="mb-4 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                E-posta teslimi garanti edilmez. Bağlantıları yalnızca güvenli kanallardan paylaşın.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <button
+                  type="button"
+                  onClick={onResendInvite}
+                  disabled={adminActionBusy || lifecycleBusy}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                >
+                  {adminActionBusy ? "…" : "Daveti yeniden gönder"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onCopyInviteLink}
+                  disabled={adminActionBusy || lifecycleBusy}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                >
+                  {adminActionBusy ? "…" : "Davet bağlantısını kopyala"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onPasswordResetLink}
+                  disabled={adminActionBusy || lifecycleBusy}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                >
+                  {adminActionBusy ? "…" : "Şifre sıfırlama bağlantısı"}
+                </button>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-4">
+                {showPassive ? (
+                  <button
+                    type="button"
+                    onClick={onLifecyclePassive}
+                    disabled={lifecycleBusy}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                  >
+                    {lifecycleBusy ? "…" : "Pasif yap"}
+                  </button>
+                ) : null}
+                {showActivate ? (
+                  <button
+                    type="button"
+                    onClick={onLifecycleActivate}
+                    disabled={lifecycleBusy}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                  >
+                    {lifecycleBusy ? "…" : "Aktif yap"}
+                  </button>
+                ) : null}
+                {showRestore ? (
+                  <button
+                    type="button"
+                    onClick={onLifecycleRestore}
+                    disabled={lifecycleBusy}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                  >
+                    {lifecycleBusy ? "…" : "Arşivden geri yükle"}
+                  </button>
+                ) : null}
+                {showArchive ? (
+                  <button
+                    type="button"
+                    onClick={onLifecycleArchive}
+                    disabled={lifecycleBusy || adminActionBusy}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+                  >
+                    {lifecycleBusy ? "…" : "Arşivle"}
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {showPermanentDelete ? (
+            <section className="rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4">
+              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-red-400/90">Tehlikeli işlem</h3>
+              <p className="mb-3 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+                Kalıcı silme Auth hesabını ve bu kaydı ürün dışına taşır. Arşiv geri alınabilir.
+              </p>
+              <button
+                type="button"
+                onClick={onPermanentDelete}
+                disabled={adminActionBusy || lifecycleBusy}
+                className="w-full rounded-lg border border-red-500/45 bg-red-600/20 px-3 py-2.5 text-xs font-semibold text-red-300 transition hover:bg-red-600/30 disabled:opacity-50"
+              >
+                Kalıcı sil
+              </button>
+            </section>
+          ) : null}
         </div>
 
         {/* Footer actions */}

@@ -37,6 +37,11 @@ export type AppUserWithRoles = AppUser & {
   can_login?: boolean | null;
   /** Derived or from app_users when migrated */
   lifecycle_status?: "active" | "passive" | "archived";
+  /** Derived for UI: invited / active / passive / archived */
+  lifecycle_display?: "invited" | "active" | "passive" | "archived";
+  /** Auth onboarding pipeline */
+  invite_pipeline?: "email_pending" | "onboarding" | "complete";
+  email_confirmed_at?: string | null;
   linked_personnel_id?: string | null;
   linked_personnel_name?: string | null;
   last_login_at?: string | null;

@@ -25,19 +25,37 @@ async function rbacFetch<T>(path: string, options?: RequestInit): Promise<T> {
       "Request failed";
     const code = (body as { code?: string }).code;
     console.error("[rbac-v1/api]", options?.method ?? "GET", `/api/rbac${path}`, res.status, code ?? "", msg, body);
-    throw new Error(code ? `${msg} (${code})` : msg);
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }
 
+export type FetchUsersFilters = {
+  include_archived?: boolean;
+  invited_only?: boolean;
+  can_login?: boolean | null;
+  /** Filter by `lifecycle_status` (active | passive | archived). */
+  lifecycle?: string | null;
+  role_level?: number | null;
+};
+
 export async function fetchUsers(
   search?: string,
-  active?: boolean | null
+  active?: boolean | null,
+  filters?: FetchUsersFilters
 ): Promise<AppUserWithRoles[]> {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (active === true) params.set("active", "true");
   if (active === false) params.set("active", "false");
+  if (filters?.include_archived) params.set("include_archived", "true");
+  if (filters?.invited_only) params.set("invited_only", "true");
+  if (filters?.can_login === true) params.set("can_login", "true");
+  if (filters?.can_login === false) params.set("can_login", "false");
+  if (filters?.lifecycle) params.set("lifecycle", filters.lifecycle);
+  if (filters?.role_level != null && !Number.isNaN(filters.role_level)) {
+    params.set("role_level", String(filters.role_level));
+  }
   const q = params.toString() ? `?${params.toString()}` : "";
   return rbacFetch<AppUserWithRoles[]>(`/users${q}`);
 }
@@ -78,17 +96,51 @@ export async function updateUserLifecycle(
   });
 }
 
+export type InviteUserResult = {
+  success: boolean;
+  user: { id: string; email: string | null };
+  /** false when email was not sent (fallback path). */
+  inviteSent?: boolean;
+  /** Present when e-posta could not be sent; admin should share this URL manually. */
+  manualInviteLink?: string | null;
+};
+
 export async function inviteUser(params: {
   email: string;
   role_id?: string;
-}): Promise<{ success: boolean; user: { id: string; email: string | null } }> {
-  return rbacFetch<{ success: boolean; user: { id: string; email: string | null } }>(
-    "/users/invite",
-    {
-      method: "POST",
-      body: JSON.stringify(params),
-    }
-  );
+}): Promise<InviteUserResult> {
+  return rbacFetch<InviteUserResult>("/users/invite", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function resendUserInvite(userId: string): Promise<InviteUserResult> {
+  return rbacFetch<InviteUserResult>(`/users/${userId}/resend-invite`, {
+    method: "POST",
+  });
+}
+
+export async function fetchUserInviteLink(userId: string): Promise<{ manualInviteLink: string | null }> {
+  return rbacFetch<{ manualInviteLink: string | null }>(`/users/${userId}/invite-link`, {
+    method: "POST",
+  });
+}
+
+export async function requestUserPasswordResetLink(userId: string): Promise<{ manualResetLink: string | null }> {
+  return rbacFetch<{ manualResetLink: string | null }>(`/users/${userId}/password-reset`, {
+    method: "POST",
+  });
+}
+
+export async function permanentDeleteUser(
+  userId: string,
+  body: { confirmEmail: string; reason?: string }
+): Promise<{ success: boolean; deletedUserId: string; deletedEmail: string }> {
+  return rbacFetch(`/users/${userId}/permanent-delete`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function assignUserRoles(userId: string, roleIds: string[]): Promise<void> {

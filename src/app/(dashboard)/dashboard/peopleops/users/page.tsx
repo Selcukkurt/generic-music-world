@@ -12,6 +12,7 @@ import {
 import type { AppUserWithRoles, Role } from "@/lib/rbac-v1/types";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getInviteSuccessToast } from "@/lib/rbac/inviteToast";
 
 export default function PeopleOpsUsersPage() {
   const { t } = useI18n();
@@ -71,11 +72,12 @@ export default function PeopleOpsUsersPage() {
     if (!inviteEmail.trim()) return;
     setInviteSubmitting(true);
     try {
-      await inviteUser({
+      const result = await inviteUser({
         email: inviteEmail.trim(),
         role_id: inviteRoleId || undefined,
       });
-      toast.success("Davet gönderildi", `${inviteEmail} adresine davet e-postası gönderildi.`);
+      const inviteToast = getInviteSuccessToast(result, inviteEmail.trim());
+      toast.success(inviteToast.title, inviteToast.body);
       setShowInviteModal(false);
       setInviteEmail("");
       setInviteRoleId("");

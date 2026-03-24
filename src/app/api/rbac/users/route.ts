@@ -9,6 +9,7 @@ const MINIMAL_SELECT = `
   email,
   full_name,
   is_active,
+  lifecycle_status,
   created_at,
   updated_at,
   user_roles (
@@ -30,6 +31,7 @@ const EXTENDED_SELECT = `
   can_login,
   role,
   role_level,
+  lifecycle_status,
   created_at,
   updated_at,
   user_roles (
@@ -43,22 +45,44 @@ const EXTENDED_SELECT = `
   )
 `;
 
-/** Status for UI; no lifecycle_status column required — derive from is_active. */
+/** Prefer DB `lifecycle_status`; fallback for legacy rows. */
 function deriveLifecycleStatus(r: Record<string, unknown>): "active" | "passive" | "archived" {
   const col = r.lifecycle_status;
   if (col === "active" || col === "passive" || col === "archived") return col;
   return r.is_active === false ? "passive" : "active";
 }
 
+function deriveLifecycleDisplay(
+  life: "active" | "passive" | "archived",
+  lastLogin: string | null
+): "invited" | "active" | "passive" | "archived" {
+  if (life === "archived") return "archived";
+  if (life === "passive") return "passive";
+  if (!lastLogin) return "invited";
+  return "active";
+}
+
+function deriveInvitePipeline(
+  emailConfirmed: string | null | undefined,
+  lastLogin: string | null
+): "email_pending" | "onboarding" | "complete" {
+  if (!emailConfirmed) return "email_pending";
+  if (!lastLogin) return "onboarding";
+  return "complete";
+}
+
 function applyUserListFilters(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   q: any,
-  sp: URLSearchParams
+  sp: URLSearchParams,
+  opts?: { skipLifecycleColumn?: boolean }
 ) {
   const search = sp.get("search")?.trim();
   const activeParam = sp.get("active");
   const lifecycleParam = sp.get("lifecycle")?.trim();
   const unlinkedOnly = sp.get("unlinked") === "true";
+  const includeArchived = sp.get("include_archived") === "true";
+  const canLoginParam = sp.get("can_login");
 
   if (search) {
     q = q.or(`email.ilike.%${search}%`);
@@ -69,12 +93,19 @@ function applyUserListFilters(
     q = q.eq("is_active", false);
   }
 
-  if (lifecycleParam && ["active", "passive", "archived"].includes(lifecycleParam)) {
-    if (lifecycleParam === "active") {
-      q = q.eq("is_active", true);
-    } else {
-      q = q.eq("is_active", false);
+  if (!opts?.skipLifecycleColumn) {
+    if (lifecycleParam && ["active", "passive", "archived"].includes(lifecycleParam)) {
+      q = q.eq("lifecycle_status", lifecycleParam);
+    } else if (!includeArchived) {
+      // Include legacy rows where lifecycle_status is still NULL (pre-migration / backfill gaps).
+      q = q.or("lifecycle_status.eq.active,lifecycle_status.eq.passive,lifecycle_status.is.null");
     }
+  }
+
+  if (canLoginParam === "true") {
+    q = q.eq("can_login", true);
+  } else if (canLoginParam === "false") {
+    q = q.eq("can_login", false);
   }
 
   return { q, unlinkedOnly };
@@ -87,25 +118,45 @@ export async function GET(request: NextRequest) {
     const forbidden = requireOwnerOrAdmin(user);
     if (forbidden) return forbidden;
 
+    /** List uses the caller JWT (anon + RLS). Rows must be visible under RLS policies on app_users — see migration `can_read_rbac_user_directory` (COO + owner/admin roles). */
     const supabase = createVersionClient(user!.accessToken);
     const sp = request.nextUrl.searchParams;
     const roleLevelParam = sp.get("role_level");
 
-    let q = supabase.from("app_users").select(EXTENDED_SELECT).order("created_at", { ascending: false });
+    let q = supabase
+      .from("app_users")
+      .select(EXTENDED_SELECT)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
     const filtered = applyUserListFilters(q, sp);
     q = filtered.q;
 
     let rows: Record<string, unknown>[] | null = null;
+    let usedLifecycleFallback = false;
 
-    const first = await q;
+    let first = await q;
+    if (first.error && /deleted_at/i.test(first.error.message ?? "")) {
+      let qNoDel = supabase.from("app_users").select(EXTENDED_SELECT).order("created_at", { ascending: false });
+      qNoDel = applyUserListFilters(qNoDel, sp).q;
+      first = await qNoDel;
+    }
     if (first.error) {
       const msg = first.error.message ?? "";
       const retry =
         /column|does not exist|schema cache|could not find|unknown column/i.test(msg);
       if (retry) {
-        let q2 = supabase.from("app_users").select(MINIMAL_SELECT).order("created_at", { ascending: false });
-        q2 = applyUserListFilters(q2, sp).q;
-        const second = await q2;
+        let q2 = supabase
+          .from("app_users")
+          .select(MINIMAL_SELECT)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false });
+        q2 = applyUserListFilters(q2, sp, { skipLifecycleColumn: true }).q;
+        let second = await q2;
+        if (second.error && /deleted_at/i.test(second.error.message ?? "")) {
+          let q3 = supabase.from("app_users").select(MINIMAL_SELECT).order("created_at", { ascending: false });
+          q3 = applyUserListFilters(q3, sp, { skipLifecycleColumn: true }).q;
+          second = await q3;
+        }
         if (second.error) {
           console.error("[api/rbac/users] GET app_users error (fallback failed):", second.error);
           return NextResponse.json(
@@ -114,6 +165,7 @@ export async function GET(request: NextRequest) {
           );
         }
         rows = (second.data ?? []) as Record<string, unknown>[];
+        usedLifecycleFallback = true;
       } else {
         console.error("[api/rbac/users] GET app_users error:", JSON.stringify(first.error), first.error.message);
         return NextResponse.json(
@@ -127,7 +179,7 @@ export async function GET(request: NextRequest) {
 
     const userIds = (rows ?? []).map((r) => r.id as string);
 
-    let personnelByProfile: Record<string, { id: string; display_name: string }> = {};
+    const personnelByProfile: Record<string, { id: string; display_name: string }> = {};
     if (userIds.length > 0) {
       const { data: personnelRows, error: personnelError } = await supabase
         .from("personnel")
@@ -147,12 +199,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let lastLoginById: Record<string, string | null> = {};
+    const lastLoginById: Record<string, string | null> = {};
+    const emailConfirmedById: Record<string, string | null> = {};
     try {
       const admin = createServerClient();
       const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1000 });
       for (const u of authData?.users ?? []) {
         lastLoginById[u.id] = u.last_sign_in_at ?? null;
+        emailConfirmedById[u.id] = u.email_confirmed_at ?? null;
       }
     } catch (e) {
       console.warn("[api/rbac/users] last_login from auth (non-fatal):", e);
@@ -175,12 +229,20 @@ export async function GET(request: NextRequest) {
       });
 
       const life = deriveLifecycleStatus(r);
+      const lastLogin = lastLoginById[r.id as string] ?? null;
+      const emailConfirmed = emailConfirmedById[r.id as string] ?? null;
+      const lifecycle_display = deriveLifecycleDisplay(life, lastLogin);
+      const invite_pipeline = deriveInvitePipeline(emailConfirmed, lastLogin);
+
       return {
         id: r.id,
         email: r.email,
         full_name: r.full_name,
         is_active: r.is_active,
         lifecycle_status: life,
+        lifecycle_display,
+        invite_pipeline,
+        email_confirmed_at: emailConfirmed,
         created_at: r.created_at,
         updated_at: r.updated_at,
         roles: roleList,
@@ -189,9 +251,23 @@ export async function GET(request: NextRequest) {
         can_login,
         linked_personnel_id: personnelByProfile[r.id as string]?.id ?? null,
         linked_personnel_name: personnelByProfile[r.id as string]?.display_name ?? null,
-        last_login_at: lastLoginById[r.id as string] ?? null,
+        last_login_at: lastLogin,
       };
     });
+
+    const includeArchived = sp.get("include_archived") === "true";
+    const lifecycleParam = sp.get("lifecycle")?.trim();
+    if (usedLifecycleFallback) {
+      if (lifecycleParam && ["active", "passive", "archived"].includes(lifecycleParam)) {
+        users = users.filter((u) => u.lifecycle_status === lifecycleParam);
+      } else if (!includeArchived) {
+        users = users.filter((u) => u.lifecycle_status !== "archived");
+      }
+    }
+
+    if (sp.get("invited_only") === "true") {
+      users = users.filter((u) => !u.last_login_at && u.lifecycle_status !== "archived");
+    }
 
     if (roleLevelParam !== null && roleLevelParam !== undefined && roleLevelParam !== "") {
       const want = Number(roleLevelParam);
