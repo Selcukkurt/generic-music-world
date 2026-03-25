@@ -332,6 +332,32 @@ export async function updatePersonnel(id: string, payload: UpdatePersonnelPayloa
 /** Link personnel to a system user (1:1). Clears link from any other personnel first. */
 export async function linkPersonnelToUser(personnelId: string, profileId: string | null): Promise<void> {
   if (profileId) {
+    let au: {
+      compliance_completed_at?: string | null;
+      onboarding_completed_at?: string | null;
+    } | null = null;
+    const r1 = await supabaseBrowser
+      .from("app_users")
+      .select("compliance_completed_at, onboarding_completed_at")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (r1.error) {
+      const r2 = await supabaseBrowser
+        .from("app_users")
+        .select("onboarding_completed_at")
+        .eq("id", profileId)
+        .maybeSingle();
+      if (r2.error) throw new Error(r2.error.message);
+      au = r2.data;
+    } else {
+      au = r1.data;
+    }
+    const preApproved = au?.compliance_completed_at ?? au?.onboarding_completed_at;
+    if (!preApproved) {
+      throw new Error(
+        "Personel eşleştirmesi için kullanıcının uyum / ön onay adımlarını tamamlaması gerekir."
+      );
+    }
     await supabaseBrowser.from("personnel").update({ profile_id: null }).eq("profile_id", profileId);
   }
   await updatePersonnel(personnelId, { profile_id: profileId });

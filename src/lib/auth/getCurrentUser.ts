@@ -3,7 +3,7 @@
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { fetchAppUserForAuth } from "./fetchAppUserForAuth";
 import { mapAuthUserToCurrentUser, type CurrentUser } from "./mapAuthUser";
-import type { Role } from "@/lib/rbac/types";
+import { getPostHubAuthPath } from "./hubPipeline";
 
 export type { CurrentUser };
 
@@ -21,7 +21,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-/** Returns post-login redirect path based on role. SYSTEM_OWNER → /system, others → /dashboard. */
-export function getPostLoginRedirectPath(role: Role): string {
-  return role === "system_owner" ? "/system" : "/dashboard";
+/** Post-login / post-invite destination from Hub pipeline + legacy access_phase. */
+export function getPostLoginRedirectPath(user: CurrentUser): string {
+  return getPostHubAuthPath({ role: user.role, u: user });
 }

@@ -100,7 +100,7 @@ export default function SetPasswordPage() {
 
       toast.success("Şifre ayarlandı", "Artık giriş yapabilirsiniz.");
       const currentUser = await getCurrentUser();
-      const path = currentUser ? getPostLoginRedirectPath(currentUser.role) : "/dashboard";
+      const path = currentUser ? getPostLoginRedirectPath(currentUser) : "/dashboard";
       router.replace(path);
     } catch (err) {
       setError({

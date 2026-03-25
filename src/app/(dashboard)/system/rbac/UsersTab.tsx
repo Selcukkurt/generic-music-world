@@ -26,6 +26,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchEvents } from "@/lib/events/data";
 import UserRowOverflowMenu from "./UserRowOverflowMenu";
+import RbacAnchoredPopover from "./RbacAnchoredPopover";
 import {
   getPrimaryRbacStatus,
   primaryRbacStatusLabel,
@@ -115,6 +116,11 @@ export default function UsersTab() {
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<AppUserWithRoles | null>(null);
   const [permanentDeleteBusy, setPermanentDeleteBusy] = useState(false);
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
+  const [draftLifecycle, setDraftLifecycle] = useState("");
+  const [draftRoleLevel, setDraftRoleLevel] = useState("");
+  const [draftCanLogin, setDraftCanLogin] = useState<"all" | "yes" | "no">("all");
+  const [draftIncludeArchived, setDraftIncludeArchived] = useState(false);
+  const [draftInvitedOnly, setDraftInvitedOnly] = useState(false);
   const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -131,7 +137,8 @@ export default function UsersTab() {
   const [savingEvents, setSavingEvents] = useState(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const eventAccessBaselineRef = useRef<string>("[]");
-  const filtersPanelRef = useRef<HTMLDivElement>(null);
+  const filtersButtonRef = useRef<HTMLButtonElement>(null);
+  const rowMenuAnchorRef = useRef<HTMLElement | null>(null);
 
   const listFilters = useMemo((): FetchUsersFilters => {
     const f: FetchUsersFilters = {};
@@ -324,17 +331,6 @@ export default function UsersTab() {
       setCreateRoleLevel((assignableLevels[0] ?? 6) as RoleLevelUi);
     }
   }, [assignableLevels, createRoleLevel]);
-
-  useEffect(() => {
-    if (!showFiltersPanel) return;
-    const onDoc = (e: MouseEvent) => {
-      if (filtersPanelRef.current && !filtersPanelRef.current.contains(e.target as Node)) {
-        setShowFiltersPanel(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [showFiltersPanel]);
 
   /** Row click is the source of truth: always reset draft form from this row (same or different user, including re-click). */
   const handleSelectUser = (u: DisplayUser) => {
@@ -679,6 +675,47 @@ export default function UsersTab() {
     setFilterCanLogin("all");
     setIncludeArchived(false);
     setInvitedOnly(false);
+    setDraftLifecycle("");
+    setDraftRoleLevel("");
+    setDraftCanLogin("all");
+    setDraftIncludeArchived(false);
+    setDraftInvitedOnly(false);
+    setShowFiltersPanel(false);
+  }, []);
+
+  const toggleFiltersPanel = useCallback(() => {
+    setShowFiltersPanel((open) => {
+      if (open) return false;
+      setDraftLifecycle(filterLifecycle);
+      setDraftRoleLevel(filterRoleLevel);
+      setDraftCanLogin(filterCanLogin);
+      setDraftIncludeArchived(includeArchived);
+      setDraftInvitedOnly(invitedOnly);
+      setOpenMenuUserId(null);
+      return true;
+    });
+  }, [filterLifecycle, filterRoleLevel, filterCanLogin, includeArchived, invitedOnly]);
+
+  const applyFilterDraft = useCallback(() => {
+    setFilterLifecycle(draftLifecycle);
+    setFilterRoleLevel(draftRoleLevel);
+    setFilterCanLogin(draftCanLogin);
+    setIncludeArchived(draftIncludeArchived);
+    setInvitedOnly(draftInvitedOnly);
+    setShowFiltersPanel(false);
+  }, [draftLifecycle, draftRoleLevel, draftCanLogin, draftIncludeArchived, draftInvitedOnly]);
+
+  const clearFilterPanel = useCallback(() => {
+    setFilterLifecycle("");
+    setFilterRoleLevel("");
+    setFilterCanLogin("all");
+    setIncludeArchived(false);
+    setInvitedOnly(false);
+    setDraftLifecycle("");
+    setDraftRoleLevel("");
+    setDraftCanLogin("all");
+    setDraftIncludeArchived(false);
+    setDraftInvitedOnly(false);
     setShowFiltersPanel(false);
   }, []);
 
@@ -694,7 +731,7 @@ export default function UsersTab() {
   }
 
   return (
-    <section className="ui-glass overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm">
+    <section className="ui-glass rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm">
       <div className="border-b border-[var(--color-border)] px-4 py-5 sm:px-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -707,16 +744,18 @@ export default function UsersTab() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="ui-input min-w-[200px] flex-1 text-sm sm:max-w-xs"
               />
-              <div ref={filtersPanelRef} className="relative">
+              <div className="relative">
                 <button
+                  ref={filtersButtonRef}
                   type="button"
-                  onClick={() => setShowFiltersPanel((v) => !v)}
+                  onClick={toggleFiltersPanel}
                   className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                     showFiltersPanel || hasActiveFilters
                       ? "border-[var(--color-border)] bg-[var(--color-surface2)] text-[var(--color-text)]"
                       : "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]/60"
                   }`}
                   aria-expanded={showFiltersPanel}
+                  aria-haspopup="dialog"
                 >
                   <svg className="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path
@@ -733,37 +772,38 @@ export default function UsersTab() {
                     </span>
                   ) : null}
                 </button>
-                {showFiltersPanel && (
-                  <div
-                    className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,20rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl"
-                    role="dialog"
-                    aria-label="Gelişmiş filtreler"
-                  >
-                    <p className="mb-3 text-xs font-medium uppercase tracking-wider ui-text-muted">
-                      Gelişmiş filtreler
-                    </p>
-                    <div className="flex flex-col gap-3">
-                      <label className="block text-xs ui-text-muted">
-                        <span className="mb-1 block">Durum</span>
+                <RbacAnchoredPopover
+                  isOpen={showFiltersPanel}
+                  onClose={() => setShowFiltersPanel(false)}
+                  anchorRef={filtersButtonRef}
+                  align="end"
+                  minWidth={280}
+                  maxWidth={400}
+                  aria-label="Gelişmiş filtreler"
+                  className="border-[var(--color-border)] p-0 shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
+                >
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    <div className="shrink-0 border-b border-[var(--color-border)] px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                        Filtreler
+                      </p>
+                      <p className="mt-1 text-xs leading-snug text-[var(--color-text-muted)]">
+                        Seçimleri yapıp Uygula ile listeyi güncelleyin.
+                      </p>
+                    </div>
+                    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4">
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                          Rol
+                        </p>
+                        <label className="sr-only" htmlFor="rbac-filter-role">
+                          Rol seviyesi
+                        </label>
                         <select
-                          value={filterLifecycle}
-                          onChange={(e) => setFilterLifecycle(e.target.value)}
+                          id="rbac-filter-role"
+                          value={draftRoleLevel}
+                          onChange={(e) => setDraftRoleLevel(e.target.value)}
                           className="ui-input w-full text-sm"
-                          aria-label="Yaşam döngüsü"
-                        >
-                          <option value="">Tüm durumlar</option>
-                          <option value="active">Aktif</option>
-                          <option value="passive">Pasif</option>
-                          <option value="archived">Arşiv</option>
-                        </select>
-                      </label>
-                      <label className="block text-xs ui-text-muted">
-                        <span className="mb-1 block">Rol seviyesi</span>
-                        <select
-                          value={filterRoleLevel}
-                          onChange={(e) => setFilterRoleLevel(e.target.value)}
-                          className="ui-input w-full text-sm"
-                          aria-label="Role level"
                         >
                           <option value="">Tüm seviyeler</option>
                           {ROLE_LEVELS_ORDER.map((lv) => (
@@ -772,41 +812,89 @@ export default function UsersTab() {
                             </option>
                           ))}
                         </select>
-                      </label>
-                      <label className="block text-xs ui-text-muted">
-                        <span className="mb-1 block">Giriş izni</span>
+                      </div>
+                      <div className="h-px bg-[var(--color-border)]" role="presentation" />
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                          Durum
+                        </p>
+                        <label className="sr-only" htmlFor="rbac-filter-lifecycle">
+                          Yaşam döngüsü
+                        </label>
                         <select
-                          value={filterCanLogin}
-                          onChange={(e) => setFilterCanLogin(e.target.value as "all" | "yes" | "no")}
+                          id="rbac-filter-lifecycle"
+                          value={draftLifecycle}
+                          onChange={(e) => setDraftLifecycle(e.target.value)}
                           className="ui-input w-full text-sm"
-                          aria-label="Giriş izni"
+                        >
+                          <option value="">Tüm durumlar</option>
+                          <option value="active">Aktif</option>
+                          <option value="passive">Pasif</option>
+                          <option value="archived">Arşiv</option>
+                        </select>
+                      </div>
+                      <div className="h-px bg-[var(--color-border)]" role="presentation" />
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                          Giriş durumu
+                        </p>
+                        <label className="sr-only" htmlFor="rbac-filter-login">
+                          Giriş izni
+                        </label>
+                        <select
+                          id="rbac-filter-login"
+                          value={draftCanLogin}
+                          onChange={(e) => setDraftCanLogin(e.target.value as "all" | "yes" | "no")}
+                          className="ui-input w-full text-sm"
                         >
                           <option value="all">Tümü</option>
                           <option value="yes">Giriş açık</option>
                           <option value="no">Giriş kapalı</option>
                         </select>
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                        <input
-                          type="checkbox"
-                          checked={includeArchived}
-                          onChange={(e) => setIncludeArchived(e.target.checked)}
-                          className="rounded border-[var(--color-border)]"
-                        />
-                        Arşivlenmişleri göster
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                        <input
-                          type="checkbox"
-                          checked={invitedOnly}
-                          onChange={(e) => setInvitedOnly(e.target.checked)}
-                          className="rounded border-[var(--color-border)]"
-                        />
-                        Yalnız davet
-                      </label>
+                      </div>
+                      <div className="h-px bg-[var(--color-border)]" role="presentation" />
+                      <div className="space-y-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                          Diğer
+                        </p>
+                        <label className="flex cursor-pointer items-center gap-3 text-sm text-[var(--color-text-secondary)]">
+                          <input
+                            type="checkbox"
+                            checked={draftIncludeArchived}
+                            onChange={(e) => setDraftIncludeArchived(e.target.checked)}
+                            className="rounded border-[var(--color-border)]"
+                          />
+                          Arşivlenmişleri dahil et
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-3 text-sm text-[var(--color-text-secondary)]">
+                          <input
+                            type="checkbox"
+                            checked={draftInvitedOnly}
+                            onChange={(e) => setDraftInvitedOnly(e.target.checked)}
+                            className="rounded border-[var(--color-border)]"
+                          />
+                          Yalnız davet / bekleyen
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)]/25 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={clearFilterPanel}
+                        className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)]"
+                      >
+                        Temizle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyFilterDraft}
+                        className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                      >
+                        Uygula
+                      </button>
                     </div>
                   </div>
-                )}
+                </RbacAnchoredPopover>
               </div>
               {canCreate && (
                 <button
@@ -1044,10 +1132,16 @@ export default function UsersTab() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenMenuUserId((id) => (id === u.id ? null : u.id));
+                              setShowFiltersPanel(false);
+                              setOpenMenuUserId((id) => {
+                                if (id === u.id) return null;
+                                rowMenuAnchorRef.current = e.currentTarget;
+                                return u.id;
+                              });
                             }}
                             className="rounded-lg p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
                             aria-label="Diğer işlemler"
+                            aria-haspopup="menu"
                             aria-expanded={openMenuUserId === u.id}
                           >
                             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -1058,6 +1152,7 @@ export default function UsersTab() {
                             user={u}
                             isOpen={openMenuUserId === u.id}
                             onClose={() => setOpenMenuUserId(null)}
+                            anchorRef={rowMenuAnchorRef}
                             isSystemOwner={isSystemOwner}
                             currentUserId={currentUser?.id}
                             onEdit={() => handleSelectUser(u)}

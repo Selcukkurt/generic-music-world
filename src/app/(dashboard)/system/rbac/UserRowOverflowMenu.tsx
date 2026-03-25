@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
 import type { AppUserWithRoles } from "@/lib/rbac-v1/types";
+import RbacAnchoredPopover from "./RbacAnchoredPopover";
 
 type DisplayUser = AppUserWithRoles & { linked_personnel: string };
 
@@ -19,12 +20,13 @@ function MenuItem({
   return (
     <button
       type="button"
+      role="menuitem"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
         onClose();
       }}
-      className={`flex w-full items-center px-3 py-2.5 text-left text-sm transition hover:bg-[var(--color-surface-hover)] ${
+      className={`flex w-full items-center px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-surface-hover)] focus-visible:bg-[var(--color-surface-hover)] focus-visible:outline-none ${
         destructive ? "text-red-400/95" : "text-[var(--color-text)]"
       }`}
     >
@@ -37,6 +39,7 @@ export default function UserRowOverflowMenu({
   user,
   isOpen,
   onClose,
+  anchorRef,
   isSystemOwner,
   currentUserId,
   onEdit,
@@ -51,6 +54,7 @@ export default function UserRowOverflowMenu({
   user: DisplayUser;
   isOpen: boolean;
   onClose: () => void;
+  anchorRef: RefObject<HTMLElement | null>;
   isSystemOwner: boolean;
   currentUserId: string | null | undefined;
   onEdit: () => void;
@@ -62,74 +66,66 @@ export default function UserRowOverflowMenu({
   onRestore: () => void;
   onPermanentDelete: () => void;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   const life = user.lifecycle_status ?? "active";
   const isArchived = life === "archived";
   const isPassive = life === "passive";
   const isSelf = user.id === currentUserId;
 
   return (
-    <div
-      ref={rootRef}
-      className="absolute right-0 top-full z-[80] mt-1 min-w-[220px] overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-xl"
-      role="menu"
-      onClick={(e) => e.stopPropagation()}
+    <RbacAnchoredPopover
+      isOpen={isOpen}
+      onClose={onClose}
+      anchorRef={anchorRef}
+      align="end"
+      minWidth={232}
+      maxWidth={320}
+      panelRole="menu"
+      aria-label="Satır işlemleri"
+      className="p-0 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
     >
-      <MenuItem onClick={onEdit} onClose={onClose}>
-        Düzenle
-      </MenuItem>
-      {isSystemOwner ? (
-        <>
-          <div className="my-1 h-px bg-[var(--color-border)]" />
-          <MenuItem onClick={onResendInvite} onClose={onClose}>
-            Daveti yeniden gönder
-          </MenuItem>
-          <MenuItem onClick={onCopyInviteLink} onClose={onClose}>
-            Davet bağlantısını kopyala
-          </MenuItem>
-          <MenuItem onClick={onPasswordReset} onClose={onClose}>
-            Şifre sıfırlama bağlantısı
-          </MenuItem>
-          <div className="my-1 h-px bg-[var(--color-border)]" />
-          {!isArchived ? (
-            <MenuItem onClick={onToggleActivePassive} onClose={onClose}>
-              {isPassive ? "Aktifleştir" : "Pasifleştir"}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
+        <MenuItem onClick={onEdit} onClose={onClose}>
+          Düzenle
+        </MenuItem>
+        {isSystemOwner ? (
+          <>
+            <div className="mx-2 my-1 h-px shrink-0 bg-[var(--color-border)]" role="separator" />
+            <MenuItem onClick={onResendInvite} onClose={onClose}>
+              Daveti yeniden gönder
             </MenuItem>
-          ) : null}
-          {!isArchived ? (
-            <MenuItem onClick={onArchive} onClose={onClose}>
-              Arşivle
+            <MenuItem onClick={onCopyInviteLink} onClose={onClose}>
+              Davet bağlantısını kopyala
             </MenuItem>
-          ) : null}
-          {isArchived ? (
-            <MenuItem onClick={onRestore} onClose={onClose}>
-              Arşivden geri yükle
+            <MenuItem onClick={onPasswordReset} onClose={onClose}>
+              Şifre sıfırlama bağlantısı
             </MenuItem>
-          ) : null}
-          {!isSelf ? (
-            <>
-              <div className="my-1 h-px bg-[var(--color-border)]" />
-              <MenuItem onClick={onPermanentDelete} onClose={onClose} destructive>
-                Kalıcı sil
+            <div className="mx-2 my-1 h-px shrink-0 bg-[var(--color-border)]" role="separator" />
+            {!isArchived ? (
+              <MenuItem onClick={onToggleActivePassive} onClose={onClose}>
+                {isPassive ? "Aktifleştir" : "Pasifleştir"}
               </MenuItem>
-            </>
-          ) : null}
-        </>
-      ) : null}
-    </div>
+            ) : null}
+            {!isArchived ? (
+              <MenuItem onClick={onArchive} onClose={onClose}>
+                Arşivle
+              </MenuItem>
+            ) : null}
+            {isArchived ? (
+              <MenuItem onClick={onRestore} onClose={onClose}>
+                Arşivden geri yükle
+              </MenuItem>
+            ) : null}
+            {!isSelf ? (
+              <>
+                <div className="mx-2 my-1 h-px shrink-0 bg-[var(--color-border)]" role="separator" />
+                <MenuItem onClick={onPermanentDelete} onClose={onClose} destructive>
+                  Kalıcı sil
+                </MenuItem>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </RbacAnchoredPopover>
   );
 }

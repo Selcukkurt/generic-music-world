@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
-import { supabaseBrowser } from "@/lib/supabase/client";
 import GlobalHeader from "@/components/shell/GlobalHeader";
 import AppSidebar from "@/components/shell/AppSidebar";
 import ModuleRightPanel from "@/components/shell/ModuleRightPanel";
@@ -13,16 +12,15 @@ import AppFooter from "@/components/shell/AppFooter";
 import { getModuleForPath } from "@/config/modules";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { ShellUIProvider } from "@/context/ShellUIContext";
+import { useAccessGate } from "@/hooks/useAccessGate";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const isLoginRoute = pathname === "/login";
-  const [isChecking, setIsChecking] = useState(!isLoginRoute);
+  const { isChecking } = useAccessGate();
   const activeModule = getModuleForPath(pathname);
   const isInModule = !!activeModule;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -50,36 +48,6 @@ export default function DashboardLayout({
   const { t } = useI18n();
 
   const effectiveSidebarCollapsed = activeModule ? true : isSidebarCollapsed;
-
-  useEffect(() => {
-    if (isLoginRoute) {
-      queueMicrotask(() => setIsChecking(false));
-      return;
-    }
-
-    const checkAccess = async () => {
-      const { data } = await supabaseBrowser.auth.getUser();
-
-      if (!data.user) {
-        router.replace("/login");
-        return;
-      }
-
-      const hasAccess = true;
-      if (!hasAccess) {
-        router.replace("/forbidden");
-        return;
-      }
-
-      setIsChecking(false);
-    };
-
-    checkAccess();
-  }, [router, isLoginRoute]);
-
-  if (isLoginRoute) {
-    return <>{children}</>;
-  }
 
   if (isChecking) {
     return (

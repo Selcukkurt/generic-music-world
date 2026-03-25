@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev -p 3005 -H 127.0.0.1 --webpack",
     "dev:free-port": "bash scripts/dev-free-port.sh",
-    "dev:clean": "rm -rf .next && next dev -p 3005 -H 127.0.0.1",
+    "dev:clean": "rm -rf .next && next dev -p 3005 -H 127.0.0.1 --webpack",
+    "dev:fresh": "bash scripts/dev-free-port.sh 3005 && rm -rf .next && next dev -p 3005 -H 127.0.0.1 --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "verify:onboarding-gate": "npx tsx scripts/verify-onboarding-gate-logic.ts",
     "seed:users": "npx tsx scripts/seed-users.ts",
     "seed:notifications": "npx tsx scripts/seed-notifications.ts",
     "db:push": "npx tsx scripts/db-push-rbac.ts"

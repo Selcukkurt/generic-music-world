@@ -113,7 +113,7 @@ export default function LoginForm() {
         return;
       }
       toast.success(t("login_success_title"), t("login_success_body"));
-      const path = currentUser ? getPostLoginRedirectPath(currentUser.role) : "/dashboard";
+      const path = currentUser ? getPostLoginRedirectPath(currentUser) : "/dashboard";
       router.replace(path);
     } catch {
       if (!didTimeout) {

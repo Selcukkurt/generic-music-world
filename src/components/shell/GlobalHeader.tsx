@@ -16,6 +16,10 @@ type GlobalHeaderProps = {
   showMenuButton?: boolean;
   menuLabel?: string;
   showModuleMenuButton?: boolean;
+  /** Cmd+K jump search (lists app routes). Off for onboarding shell. */
+  showAppSearch?: boolean;
+  /** Notifications shortcut. Off for onboarding shell. */
+  showNotifications?: boolean;
 };
 
 const SEARCH_TARGETS: { label: string; path: string; terms: string[] }[] = [
@@ -73,6 +77,8 @@ export default function GlobalHeader({
   showMenuButton = false,
   menuLabel,
   showModuleMenuButton = false,
+  showAppSearch = true,
+  showNotifications = true,
 }: GlobalHeaderProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -99,18 +105,24 @@ export default function GlobalHeader({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        closeSearch();
-        setSearchQuery("");
+        if (showAppSearch) {
+          closeSearch();
+          setSearchQuery("");
+        }
         setIsProfileOpen(false);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if (
+        showAppSearch &&
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "k"
+      ) {
         e.preventDefault();
         toggleSearch();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [closeSearch, toggleSearch]);
+  }, [closeSearch, toggleSearch, showAppSearch]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -198,6 +210,7 @@ export default function GlobalHeader({
               <IconModuleMenu className="h-4 w-4 ui-text-secondary" />
             </button>
           ) : null}
+          {showAppSearch ? (
           <div ref={searchWrapRef} className="relative">
             <div
               className={`flex items-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-sm transition-[width] duration-200 ease-out ${
@@ -267,7 +280,9 @@ export default function GlobalHeader({
               </div>
             )}
           </div>
+          ) : null}
           <LanguageSwitch />
+          {showNotifications ? (
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-text-muted)]"
@@ -292,6 +307,7 @@ export default function GlobalHeader({
               />
             </svg>
           </button>
+          ) : null}
           <div className="relative flex items-center gap-3" ref={profileRef}>
             <div className="hidden text-right md:block">
               <p className="text-sm font-semibold leading-tight">
