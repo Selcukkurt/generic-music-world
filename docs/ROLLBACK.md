@@ -12,14 +12,14 @@
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 | **RB-024** | — | Onboarding end-to-end stabilized; first/last name; invite identity; completion API & state; final waiting screen; booking user test passed |
-| **RB-025** | 636324a | Onboarding milestone: load path + persistence + review mode + UX + internal benchmarks (LOCKED) |
+| **RB-025** | a53c5b6 | Onboarding milestone: load path + persistence + review mode + UX + internal benchmarks (LOCKED) |
 
 ---
 
 ## RB-025: Onboarding load, persistence, review mode, UX (milestone LOCKED)
 
-**Tag:** `RB-025` (annotated)  
-**Commit:** `636324a` (annotated tag `RB-025`); **milestone implementation checkpoint:** `a53c5b6`  
+**Tag:** `RB-025` (annotated) — **`git rev-parse RB-025^{commit}`** is the publish tip on `main` (may include docs-only commits).  
+**Milestone commit (feature body):** `a53c5b6`  
 **Scope:** Stable checkpoint for onboarding as delivered in March 2026.
 
 **Summary:**
