@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import AuthCacheInvalidation from "@/components/system/AuthCacheInvalidation";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
 import { tr } from "@/i18n/tr";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="tr">
       <body className="min-h-[100dvh] antialiased">
         <LocaleProvider>
+          <AuthCacheInvalidation />
           <ToastProvider>{children}</ToastProvider>
         </LocaleProvider>
       </body>

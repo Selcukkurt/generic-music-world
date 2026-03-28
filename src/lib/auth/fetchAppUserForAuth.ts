@@ -16,6 +16,10 @@ const SELECT_PRE_HUB =
   "role, role_level, is_active, can_login, lifecycle_status, access_phase, onboarding_completed_at, activated_at";
 const SELECT_LEGACY = "role, role_level, is_active, can_login, lifecycle_status";
 
+/** Dedupes burst reads (access gate + header + onboarding) on first paint. */
+const APP_USER_CLIENT_CACHE_TTL_MS = 5000;
+const appUserClientCache = new Map<string, { row: AppUserLoginRow | null; at: number }>();
+
 function withHubDefaults(row: Partial<AppUserLoginRow>): AppUserLoginRow {
   return {
     ...row,
@@ -28,11 +32,7 @@ function withHubDefaults(row: Partial<AppUserLoginRow>): AppUserLoginRow {
   } as AppUserLoginRow;
 }
 
-/**
- * Loads RBAC fields from app_users. Retries with smaller column lists if optional
- * columns are missing (migration not applied / schema drift).
- */
-export async function fetchAppUserForAuth(
+async function loadAppUserRowFromDb(
   supabase: SupabaseClient,
   userId: string
 ): Promise<AppUserLoginRow | null> {
@@ -134,4 +134,32 @@ export async function fetchAppUserForAuth(
   }
 
   return null;
+}
+
+/**
+ * Loads RBAC fields from app_users. Retries with smaller column lists if optional
+ * columns are missing (migration not applied / schema drift).
+ * Short-lived client cache avoids duplicate queries while the shell and onboarding mount.
+ */
+export async function fetchAppUserForAuth(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<AppUserLoginRow | null> {
+  const now = Date.now();
+  const hit = appUserClientCache.get(userId);
+  if (hit && now - hit.at < APP_USER_CLIENT_CACHE_TTL_MS) {
+    return hit.row;
+  }
+  const row = await loadAppUserRowFromDb(supabase, userId);
+  appUserClientCache.set(userId, { row, at: now });
+  return row;
+}
+
+/** Invalidate client `app_users` cache (e.g. after auth or role change). Omit userId to clear all. */
+export function invalidateAppUserClientCache(userId?: string): void {
+  if (userId) {
+    appUserClientCache.delete(userId);
+  } else {
+    appUserClientCache.clear();
+  }
 }

@@ -64,3 +64,39 @@ This document defines how **pre-employment institutional onboarding** is separat
 ## Versioning
 
 Agreement keys and document versions live in `src/lib/compliance/constants.ts` and must match rows written to `user_agreement_acceptances`.
+
+---
+
+## Performance and load path (implementation)
+
+### Critical vs non-critical
+
+- **Critical path to first shell:** `useAccessGate` (auth + client `app_users` for redirects) → `GET /api/me/onboarding/state` → React `loading` false so the welcome step and step chrome render.
+- **Non-critical:** `GET /api/me/compliance/status` runs **in parallel** with onboarding state and merges when ready (agreement checkboxes, GM DNA list). It is intentionally **not** awaited before showing step 0 so time-to-first-shell does not include compliance latency.
+
+### Client caches (short TTL)
+
+- **Bearer token** (`src/lib/me/meApiSession.ts`): avoids repeated `getSession()` bursts; **invalidated** on any `onAuthStateChange` via `AuthCacheInvalidation` in root layout, and on explicit `signOut`.
+- **`app_users` row** (`fetchAppUserForAuth`): ~5s client map dedupes gate + header; **invalidated** on auth changes and by `invalidateAppUserClientCache()`.
+
+### Observability
+
+- Development: one console summary from `onboardingLoadMetrics` after compliance merges (`[OnboardingLoad] measured summary`).
+- Benchmark template: `docs/internal/ONBOARDING_LOAD_BENCHMARKS.md`.
+
+### Lighter gate (future)
+
+The access gate must still produce a `CurrentUser` for `getAccessRedirect` / `hubPipeline` (needs `access_phase`, lifecycle, hub fields). A **narrower `SELECT`** targeting only those columns could reduce payload and PostgREST work for `/onboarding` without changing product rules. This is optional; measure first.
+
+### Phase-2 server refactor: duplicate `app_users` resolution
+
+Today, `GET /api/me/onboarding/state` calls `getApiUser`, which runs `fetchAppUserForAuth` (anon Supabase client → `app_users`), then the handler runs **another** `app_users` `select` via `createServerClient()` for the full onboarding column set.
+
+**Worth doing when:** API latency or DB load from onboarding traffic becomes material.
+
+**Safe directions:**
+
+1. **JWT-only auth + one read:** Validate the bearer with `getUser(jwt)` (or `auth.getClaims`) without loading `app_users`, then perform **one** service-role `app_users` query with the columns onboarding needs. Centralize column fallback (migration drift) in one place.
+2. **Reuse row from a shared helper:** Refactor `getApiUser` to optionally return the already-fetched `app_users` row for routes that need the same row shape, avoiding a second round-trip.
+
+Trade-offs: touch auth middleware surface area; add tests for 401/404; keep RLS and service-role usage consistent with security review.

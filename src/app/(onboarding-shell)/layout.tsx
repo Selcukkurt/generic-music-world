@@ -25,6 +25,8 @@ export default function OnboardingShellLayout({
           alt={t("common_loading")}
           width={64}
           height={64}
+          priority
+          unoptimized
           className="h-16 w-16"
         />
       </div>

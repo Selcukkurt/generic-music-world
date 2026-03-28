@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { invalidateMeApiTokenCache } from "@/lib/me/meApiSession";
 import { useI18n } from "@/i18n/LocaleProvider";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -160,6 +161,7 @@ export default function GlobalHeader({
   const handleLogout = async () => {
     setIsProfileOpen(false);
     await supabaseBrowser.auth.signOut();
+    invalidateMeApiTokenCache();
     toast.success(t("logout_toast"));
     router.replace("/login");
   };

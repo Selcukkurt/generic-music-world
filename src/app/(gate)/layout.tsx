@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { invalidateMeApiTokenCache } from "@/lib/me/meApiSession";
 import { useAccessGate } from "@/hooks/useAccessGate";
 import { useI18n } from "@/i18n/LocaleProvider";
 
@@ -13,6 +14,7 @@ export default function GateLayout({ children }: { children: React.ReactNode }) 
 
   const signOut = async () => {
     await supabaseBrowser.auth.signOut();
+    invalidateMeApiTokenCache();
     window.location.href = "/login";
   };
 

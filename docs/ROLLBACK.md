@@ -12,6 +12,40 @@
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 | **RB-024** | — | Onboarding end-to-end stabilized; first/last name; invite identity; completion API & state; final waiting screen; booking user test passed |
+| **RB-025** | — | Onboarding milestone: load path + persistence + review mode + UX + internal benchmarks (LOCKED) |
+
+---
+
+## RB-025: Onboarding load, persistence, review mode, UX (milestone LOCKED)
+
+**Tag:** `RB-025` (annotated)  
+**Scope:** Stable checkpoint for onboarding as delivered in March 2026.
+
+**Summary:**
+- Onboarding **performance:** parallel `state` + `compliance` fetch; no sequential waterfall; loader semantics aligned with **persisted step** (first paint after both merge).
+- **Critical vs deferred** loading path documented in code + `docs/internal/ONBOARDING_LOAD_BENCHMARKS.md`.
+- **Hints / waiting** copy (e.g. `OnboardingInfoHints`, ETA **1–2 iş günü**).
+- **Review mode:** read-only revisit of completed steps; `reviewStep` **UI-only**; no backend writes from review navigation.
+- **Heading hierarchy** and page structure; **step chips** overflow/consistency (`onboardingStepNavStyles`).
+- **Persistence / resume:** `deriveOnboardingStepWithFallbackCompliance` from **backend** profile + compliance; refresh, logout/login, retry path validated for scope.
+- **Completed users** leave `/onboarding` via `shouldLeaveOnboarding` + access gate.
+- **Internal doc** `docs/internal/ONBOARDING_LOAD_BENCHMARKS.md` finalized for this milestone.
+
+**Stable state:** Onboarding persistence/resume is **complete and stable** for the current scope.
+
+**Main risks / deferred:**
+- **Multi-tab / silent re-sync** of wizard `step` without remount is **explicitly out of scope**; optional future enhancement.
+- Compliance fetch failure falls back to conservative step derivation (see `onboardingWizardProgress.ts`).
+
+**Rollback target:** Prior stable onboarding checkpoint **`RB-024`** (or immediately preceding commit if tag not present):
+
+```bash
+git checkout RB-024
+```
+
+**Next recommended work:**
+- Optional: multi-tab / silent compliance re-sync (monotonic rules, no fighting Geri).
+- Optional: phase-2 server dedupe for `app_users` on onboarding APIs (metrics-driven).
 
 ---
 
@@ -21,6 +55,7 @@
 |-------------|-------|------|-------|--------------|-------------|-------------|---------|-------|-------|------|
 | RB-021 | 2026-03-21 | 14:49 | Local + Dev | GMW-2026-03-RB021 | System / RBAC | Active | FALSE | TRUE | FALSE | FALSE |
 | RB-024 | 2026-03-28 | 12:00 | Local + Dev | RB-024 | Onboarding / Hub pipeline | Stabil | TRUE | TRUE | FALSE | FALSE |
+| **RB-025** | **2026-03-28** | **—** | **Local + Dev** | **RB-025** | **Onboarding** | **Stabil** | **TRUE** | **TRUE** | **FALSE** | **FALSE** |
 
 **RB-021 – Yapılan İşlem Özeti:**
 RBAC enforcement phase started.

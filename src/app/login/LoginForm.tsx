@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { invalidateMeApiTokenCache } from "@/lib/me/meApiSession";
 import { getCurrentUser, getPostLoginRedirectPath } from "@/lib/auth/getCurrentUser";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -104,6 +105,7 @@ export default function LoginForm() {
       const profile = toRBACProfile(currentUser);
       if (!canLogin(profile)) {
         await supabaseBrowser.auth.signOut();
+        invalidateMeApiTokenCache();
         setErrorMessage({
           title: t("login_invalid_title"),
           body: "Saha Personeli / Uzman rolü ile giriş yapılamaz.",

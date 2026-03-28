@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     gm_dna_final: false,
   };
 
-  const acc = await supabase
-    .from("user_agreement_acceptances")
-    .select("agreement_key")
-    .eq("user_id", user.id);
+  const [acc, prog] = await Promise.all([
+    supabase.from("user_agreement_acceptances").select("agreement_key").eq("user_id", user.id),
+    supabase.from("user_gm_dna_section_progress").select("section_key").eq("user_id", user.id),
+  ]);
 
   if (acc.error) {
     const m = acc.error.message ?? "";
@@ -47,11 +47,6 @@ export async function GET(request: NextRequest) {
   }
 
   const gmDone = new Set<GmDnaSectionKey>();
-  const prog = await supabase
-    .from("user_gm_dna_section_progress")
-    .select("section_key")
-    .eq("user_id", user.id);
-
   if (prog.error) {
     const m = prog.error.message ?? "";
     if (!isPostgrestSchemaError(m)) {
