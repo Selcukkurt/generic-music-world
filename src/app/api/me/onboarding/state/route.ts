@@ -4,9 +4,27 @@ import { createServerClient } from "@/lib/supabase/server";
 import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
 
 const SELECT_STATE_FULL =
-  "full_name, email, role, role_level, title, department, access_phase, onboarding_completed_at";
+  "first_name, last_name, full_name, email, role, role_level, title, department, access_phase, onboarding_completed_at, onboarding_status, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+/** No onboarding_* columns — use when those migrations were never applied. */
+const SELECT_STATE_FULL_NO_ONBOARDING_COLS =
+  "first_name, last_name, full_name, email, role, role_level, title, department, access_phase, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
 const SELECT_STATE_NO_PROFILE =
-  "full_name, email, role, role_level, access_phase, onboarding_completed_at";
+  "first_name, last_name, full_name, email, role, role_level, access_phase, onboarding_completed_at, onboarding_status, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+const SELECT_STATE_NO_PROFILE_NO_ONBOARDING =
+  "first_name, last_name, full_name, email, role, role_level, access_phase, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+const SELECT_STATE_PRE_HUB =
+  "first_name, last_name, full_name, email, role, role_level, title, department, access_phase, onboarding_completed_at, onboarding_status";
+const SELECT_STATE_NO_PROFILE_PRE_HUB =
+  "first_name, last_name, full_name, email, role, role_level, access_phase, onboarding_completed_at, onboarding_status";
+/** Pre–onboarding_status migration. */
+const SELECT_STATE_FULL_LEGACY =
+  "first_name, last_name, full_name, email, role, role_level, title, department, access_phase, onboarding_completed_at, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+const SELECT_STATE_NO_PROFILE_LEGACY =
+  "first_name, last_name, full_name, email, role, role_level, access_phase, onboarding_completed_at, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+const SELECT_STATE_PRE_HUB_LEGACY =
+  "first_name, last_name, full_name, email, role, role_level, title, department, access_phase, onboarding_completed_at";
+const SELECT_STATE_NO_PROFILE_PRE_HUB_LEGACY =
+  "first_name, last_name, full_name, email, role, role_level, access_phase, onboarding_completed_at";
 const SELECT_STATE_CORE = "full_name, email, role, role_level, access_phase";
 
 export async function GET(request: NextRequest) {
@@ -22,6 +40,8 @@ export async function GET(request: NextRequest) {
   }
 
   type Row = {
+    first_name?: string | null;
+    last_name?: string | null;
     full_name: string | null;
     email: string | null;
     role: string | null;
@@ -30,9 +50,25 @@ export async function GET(request: NextRequest) {
     department?: string | null;
     access_phase: string | null;
     onboarding_completed_at?: string | null;
+    onboarding_status?: string | null;
+    compliance_completed_at?: string | null;
+    hub_pipeline_phase?: string | null;
+    hub_access_granted_at?: string | null;
   };
 
-  const attempts = [SELECT_STATE_FULL, SELECT_STATE_NO_PROFILE, SELECT_STATE_CORE];
+  const attempts = [
+    SELECT_STATE_FULL,
+    SELECT_STATE_FULL_NO_ONBOARDING_COLS,
+    SELECT_STATE_FULL_LEGACY,
+    SELECT_STATE_NO_PROFILE,
+    SELECT_STATE_NO_PROFILE_NO_ONBOARDING,
+    SELECT_STATE_NO_PROFILE_LEGACY,
+    SELECT_STATE_PRE_HUB,
+    SELECT_STATE_PRE_HUB_LEGACY,
+    SELECT_STATE_NO_PROFILE_PRE_HUB,
+    SELECT_STATE_NO_PROFILE_PRE_HUB_LEGACY,
+    SELECT_STATE_CORE,
+  ];
   let d: Row | null = null;
 
   for (const columns of attempts) {
@@ -48,6 +84,12 @@ export async function GET(request: NextRequest) {
         isMissingColumnError(m, "title") ||
         isMissingColumnError(m, "department") ||
         isMissingColumnError(m, "onboarding_completed_at") ||
+        isMissingColumnError(m, "onboarding_status") ||
+        isMissingColumnError(m, "compliance_completed_at") ||
+        isMissingColumnError(m, "hub_pipeline_phase") ||
+        isMissingColumnError(m, "hub_access_granted_at") ||
+        isMissingColumnError(m, "first_name") ||
+        isMissingColumnError(m, "last_name") ||
         isMissingColumnError(m, "access_phase");
       if (!retry) {
         return NextResponse.json({ error: m }, { status: 500 });
@@ -60,6 +102,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
+    first_name: d.first_name ?? null,
+    last_name: d.last_name ?? null,
     full_name: d.full_name,
     email: d.email ?? user.email,
     role: d.role,
@@ -68,5 +112,9 @@ export async function GET(request: NextRequest) {
     department: d.department ?? null,
     access_phase: d.access_phase,
     onboarding_completed_at: d.onboarding_completed_at ?? null,
+    onboarding_status: d.onboarding_status ?? null,
+    compliance_completed_at: d.compliance_completed_at ?? null,
+    hub_pipeline_phase: d.hub_pipeline_phase ?? null,
+    hub_access_granted_at: d.hub_access_granted_at ?? null,
   });
 }

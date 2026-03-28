@@ -19,6 +19,7 @@ function baseUser(overrides: Partial<CurrentUser>): CurrentUser {
     lifecycle_status: "active",
     userLifecycleStatus: "active",
     onboarding_completed_at: "2024-06-01T00:00:00.000Z",
+    onboarding_status: "completed",
     compliance_completed_at: "2024-06-01T00:00:00.000Z",
     hub_pipeline_phase: "active",
     hub_access_granted_at: "2024-06-01T00:00:00.000Z",
@@ -35,6 +36,7 @@ function gateUser(u: Pick<CurrentUser, keyof CurrentUser>) {
     lifecycle_status: u.lifecycle_status,
     access_phase: u.access_phase,
     onboarding_completed_at: u.onboarding_completed_at,
+    onboarding_status: u.onboarding_status ?? null,
     compliance_completed_at: u.compliance_completed_at,
     hub_pipeline_phase: u.hub_pipeline_phase,
     hub_access_granted_at: u.hub_access_granted_at,
@@ -47,6 +49,7 @@ function gateUser(u: Pick<CurrentUser, keyof CurrentUser>) {
     email: "onboarder@example.com",
     access_phase: "onboarding",
     onboarding_completed_at: null,
+    onboarding_status: "pending",
     compliance_completed_at: null,
     hub_pipeline_phase: "onboarding",
     hub_access_granted_at: null,
@@ -65,6 +68,7 @@ function gateUser(u: Pick<CurrentUser, keyof CurrentUser>) {
     email: "legacy@example.com",
     access_phase: "active",
     onboarding_completed_at: "2025-01-01T00:00:00.000Z",
+    onboarding_status: "completed",
     compliance_completed_at: null,
     hub_pipeline_phase: "invited",
     hub_access_granted_at: null,
@@ -112,6 +116,7 @@ function gateUser(u: Pick<CurrentUser, keyof CurrentUser>) {
     access_phase: "active" as const,
     lifecycle_status: "active" as const,
     onboarding_completed_at: null as string | null,
+    onboarding_status: null as string | null,
     compliance_completed_at: null as string | null,
     hub_pipeline_phase: "active" as const,
     hub_access_granted_at: null as string | null,
@@ -135,6 +140,21 @@ function gateUser(u: Pick<CurrentUser, keyof CurrentUser>) {
   assert.strictEqual(needsHubPendingShell(gateUser(u)), true, "case5 hub pending");
   assert.strictEqual(getPostHubAuthPath({ role: "viewer", u: gateUser(u) }), "/hub-pending", "case5 post-login");
   assert.strictEqual(getAccessRedirect("/dashboard", u), "/hub-pending", "case5 block dashboard");
+}
+
+// 6) onboarding complete → awaiting_activation + hub queue (must prefer hub-pending over activation-pending)
+{
+  const u = baseUser({
+    email: "phase@example.com",
+    access_phase: "awaiting_activation",
+    compliance_completed_at: "2025-01-01T00:00:00.000Z",
+    hub_pipeline_phase: "awaiting_personnel",
+    hub_access_granted_at: null,
+    hasHubAccess: false,
+    hasFullAppAccess: false,
+  });
+  assert.strictEqual(getPostHubAuthPath({ role: "viewer", u: gateUser(u) }), "/hub-pending", "case6 post-complete funnel");
+  assert.strictEqual(getAccessRedirect("/dashboard", u), "/hub-pending", "case6 dashboard guard");
 }
 
 console.log("verify-onboarding-gate-logic: all assertions passed.");

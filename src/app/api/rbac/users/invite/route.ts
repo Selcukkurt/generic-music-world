@@ -4,7 +4,7 @@ import { getApiUser, requireSystemOwner } from "@/lib/version/api-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { getInviteRedirectOrigin } from "@/lib/supabase/env";
 import { LEGACY_ROLE_TO_LEVEL } from "@/lib/rbac/roleConfig";
-import { isMissingColumnError } from "@/lib/supabase/missingColumn";
+import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
 
 function serializeAuthError(err: unknown): string {
   if (err == null) return String(err);
@@ -64,30 +64,37 @@ function logAuthErr(context: string, err: unknown) {
 const GENERIC_INVITE_FAIL =
   "Kullanıcı oluşturulamadı. Lütfen daha sonra tekrar deneyin veya yöneticiye başvurun.";
 
+type InviteIdentity = {
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string;
+};
+
 async function syncRolesAndAppUsers(
   supabase: ReturnType<typeof createServerClient>,
   invitedUser: User,
-  role_id: string | undefined,
-  initial_can_login: boolean | undefined
+  role_id: string,
+  initial_can_login: boolean | undefined,
+  identity: InviteIdentity
 ) {
   let roleLevel = 6;
   let canLogin = true;
   let roleKey = "viewer";
 
-  if (role_id && typeof role_id === "string") {
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .upsert({ user_id: invitedUser.id, role_id }, { onConflict: "user_id,role_id" });
+  const rid = role_id.trim();
+  const { error: roleError } = await supabase
+    .from("user_roles")
+    .upsert({ user_id: invitedUser.id, role_id: rid }, { onConflict: "user_id,role_id" });
 
-    if (roleError) {
-      console.error("[api/rbac/users/invite] role assign error:", roleError);
-    } else {
-      const { data: roleData } = await supabase.from("roles").select("key").eq("id", role_id).single();
-      if (roleData?.key) {
-        roleKey = (roleData.key as string).toLowerCase();
-        roleLevel = LEGACY_ROLE_TO_LEVEL[roleKey] ?? 6;
-        canLogin = roleLevel !== 5;
-      }
+  if (roleError) {
+    console.error("[api/rbac/users/invite] role assign error:", roleError);
+  } else {
+    const { data: roleData } = await supabase.from("roles").select("key").eq("id", rid).single();
+    if (roleData?.key) {
+      roleKey = (roleData.key as string).toLowerCase();
+      roleLevel = LEGACY_ROLE_TO_LEVEL[roleKey] ?? 6;
+      canLogin = roleLevel !== 5;
     }
   }
 
@@ -95,20 +102,63 @@ async function syncRolesAndAppUsers(
     canLogin = false;
   }
 
-  const full = { role: roleKey, role_level: roleLevel, can_login: canLogin };
-  let { error: auErr } = await supabase.from("app_users").update(full).eq("id", invitedUser.id);
+  const rbac = { role: roleKey, role_level: roleLevel, can_login: canLogin };
+  /** New accounts start in product onboarding (invited DB default is superseded here when columns exist). */
+  const funnel = { access_phase: "onboarding" as const, hub_pipeline_phase: "onboarding" as const };
+  const withNames = {
+    first_name: identity.first_name,
+    last_name: identity.last_name,
+    full_name: identity.full_name,
+    email: identity.email,
+    ...rbac,
+    ...funnel,
+  };
+  const withEmail = { email: identity.email, full_name: identity.full_name, ...rbac, ...funnel };
+  const withNamesNoFunnel = {
+    first_name: identity.first_name,
+    last_name: identity.last_name,
+    full_name: identity.full_name,
+    email: identity.email,
+    ...rbac,
+  };
+  const withEmailNoFunnel = { email: identity.email, full_name: identity.full_name, ...rbac };
 
-  if (auErr) {
-    if (isMissingColumnError(auErr.message, "can_login")) {
-      const { can_login: _c, ...rest } = full;
-      ({ error: auErr } = await supabase.from("app_users").update(rest).eq("id", invitedUser.id));
+  const payloads: Record<string, unknown>[] = [
+    withNames,
+    withNamesNoFunnel,
+    withEmail,
+    withEmailNoFunnel,
+    { full_name: identity.full_name, ...rbac, ...funnel },
+    { full_name: identity.full_name, ...rbac },
+    rbac,
+    { can_login: rbac.can_login },
+  ];
+
+  let lastErr: { message: string } | null = null;
+  for (const payload of payloads) {
+    const { error } = await supabase.from("app_users").update(payload).eq("id", invitedUser.id);
+    if (!error) {
+      lastErr = null;
+      break;
     }
-    if (auErr && (isMissingColumnError(auErr.message, "role") || isMissingColumnError(auErr.message, "role_level"))) {
-      ({ error: auErr } = await supabase.from("app_users").update({ can_login: full.can_login }).eq("id", invitedUser.id));
-    }
-    if (auErr) {
-      console.warn("[api/rbac/users/invite] app_users sync (non-fatal):", auErr.message);
-    }
+    lastErr = error;
+    const msg = error.message ?? "";
+    const retryable =
+      isPostgrestSchemaError(msg) ||
+      isMissingColumnError(msg, "first_name") ||
+      isMissingColumnError(msg, "last_name") ||
+      isMissingColumnError(msg, "full_name") ||
+      isMissingColumnError(msg, "email") ||
+      isMissingColumnError(msg, "role") ||
+      isMissingColumnError(msg, "role_level") ||
+      isMissingColumnError(msg, "can_login") ||
+      isMissingColumnError(msg, "access_phase") ||
+      isMissingColumnError(msg, "hub_pipeline_phase");
+    if (!retryable) break;
+  }
+
+  if (lastErr) {
+    console.warn("[api/rbac/users/invite] app_users sync (non-fatal):", lastErr.message);
   }
 }
 
@@ -134,24 +184,52 @@ export async function POST(request: NextRequest) {
     if (forbidden) return forbidden;
 
     const body = await request.json();
-    const { email, role_id, initial_can_login } = body as {
+    const { email, role_id, initial_can_login, first_name, last_name } = body as {
       email?: string;
       role_id?: string;
       initial_can_login?: boolean;
+      first_name?: string;
+      last_name?: string;
     };
 
     if (!email || typeof email !== "string" || !email.trim()) {
       return NextResponse.json({ error: "email is required" }, { status: 400 });
     }
 
+    const firstName = typeof first_name === "string" ? first_name.trim() : "";
+    const lastName = typeof last_name === "string" ? last_name.trim() : "";
+    if (!firstName) {
+      return NextResponse.json({ error: "first_name is required" }, { status: 400 });
+    }
+    if (!lastName) {
+      return NextResponse.json({ error: "last_name is required" }, { status: 400 });
+    }
+
+    if (!role_id || typeof role_id !== "string" || !role_id.trim()) {
+      return NextResponse.json({ error: "role_id is required" }, { status: 400 });
+    }
+
     const trimmed = email.trim();
+    const fullName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
+    const identity: InviteIdentity = {
+      first_name: firstName,
+      last_name: lastName,
+      full_name: fullName,
+      email: trimmed,
+    };
+
+    const authIdentityPayload = {
+      first_name: firstName,
+      last_name: lastName,
+      full_name: fullName,
+    };
     const origin = getInviteRedirectOrigin(request.nextUrl.origin);
     const redirectTo = `${origin}/auth/callback`;
     console.info("[api/rbac/users/invite] using redirectTo (must match Supabase Auth redirect allowlist):", redirectTo);
 
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(trimmed, {
       redirectTo,
-      data: {},
+      data: authIdentityPayload,
     });
 
     let invitedUser: User | null = inviteData?.user ?? null;
@@ -164,6 +242,7 @@ export async function POST(request: NextRequest) {
       const { data: created, error: createErr } = await supabase.auth.admin.createUser({
         email: trimmed,
         email_confirm: false,
+        user_metadata: authIdentityPayload,
       });
 
       if (createErr) {
@@ -206,7 +285,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: GENERIC_INVITE_FAIL }, { status: 500 });
     }
 
-    await syncRolesAndAppUsers(supabase, invitedUser, role_id, initial_can_login);
+    try {
+      const prevMeta = (invitedUser.user_metadata ?? {}) as Record<string, unknown>;
+      const { error: metaErr } = await supabase.auth.admin.updateUserById(invitedUser.id, {
+        user_metadata: { ...prevMeta, ...authIdentityPayload },
+      });
+      if (metaErr) {
+        console.warn("[api/rbac/users/invite] user_metadata merge (non-fatal):", metaErr.message);
+      }
+    } catch (metaEx) {
+      console.warn("[api/rbac/users/invite] user_metadata merge threw:", metaEx);
+    }
+
+    await syncRolesAndAppUsers(supabase, invitedUser, role_id, initial_can_login, identity);
 
     return NextResponse.json({
       success: true,

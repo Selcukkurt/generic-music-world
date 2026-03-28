@@ -28,6 +28,8 @@ export default function PeopleOpsUsersPage() {
   const [editActive, setEditActive] = useState(true);
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [inviteRoleId, setInviteRoleId] = useState("");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -56,6 +58,12 @@ export default function PeopleOpsUsersPage() {
     loadData();
   }, [search, activeFilter]);
 
+  useEffect(() => {
+    if (!showInviteModal || inviteRoleId) return;
+    const first = roles[0]?.id;
+    if (first) setInviteRoleId(first);
+  }, [showInviteModal, roles, inviteRoleId]);
+
   const handleSelectUser = (u: AppUserWithRoles) => {
     setSelectedUser(u);
     setEditFullName(u.full_name ?? "");
@@ -69,17 +77,39 @@ export default function PeopleOpsUsersPage() {
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    const em = inviteEmail.trim();
+    const fn = inviteFirstName.trim();
+    const ln = inviteLastName.trim();
+    if (!fn) {
+      toast.error("Eksik alan", `${t("peopleops_users_invite_first_name")} gerekli.`);
+      return;
+    }
+    if (!ln) {
+      toast.error("Eksik alan", `${t("peopleops_users_invite_last_name")} gerekli.`);
+      return;
+    }
+    if (!em) {
+      toast.error("Eksik alan", `${t("peopleops_users_invite_email")} gerekli.`);
+      return;
+    }
+    if (!inviteRoleId.trim()) {
+      toast.error("Eksik alan", `${t("peopleops_users_invite_role")} seçin.`);
+      return;
+    }
     setInviteSubmitting(true);
     try {
       const result = await inviteUser({
-        email: inviteEmail.trim(),
-        role_id: inviteRoleId || undefined,
+        email: em,
+        role_id: inviteRoleId.trim(),
+        first_name: fn,
+        last_name: ln,
       });
-      const inviteToast = getInviteSuccessToast(result, inviteEmail.trim());
+      const inviteToast = getInviteSuccessToast(result, em);
       toast.success(inviteToast.title, inviteToast.body);
       setShowInviteModal(false);
       setInviteEmail("");
+      setInviteFirstName("");
+      setInviteLastName("");
       setInviteRoleId("");
       loadData();
     } catch (err) {
@@ -313,9 +343,41 @@ export default function PeopleOpsUsersPage() {
               {t("peopleops_users_invite_modal_title")}
             </h2>
             <p className="mt-1 text-sm ui-text-muted">
-              E-posta ile davet gönderin. Kullanıcı hesabı oluşturulacak ve varsayılan rol atanacak.
+              Kimlik bilgileri <code className="rounded bg-[var(--color-bg)] px-1">app_users</code> ve hesap
+              üzerinde saklanır; onboarding tamamlama adı bu kayıtları kullanır. Davet e-postası gönderilir veya
+              manuel bağlantı üretilir.
             </p>
             <form onSubmit={handleInviteSubmit} className="mt-4 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
+                    {t("peopleops_users_invite_first_name")} *
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteFirstName}
+                    onChange={(e) => setInviteFirstName(e.target.value)}
+                    className="ui-input w-full"
+                    required
+                    autoComplete="given-name"
+                    placeholder="Ayşe"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
+                    {t("peopleops_users_invite_last_name")} *
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteLastName}
+                    onChange={(e) => setInviteLastName(e.target.value)}
+                    className="ui-input w-full"
+                    required
+                    autoComplete="family-name"
+                    placeholder="Yılmaz"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
                   {t("peopleops_users_invite_email")} *
@@ -327,18 +389,22 @@ export default function PeopleOpsUsersPage() {
                   className="ui-input w-full"
                   required
                   placeholder="ornek@firma.com"
+                  autoComplete="email"
                 />
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
-                  {t("peopleops_users_invite_role")}
+                  {t("peopleops_users_invite_role")} *
                 </label>
                 <select
                   value={inviteRoleId}
                   onChange={(e) => setInviteRoleId(e.target.value)}
                   className="ui-input w-full"
+                  required
                 >
-                  <option value="">Seçin...</option>
+                  <option value="" disabled>
+                    Seçin…
+                  </option>
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name_tr ?? r.key}

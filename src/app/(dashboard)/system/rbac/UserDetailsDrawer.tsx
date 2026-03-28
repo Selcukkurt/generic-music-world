@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { ROLE_BADGES, ROLE_LABELS, ROLE_LEVEL } from "@/lib/rbac/roleConfig";
-import type { AppUserWithRoles } from "@/lib/rbac-v1/types";
-import type { EventAccessEntry } from "@/lib/rbac-v1/api";
+import type { AppUserWithRoles, Role } from "@/lib/rbac-v1/types";
+import type { EventAccessEntry, PersonnelCandidate } from "@/lib/rbac-v1/api";
 import {
   getPrimaryRbacStatus,
   getRbacStatusMetaLines,
@@ -78,6 +78,19 @@ export default function UserDetailsDrawer({
   currentUserId,
   onPermanentDelete,
   onClose,
+  rbacRoles,
+  personnelCandidates,
+  personnelCandidatesLoading,
+  activationPersonnelId,
+  setActivationPersonnelId,
+  activationRoleId,
+  setActivationRoleId,
+  activationTitle,
+  setActivationTitle,
+  activationDepartment,
+  setActivationDepartment,
+  onActivatePersonnel,
+  activatingPersonnel,
 }: {
   displayUser: DisplayUser;
   selectedUser: AppUserWithRoles;
@@ -114,7 +127,28 @@ export default function UserDetailsDrawer({
   currentUserId?: string | null;
   onPermanentDelete?: () => void;
   onClose: () => void;
+  rbacRoles: Role[];
+  personnelCandidates: PersonnelCandidate[];
+  personnelCandidatesLoading: boolean;
+  activationPersonnelId: string;
+  setActivationPersonnelId: (id: string) => void;
+  activationRoleId: string;
+  setActivationRoleId: (id: string) => void;
+  activationTitle: string;
+  setActivationTitle: (v: string) => void;
+  activationDepartment: string;
+  setActivationDepartment: (v: string) => void;
+  onActivatePersonnel: () => void;
+  activatingPersonnel: boolean;
 }) {
+  const activationRoleChoices = useMemo(() => {
+    const byLevel = rbacRoles.filter(
+      (r) => typeof r.role_level === "number" && assignableLevels.includes(r.role_level)
+    );
+    return byLevel.length > 0 ? byLevel : rbacRoles;
+  }, [rbacRoles, assignableLevels]);
+
+  const isAwaitingActivation = selectedUser.access_phase === "awaiting_activation";
   const roleSelectValue = assignableLevels.includes(selectedRoleLevel)
     ? selectedRoleLevel
     : (assignableLevels[0] ?? selectedRoleLevel);
@@ -220,13 +254,109 @@ export default function UserDetailsDrawer({
             </dl>
           </section>
 
+          {isAwaitingActivation && canWriteRoles ? (
+            <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4">
+              <h3 className={sectionTitleClass()}>Personel atama ve aktivasyon</h3>
+              <p className="mb-4 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                Kullanıcı onboarding&apos;i tamamladı. Hub erişimi için bir personel kartı bağlayın ve sistem rolü
+                seçin. İsteğe bağlı unvan / departman{" "}
+                <code className="rounded bg-[var(--color-bg)] px-1">app_users</code> üzerine yazılır.
+              </p>
+              {personnelCandidatesLoading ? (
+                <p className="text-sm ui-text-muted">Personel adayları yükleniyor…</p>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium ui-text-muted">Personel kaydı *</label>
+                    <select
+                      value={activationPersonnelId}
+                      onChange={(e) => setActivationPersonnelId(e.target.value)}
+                      disabled={activatingPersonnel}
+                      className="ui-input mt-1 w-full text-sm"
+                    >
+                      <option value="">Seçin…</option>
+                      {personnelCandidates.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {(p.full_name || "İsimsiz") + (p.email ? ` · ${p.email}` : "")}
+                        </option>
+                      ))}
+                    </select>
+                    {personnelCandidates.length === 0 ? (
+                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                        Bağlanmamış aktif personel yok. Önce personel modülünde kayıt oluşturun.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium ui-text-muted">Sistem rolü *</label>
+                    <select
+                      value={activationRoleId}
+                      onChange={(e) => setActivationRoleId(e.target.value)}
+                      disabled={activatingPersonnel || activationRoleChoices.length === 0}
+                      className="ui-input mt-1 w-full text-sm"
+                    >
+                      <option value="">Seçin…</option>
+                      {activationRoleChoices.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {(r.name_tr || r.key) + (typeof r.role_level === "number" ? ` (${r.role_level})` : "")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-medium ui-text-muted">Unvan (isteğe bağlı)</label>
+                      <input
+                        type="text"
+                        value={activationTitle}
+                        onChange={(e) => setActivationTitle(e.target.value)}
+                        disabled={activatingPersonnel}
+                        className="ui-input mt-1 w-full text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium ui-text-muted">Departman (isteğe bağlı)</label>
+                      <input
+                        type="text"
+                        value={activationDepartment}
+                        onChange={(e) => setActivationDepartment(e.target.value)}
+                        disabled={activatingPersonnel}
+                        className="ui-input mt-1 w-full text-sm"
+                        autoComplete="organization"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onActivatePersonnel}
+                    disabled={
+                      activatingPersonnel ||
+                      !activationPersonnelId ||
+                      !activationRoleId ||
+                      personnelCandidates.length === 0
+                    }
+                    className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {activatingPersonnel ? "Aktive ediliyor…" : "Personeli ata ve aktive et"}
+                  </button>
+                </div>
+              )}
+            </section>
+          ) : null}
+
           <section className={sectionCardClass()}>
             <h3 className={sectionTitleClass()}>Erişim</h3>
+            {isAwaitingActivation ? (
+              <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                Bu kullanıcı için rol ve giriş ayarları, personel ataması tamamlandıktan sonra düzenlenebilir.
+              </p>
+            ) : null}
             <label className="block text-xs font-medium ui-text-muted">Sistem rolü</label>
             <select
               value={roleSelectValue}
               onChange={(e) => setSelectedRoleLevel(Number(e.target.value))}
-              disabled={!canWriteRoles || assignableLevels.length === 0}
+              disabled={!canWriteRoles || assignableLevels.length === 0 || isAwaitingActivation}
               className="ui-input mt-1 w-full text-sm"
             >
               {assignableLevels.length === 0 ? (
@@ -261,7 +391,7 @@ export default function UserDetailsDrawer({
                     type="checkbox"
                     checked={canLogin}
                     onChange={(e) => setCanLogin(e.target.checked)}
-                    disabled={!canWriteRoles}
+                    disabled={!canWriteRoles || isAwaitingActivation}
                     className="rounded"
                   />
                   <span className="text-sm">Kullanıcı giriş yapabilir</span>
@@ -269,7 +399,7 @@ export default function UserDetailsDrawer({
               )}
             </div>
 
-            {canWriteRoles && isObserverRole && (
+            {canWriteRoles && isObserverRole && !isAwaitingActivation && (
               <div className="mt-5 border-t border-[var(--color-border)] pt-5">
                 <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Etkinlik erişimi (Gözlemci)
@@ -472,7 +602,7 @@ export default function UserDetailsDrawer({
           <button
             type="button"
             onClick={onSaveRoles}
-            disabled={!canWriteRoles || !rolesDirty || savingRoles}
+            disabled={!canWriteRoles || !rolesDirty || savingRoles || isAwaitingActivation}
             className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {savingRoles ? "Kaydediliyor…" : "Rol ve giriş ayarlarını kaydet"}

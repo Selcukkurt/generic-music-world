@@ -188,8 +188,18 @@ table {
     outline: none;
   }
 
+  /*
+   * Primary CTA: content-sized by default (inline-flex). Use Tailwind `w-full` for
+   * full-width form submits — avoid `width: 100%` here so toolbars, modals, and
+   * optional clip-path / chamfer treatments do not fight flex or clip children.
+   */
   .ui-button-primary {
-    width: 100%;
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     border-radius: var(--radius-md);
     background: var(--brand-yellow);
     color: #121212;
@@ -202,6 +212,55 @@ table {
 
   .ui-button-primary:active {
     background: var(--brand-yellow-active);
+  }
+
+  /* Outline / secondary — same sizing model as primary for mixed toolbars */
+  .ui-button-secondary {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text-secondary);
+    transition: background var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
+
+  .ui-button-secondary:hover {
+    border-color: color-mix(in srgb, var(--color-text-muted) 70%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    color: var(--color-text);
+  }
+
+  .ui-button-secondary:active {
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  }
+
+  /*
+   * Reusable chamfer (one cut corner) — clip-path on the element itself only.
+   * No ::before/::after stack; pair with inline-flex buttons. Focus: use inset
+   * ring/shadow on the control (see Checkbox / focus-visible:ring-inset patterns).
+   */
+  .ui-shape-chamfer-br {
+    --ui-chamfer-size: 10px;
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% calc(100% - var(--ui-chamfer-size)),
+      calc(100% - var(--ui-chamfer-size)) 100%,
+      0 100%
+    );
+  }
+
+  .ui-button-primary.ui-shape-chamfer-br:focus-visible,
+  .ui-button-secondary.ui-shape-chamfer-br:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, #121212 35%, transparent);
   }
 
   .ui-fade-slide {

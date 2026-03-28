@@ -27,9 +27,14 @@ export default function Checkbox({
   className = "",
 }: CheckboxProps) {
   return (
-    <label
-      className={`relative inline-flex h-4 w-4 min-h-4 min-w-4 shrink-0 cursor-pointer items-center justify-center ${disabled ? "cursor-not-allowed opacity-60" : ""} ${className}`}
+    <span
+      className={`relative inline-flex h-4 w-4 min-h-4 min-w-4 shrink-0 items-center justify-center ${disabled ? "cursor-not-allowed opacity-60" : ""} ${className}`}
     >
+      {/*
+        Do not use `sr-only` on the input: it shrinks the hit target to ~1px. Decorative layers use
+        pointer-events-none, so clicks pass through — but they miss the tiny input and hit whatever is
+        behind the control (real interaction bug). The input must cover the full box.
+      */}
       <input
         type="checkbox"
         checked={checked}
@@ -39,10 +44,10 @@ export default function Checkbox({
         id={id}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
-        className="peer sr-only"
+        className="peer pointer-events-auto absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
       />
       <span
-        className="pointer-events-none absolute inset-0 rounded border-2 border-[var(--color-border)] bg-transparent transition-colors peer-checked:border-[var(--brand-yellow)] peer-checked:bg-[var(--brand-yellow)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--brand-yellow)]/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--color-surface)]"
+        className="pointer-events-none absolute inset-0 rounded border-2 border-[var(--color-border)] bg-transparent transition-colors peer-checked:border-[var(--brand-yellow)] peer-checked:bg-[var(--brand-yellow)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--brand-yellow)]/55 peer-focus-visible:ring-inset"
         aria-hidden
       />
       <svg
@@ -57,6 +62,6 @@ export default function Checkbox({
       >
         <polyline points="20 6 9 17 4 12" />
       </svg>
-    </label>
+    </span>
   );
 }

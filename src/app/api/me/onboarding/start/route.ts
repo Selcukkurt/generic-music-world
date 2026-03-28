@@ -15,11 +15,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
-  const { error: upErr } = await supabase
-    .from("app_users")
-    .update({ access_phase: "onboarding" })
-    .eq("id", user.id)
-    .in("access_phase", ["invited"]);
+  const withPipeline = { access_phase: "onboarding" as const, hub_pipeline_phase: "onboarding" as const };
+  let upErr = (
+    await supabase.from("app_users").update(withPipeline).eq("id", user.id).in("access_phase", ["invited"])
+  ).error;
+
+  if (upErr && isMissingColumnError(upErr.message, "hub_pipeline_phase")) {
+    upErr = (
+      await supabase
+        .from("app_users")
+        .update({ access_phase: "onboarding" })
+        .eq("id", user.id)
+        .in("access_phase", ["invited"])
+    ).error;
+  }
 
   if (upErr) {
     if (isMissingColumnError(upErr.message, "access_phase")) {

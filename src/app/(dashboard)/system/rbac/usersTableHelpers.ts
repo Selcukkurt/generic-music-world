@@ -1,12 +1,18 @@
 import type { AppUserWithRoles } from "@/lib/rbac-v1/types";
 
 /** Single dominant status for table + drawer (Turkish UI labels). */
-export type PrimaryRbacStatus = "active" | "invite_pending" | "passive" | "archived";
+export type PrimaryRbacStatus =
+  | "active"
+  | "invite_pending"
+  | "awaiting_activation"
+  | "passive"
+  | "archived";
 
 export function getPrimaryRbacStatus(u: AppUserWithRoles): PrimaryRbacStatus {
   const life = u.lifecycle_status ?? "active";
   if (life === "archived" || u.lifecycle_display === "archived") return "archived";
   if (life === "passive" || u.lifecycle_display === "passive") return "passive";
+  if (u.access_phase === "awaiting_activation") return "awaiting_activation";
   if (u.lifecycle_display === "invited") return "invite_pending";
   return "active";
 }
@@ -17,6 +23,8 @@ export function primaryRbacStatusLabel(s: PrimaryRbacStatus): string {
       return "Aktif";
     case "invite_pending":
       return "Davet bekleniyor";
+    case "awaiting_activation":
+      return "Aktivasyon bekliyor";
     case "passive":
       return "Pasif";
     case "archived":
@@ -35,6 +43,8 @@ export function primaryRbacStatusClass(s: PrimaryRbacStatus): string {
       return "border border-[var(--color-border)] bg-[var(--color-bg)]/80 text-[var(--color-text-secondary)]";
     case "invite_pending":
       return "border border-[var(--color-border)] bg-[var(--color-bg)]/80 text-[var(--color-text)]";
+    case "awaiting_activation":
+      return "border border-amber-500/35 bg-amber-500/10 text-amber-200/95";
     case "active":
       return "border border-[var(--color-border)] bg-[var(--color-bg)]/80 text-[var(--color-text)]";
     default:
@@ -74,6 +84,10 @@ export function getRbacStatusMetaLines(u: AppUserWithRoles): string[] {
   if (primary === "invite_pending") {
     const t = fmtShortTr(u.updated_at);
     if (t) lines.push(`Son güncelleme: ${t}`);
+  }
+
+  if (primary === "awaiting_activation") {
+    lines.push("Yönetici personel ataması ve rol onayı bekleniyor");
   }
 
   return lines;

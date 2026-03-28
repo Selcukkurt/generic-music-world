@@ -22,6 +22,7 @@ export type AppUserLoginRow = {
   lifecycle_status?: AppLifecycle | null;
   access_phase?: UserAccessPhase | null;
   onboarding_completed_at?: string | null;
+  onboarding_status?: string | null;
   activated_at?: string | null;
   compliance_completed_at?: string | null;
   hub_pipeline_phase?: HubPipelinePhase | null;
@@ -39,6 +40,7 @@ export type CurrentUser = {
   access_phase: UserAccessPhase;
   lifecycle_status: AppLifecycle;
   onboarding_completed_at: string | null;
+  onboarding_status: string | null;
   compliance_completed_at: string | null;
   hub_pipeline_phase: HubPipelinePhase;
   hub_access_granted_at: string | null;
@@ -81,6 +83,7 @@ function hubGateFrom(
   lifecycle: AppLifecycle,
   accessPhase: UserAccessPhase,
   onboarding: string | null,
+  onboardingStatus: string | null,
   compliance: string | null,
   hubPhase: HubPipelinePhase,
   hubGrant: string | null
@@ -90,6 +93,7 @@ function hubGateFrom(
     lifecycle_status: lifecycle,
     access_phase: accessPhase,
     onboarding_completed_at: onboarding,
+    onboarding_status: onboardingStatus,
     compliance_completed_at: compliance,
     hub_pipeline_phase: hubPhase,
     hub_access_granted_at: hubGrant,
@@ -121,6 +125,7 @@ export function mapAuthUserToCurrentUser(
       lifecycleStatus,
       "active",
       appUser?.onboarding_completed_at ?? "1970-01-01T00:00:00.000Z",
+      appUser?.onboarding_status ?? "completed",
       compliance,
       hubPhase,
       hubGrant
@@ -138,6 +143,7 @@ export function mapAuthUserToCurrentUser(
       lifecycle_status: lifecycleStatus,
       onboarding_completed_at:
         appUser?.onboarding_completed_at ?? "1970-01-01T00:00:00.000Z",
+      onboarding_status: appUser?.onboarding_status ?? "completed",
       compliance_completed_at: compliance,
       hub_pipeline_phase: hubPhase,
       hub_access_granted_at: hubGrant,
@@ -166,6 +172,7 @@ export function mapAuthUserToCurrentUser(
       accessPhase,
       null,
       null,
+      null,
       "invited",
       null
     );
@@ -181,6 +188,7 @@ export function mapAuthUserToCurrentUser(
       access_phase: accessPhase,
       lifecycle_status: lifecycleStatus,
       onboarding_completed_at: null,
+      onboarding_status: null,
       compliance_completed_at: null,
       hub_pipeline_phase: "invited",
       hub_access_granted_at: null,
@@ -212,6 +220,7 @@ export function mapAuthUserToCurrentUser(
     lifecycleStatus,
     accessPhase,
     appUser.onboarding_completed_at ?? null,
+    appUser.onboarding_status ?? null,
     compliance,
     hubPhase,
     hubGrant
@@ -233,6 +242,7 @@ export function mapAuthUserToCurrentUser(
     access_phase: accessPhase,
     lifecycle_status: lifecycleStatus,
     onboarding_completed_at: appUser.onboarding_completed_at ?? null,
+    onboarding_status: appUser.onboarding_status ?? null,
     compliance_completed_at: compliance,
     hub_pipeline_phase: hubPhase,
     hub_access_granted_at: hubGrant,
@@ -244,3 +254,4 @@ export function mapAuthUserToCurrentUser(
 }
 
 export type { UserLifecycleStatus } from "@/lib/auth/userLifecycleStatus";
+export { isOnboardingComplete } from "@/lib/auth/onboardingStatus";

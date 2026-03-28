@@ -23,10 +23,12 @@ export default function GuvenlikTab() {
           <p className="font-medium text-[var(--color-text)]">2FA Zorunlu</p>
           <p className="text-xs ui-text-muted">Tüm kullanıcılar için iki faktörlü doğrulama zorunlu.</p>
         </div>
-        <Checkbox
-          checked={s.enforce2FA}
-          onChange={(e) => setSecurity({ enforce2FA: e.target.checked })}
-        />
+        <label className="inline-flex cursor-pointer">
+          <Checkbox
+            checked={s.enforce2FA}
+            onChange={(e) => setSecurity({ enforce2FA: e.target.checked })}
+          />
+        </label>
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
@@ -73,10 +75,12 @@ export default function GuvenlikTab() {
           <p className="font-medium text-[var(--color-text)]">IP Beyaz Listesi</p>
           <p className="text-xs ui-text-muted">Sadece belirtilen IP adreslerinden erişime izin ver.</p>
         </div>
-        <Checkbox
-          checked={s.ipWhitelistEnabled}
-          onChange={(e) => setSecurity({ ipWhitelistEnabled: e.target.checked })}
-        />
+        <label className="inline-flex cursor-pointer">
+          <Checkbox
+            checked={s.ipWhitelistEnabled}
+            onChange={(e) => setSecurity({ ipWhitelistEnabled: e.target.checked })}
+          />
+        </label>
       </div>
       {s.ipWhitelistEnabled && (
         <div>

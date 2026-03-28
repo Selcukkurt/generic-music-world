@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiUser, createVersionClient } from "@/lib/version/api-auth";
 import { AGREEMENT_KEYS, AGREEMENT_VERSIONS, type AgreementKey } from "@/lib/compliance/constants";
 
-function clientIp(request: NextRequest): string | null {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() ?? null;
-  return request.headers.get("x-real-ip");
-}
-
 export async function POST(request: NextRequest) {
   const { user, error } = await getApiUser(request);
   if (error) return error;
@@ -35,15 +29,11 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createVersionClient(user.accessToken);
-  const ua = request.headers.get("user-agent") ?? undefined;
-  const ip = clientIp(request);
 
   const { error: insErr } = await supabase.from("user_agreement_acceptances").insert({
     user_id: user.id,
     agreement_key: key,
     agreement_version: version,
-    accepted_ip: ip,
-    user_agent: ua,
   });
 
   if (insErr) {

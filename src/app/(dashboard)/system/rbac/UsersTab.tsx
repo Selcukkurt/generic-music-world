@@ -15,7 +15,10 @@ import {
   fetchUserInviteLink,
   requestUserPasswordResetLink,
   permanentDeleteUser,
+  activateUserWithPersonnel,
+  fetchPersonnelCandidates,
   type FetchUsersFilters,
+  type PersonnelCandidate,
 } from "@/lib/rbac-v1/api";
 import UserDetailsDrawer from "./UserDetailsDrawer";
 import PermanentDeleteUserModal from "./PermanentDeleteUserModal";
@@ -108,6 +111,7 @@ export default function UsersTab() {
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; venue?: string }>>([]);
   const [search, setSearch] = useState("");
   const [filterLifecycle, setFilterLifecycle] = useState("");
+  const [filterAccessPhase, setFilterAccessPhase] = useState("");
   const [filterRoleLevel, setFilterRoleLevel] = useState("");
   const [filterCanLogin, setFilterCanLogin] = useState<"all" | "yes" | "no">("all");
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -117,6 +121,7 @@ export default function UsersTab() {
   const [permanentDeleteBusy, setPermanentDeleteBusy] = useState(false);
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [draftLifecycle, setDraftLifecycle] = useState("");
+  const [draftAccessPhase, setDraftAccessPhase] = useState("");
   const [draftRoleLevel, setDraftRoleLevel] = useState("");
   const [draftCanLogin, setDraftCanLogin] = useState<"all" | "yes" | "no">("all");
   const [draftIncludeArchived, setDraftIncludeArchived] = useState(false);
@@ -130,12 +135,21 @@ export default function UsersTab() {
   const [eventAccessLoading, setEventAccessLoading] = useState(false);
   const [newEventId, setNewEventId] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createFirstName, setCreateFirstName] = useState("");
+  const [createLastName, setCreateLastName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createRoleLevel, setCreateRoleLevel] = useState<RoleLevelUi>(6);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [savingRoles, setSavingRoles] = useState(false);
   const [savingEvents, setSavingEvents] = useState(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [personnelCandidates, setPersonnelCandidates] = useState<PersonnelCandidate[]>([]);
+  const [personnelCandidatesLoading, setPersonnelCandidatesLoading] = useState(false);
+  const [activationPersonnelId, setActivationPersonnelId] = useState("");
+  const [activationRoleId, setActivationRoleId] = useState("");
+  const [activationTitle, setActivationTitle] = useState("");
+  const [activationDepartment, setActivationDepartment] = useState("");
+  const [activatingPersonnel, setActivatingPersonnel] = useState(false);
   const eventAccessBaselineRef = useRef<string>("[]");
   const filtersButtonRef = useRef<HTMLButtonElement>(null);
   const rowMenuAnchorRef = useRef<HTMLElement | null>(null);
@@ -147,21 +161,23 @@ export default function UsersTab() {
     if (filterCanLogin === "yes") f.can_login = true;
     if (filterCanLogin === "no") f.can_login = false;
     if (filterLifecycle) f.lifecycle = filterLifecycle;
+    if (filterAccessPhase.trim()) f.access_phase = filterAccessPhase.trim();
     if (filterRoleLevel !== "") {
       const n = Number(filterRoleLevel);
       if (!Number.isNaN(n)) f.role_level = n;
     }
     return f;
-  }, [includeArchived, invitedOnly, filterCanLogin, filterLifecycle, filterRoleLevel]);
+  }, [includeArchived, invitedOnly, filterCanLogin, filterLifecycle, filterAccessPhase, filterRoleLevel]);
 
   const hasActiveFilters = useMemo(
     () =>
       filterLifecycle !== "" ||
+      filterAccessPhase !== "" ||
       filterRoleLevel !== "" ||
       filterCanLogin !== "all" ||
       includeArchived ||
       invitedOnly,
-    [filterLifecycle, filterRoleLevel, filterCanLogin, includeArchived, invitedOnly]
+    [filterLifecycle, filterAccessPhase, filterRoleLevel, filterCanLogin, includeArchived, invitedOnly]
   );
 
   const canRead = hasPermission("users.read") || hasPermission("system.manage");
@@ -218,6 +234,35 @@ export default function UsersTab() {
   }, [search, canRead, listFilters]);
 
   useEffect(() => {
+    if (!canWriteRoles || !selectedUserId) {
+      setPersonnelCandidates([]);
+      return;
+    }
+    const u = users.find((x) => x.id === selectedUserId);
+    if (u?.access_phase !== "awaiting_activation") {
+      setPersonnelCandidates([]);
+      setPersonnelCandidatesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPersonnelCandidatesLoading(true);
+    void fetchPersonnelCandidates()
+      .then((list) => {
+        if (!cancelled) setPersonnelCandidates(list);
+      })
+      .catch((e) => {
+        console.error("[UsersTab] fetchPersonnelCandidates:", e);
+        if (!cancelled) setPersonnelCandidates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPersonnelCandidatesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canWriteRoles, selectedUserId, users]);
+
+  useEffect(() => {
     fetchEvents()
       .then((list) => setEvents(list.map((e) => ({ id: e.id, name: e.name, date: e.date, venue: e.venue ?? undefined }))))
       .catch(() => setEvents([]));
@@ -264,6 +309,13 @@ export default function UsersTab() {
     () => users.find((u) => u.id === selectedUserId) ?? null,
     [users, selectedUserId]
   );
+
+  useEffect(() => {
+    if (!selectedUser || selectedUser.access_phase !== "awaiting_activation") return;
+    if (activationRoleId) return;
+    const id = resolveRoleIdForLevel(roles, selectedRoleLevel);
+    if (id) setActivationRoleId(id);
+  }, [selectedUser, activationRoleId, roles, selectedRoleLevel]);
 
   const selectedDisplayUser = useMemo(
     () => (selectedUser ? getDisplayUser(selectedUser, linkedPersonnelMap) : null),
@@ -341,6 +393,10 @@ export default function UsersTab() {
     setSelectedUserId(u.id);
     setSelectedRoleLevel(safeLevel);
     setCanLogin(safeLevel === SAHA_ROLE_LEVEL ? false : u.can_login !== false);
+    setActivationPersonnelId("");
+    setActivationRoleId(resolveRoleIdForLevel(roles, safeLevel) ?? "");
+    setActivationTitle("");
+    setActivationDepartment("");
     setNewEventId("");
     setEventAccess([]);
     eventAccessBaselineRef.current = JSON.stringify(normalizeEventAccess([]));
@@ -408,6 +464,11 @@ export default function UsersTab() {
     setSelectedUserId(null);
     setSelectedRoleLevel(6);
     setCanLogin(true);
+    setActivationPersonnelId("");
+    setActivationRoleId("");
+    setActivationTitle("");
+    setActivationDepartment("");
+    setPersonnelCandidates([]);
     setEventAccess([]);
     setNewEventId("");
     eventAccessBaselineRef.current = "[]";
@@ -613,6 +674,46 @@ export default function UsersTab() {
     setEventAccess((prev) => prev.filter((e) => e.event_id !== eventId));
   };
 
+  const handleActivatePersonnel = async () => {
+    if (!selectedUser || !canWriteRoles || activatingPersonnel) return;
+    if (!activationPersonnelId || !activationRoleId) {
+      toast.error("Eksik bilgi", "Personel ve rol seçin.");
+      return;
+    }
+    setActivatingPersonnel(true);
+    try {
+      const result = await activateUserWithPersonnel({
+        user_id: selectedUser.id,
+        personnel_id: activationPersonnelId,
+        role_id: activationRoleId,
+        title: activationTitle.trim() || undefined,
+        department: activationDepartment.trim() || undefined,
+      });
+      const refreshed = await fetchUsers(search, null, listFilters);
+      setUsers(refreshed);
+      try {
+        const personnelMap = await fetchPersonnelByProfileIds(refreshed.map((x) => x.id));
+        const nameMap: Record<string, string> = {};
+        personnelMap.forEach((rec, profileId) => {
+          nameMap[profileId] = getFullName(rec);
+        });
+        setLinkedPersonnelMap(nameMap);
+      } catch (e) {
+        console.error("[UsersTab] fetchPersonnelByProfileIds after activate:", e);
+      }
+      toast.success(
+        result.alreadyActive ? "Zaten aktif" : "Aktive edildi",
+        result.alreadyActive
+          ? "Kullanıcı zaten tam erişimde."
+          : "Personel bağlandı; Hub erişimi açıldı."
+      );
+    } catch (e) {
+      toast.error("Hata", e instanceof Error ? e.message : "Aktivasyon başarısız.");
+    } finally {
+      setActivatingPersonnel(false);
+    }
+  };
+
   const handleSaveEventAccess = async () => {
     if (!selectedUserId || !canWriteRoles || !eventsDirty || selectedRoleLevel !== ROLE_LEVEL.OBSERVER)
       return;
@@ -639,6 +740,16 @@ export default function UsersTab() {
   };
 
   const handleCreateUser = async () => {
+    const fn = createFirstName.trim();
+    const ln = createLastName.trim();
+    if (!fn) {
+      toast.error("Ad gerekli", "Kullanıcının adını girin.");
+      return;
+    }
+    if (!ln) {
+      toast.error("Soyad gerekli", "Kullanıcının soyadını girin.");
+      return;
+    }
     if (!createEmail.trim()) {
       toast.error("E-posta gerekli", "Geçerli bir e-posta adresi girin.");
       return;
@@ -653,12 +764,16 @@ export default function UsersTab() {
       const result = await inviteUser({
         email: createEmail.trim(),
         role_id: roleId,
+        first_name: fn,
+        last_name: ln,
       });
       const refreshed = await fetchUsers(search, null, listFilters);
       setUsers(refreshed);
       const inviteToast = getInviteSuccessToast(result, createEmail.trim());
       toast.success(inviteToast.title, inviteToast.body);
       setShowCreateModal(false);
+      setCreateFirstName("");
+      setCreateLastName("");
       setCreateEmail("");
       setCreateRoleLevel(6);
     } catch (err) {
@@ -671,11 +786,13 @@ export default function UsersTab() {
   const clearFilters = useCallback(() => {
     setSearch("");
     setFilterLifecycle("");
+    setFilterAccessPhase("");
     setFilterRoleLevel("");
     setFilterCanLogin("all");
     setIncludeArchived(false);
     setInvitedOnly(false);
     setDraftLifecycle("");
+    setDraftAccessPhase("");
     setDraftRoleLevel("");
     setDraftCanLogin("all");
     setDraftIncludeArchived(false);
@@ -687,6 +804,7 @@ export default function UsersTab() {
     setShowFiltersPanel((open) => {
       if (open) return false;
       setDraftLifecycle(filterLifecycle);
+      setDraftAccessPhase(filterAccessPhase);
       setDraftRoleLevel(filterRoleLevel);
       setDraftCanLogin(filterCanLogin);
       setDraftIncludeArchived(includeArchived);
@@ -694,24 +812,27 @@ export default function UsersTab() {
       setOpenMenuUserId(null);
       return true;
     });
-  }, [filterLifecycle, filterRoleLevel, filterCanLogin, includeArchived, invitedOnly]);
+  }, [filterLifecycle, filterAccessPhase, filterRoleLevel, filterCanLogin, includeArchived, invitedOnly]);
 
   const applyFilterDraft = useCallback(() => {
     setFilterLifecycle(draftLifecycle);
+    setFilterAccessPhase(draftAccessPhase);
     setFilterRoleLevel(draftRoleLevel);
     setFilterCanLogin(draftCanLogin);
     setIncludeArchived(draftIncludeArchived);
     setInvitedOnly(draftInvitedOnly);
     setShowFiltersPanel(false);
-  }, [draftLifecycle, draftRoleLevel, draftCanLogin, draftIncludeArchived, draftInvitedOnly]);
+  }, [draftLifecycle, draftAccessPhase, draftRoleLevel, draftCanLogin, draftIncludeArchived, draftInvitedOnly]);
 
   const clearFilterPanel = useCallback(() => {
     setFilterLifecycle("");
+    setFilterAccessPhase("");
     setFilterRoleLevel("");
     setFilterCanLogin("all");
     setIncludeArchived(false);
     setInvitedOnly(false);
     setDraftLifecycle("");
+    setDraftAccessPhase("");
     setDraftRoleLevel("");
     setDraftCanLogin("all");
     setDraftIncludeArchived(false);
@@ -831,6 +952,27 @@ export default function UsersTab() {
                           <option value="active">Aktif</option>
                           <option value="passive">Pasif</option>
                           <option value="archived">Arşiv</option>
+                        </select>
+                      </div>
+                      <div className="h-px bg-[var(--color-border)]" role="presentation" />
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                          Erişim evresi
+                        </p>
+                        <label className="sr-only" htmlFor="rbac-filter-access-phase">
+                          access_phase
+                        </label>
+                        <select
+                          id="rbac-filter-access-phase"
+                          value={draftAccessPhase}
+                          onChange={(e) => setDraftAccessPhase(e.target.value)}
+                          className="ui-input w-full text-sm"
+                        >
+                          <option value="">Tümü</option>
+                          <option value="awaiting_activation">Aktivasyon bekleyen</option>
+                          <option value="active">Hub aktif</option>
+                          <option value="onboarding">Onboarding</option>
+                          <option value="invited">Davetli</option>
                         </select>
                       </div>
                       <div className="h-px bg-[var(--color-border)]" role="presentation" />
@@ -1216,6 +1358,19 @@ export default function UsersTab() {
             currentUserId={currentUser?.id ?? null}
             onPermanentDelete={() => setPermanentDeleteTarget(selectedUser)}
             onClose={handleCloseDrawer}
+            rbacRoles={roles}
+            personnelCandidates={personnelCandidates}
+            personnelCandidatesLoading={personnelCandidatesLoading}
+            activationPersonnelId={activationPersonnelId}
+            setActivationPersonnelId={setActivationPersonnelId}
+            activationRoleId={activationRoleId}
+            setActivationRoleId={setActivationRoleId}
+            activationTitle={activationTitle}
+            setActivationTitle={setActivationTitle}
+            activationDepartment={activationDepartment}
+            setActivationDepartment={setActivationDepartment}
+            onActivatePersonnel={() => void handleActivatePersonnel()}
+            activatingPersonnel={activatingPersonnel}
           />,
           document.body
         )}
@@ -1252,9 +1407,36 @@ export default function UsersTab() {
                 Kullanıcı Ekle
               </h2>
               <p className="mt-1 text-sm ui-text-muted">
-                E-posta ile davet gönderin. Ad, avatar ve personel verisi Personel modülünden yönetilir.
+                Ad, soyad ve e-posta <code className="rounded bg-[var(--color-bg)] px-1">app_users</code> ile hesap
+                üzerinde saklanır; onboarding bu kimliği kullanır. Davet akışı aynı şekilde çalışır.
               </p>
               <div className="mt-6 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
+                      Ad *
+                    </label>
+                    <input
+                      type="text"
+                      value={createFirstName}
+                      onChange={(e) => setCreateFirstName(e.target.value)}
+                      autoComplete="given-name"
+                      className="ui-input w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
+                      Soyad *
+                    </label>
+                    <input
+                      type="text"
+                      value={createLastName}
+                      onChange={(e) => setCreateLastName(e.target.value)}
+                      autoComplete="family-name"
+                      className="ui-input w-full text-sm"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">
                     E-posta *
@@ -1264,6 +1446,7 @@ export default function UsersTab() {
                     value={createEmail}
                     onChange={(e) => setCreateEmail(e.target.value)}
                     placeholder="ornek@firma.com"
+                    autoComplete="email"
                     className="ui-input w-full text-sm"
                   />
                 </div>

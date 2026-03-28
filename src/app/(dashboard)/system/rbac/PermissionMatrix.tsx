@@ -129,12 +129,16 @@ export default function PermissionMatrix() {
                     return (
                       <td key={role.id} className="px-4 py-3 text-center">
                         <div className="flex justify-center">
-                          <Checkbox
-                            checked={checked}
-                            disabled={isLocked}
-                            onChange={() => handleToggle(role.id, moduleKey)}
+                          <label
+                            className="inline-flex cursor-pointer justify-center disabled:cursor-not-allowed"
                             aria-label={`${MODULE_LABELS[moduleKey]} – ${role.name}`}
-                          />
+                          >
+                            <Checkbox
+                              checked={checked}
+                              disabled={isLocked}
+                              onChange={() => handleToggle(role.id, moduleKey)}
+                            />
+                          </label>
                         </div>
                       </td>
                     );

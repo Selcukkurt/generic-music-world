@@ -1,4 +1,5 @@
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { AGREEMENT_KEYS, AGREEMENT_VERSIONS } from "@/lib/compliance/constants";
 
 export function formatAcceptedAt(iso: string): string {
   const d = new Date(iso);
@@ -10,47 +11,59 @@ export function formatAcceptedAt(iso: string): string {
   return `${day}.${month}.${year} ${hours}:${minutes}`;
 }
 
+/**
+ * UI shape for the final GM DNA legal acceptance (agreement_key `gm_dna_final`).
+ * Backed by `user_agreement_acceptances`, not `profiles` columns.
+ */
 export type GmDnaAcceptance = {
   gm_dna_accepted_version: string | null;
   gm_dna_accepted_at: string | null;
-  gm_dna_acceptance_source: string | null;
 };
 
-const GM_DNA_VERSION = "2.0";
-const ACCEPTANCE_SOURCE = "gm-dna-page";
+const GM_DNA_AGREEMENT_KEY = AGREEMENT_KEYS.gm_dna_final;
 
 export async function getGmDnaAcceptance(userId: string): Promise<GmDnaAcceptance | null> {
   const { data, error } = await supabaseBrowser
-    .from("profiles")
-    .select("gm_dna_accepted_version, gm_dna_accepted_at, gm_dna_acceptance_source")
-    .eq("id", userId)
-    .single();
+    .from("user_agreement_acceptances")
+    .select("agreement_version, accepted_at")
+    .eq("user_id", userId)
+    .eq("agreement_key", GM_DNA_AGREEMENT_KEY)
+    .order("accepted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) {
-    if (error.code === "PGRST116") return null;
-    throw error;
-  }
-  return data;
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    gm_dna_accepted_version: data.agreement_version ?? null,
+    gm_dna_accepted_at: data.accepted_at ?? null,
+  };
 }
 
 export async function saveGmDnaAcceptance(userId: string): Promise<GmDnaAcceptance> {
-  const now = new Date().toISOString();
-  const payload = {
-    id: userId,
-    gm_dna_accepted_version: GM_DNA_VERSION,
-    gm_dna_accepted_at: now,
-    gm_dna_acceptance_source: ACCEPTANCE_SOURCE,
-    updated_at: now,
-  };
-
+  const version = AGREEMENT_VERSIONS[GM_DNA_AGREEMENT_KEY];
   const { data, error } = await supabaseBrowser
-    .from("profiles")
-    .upsert(payload, { onConflict: "id" })
-    .select("gm_dna_accepted_version, gm_dna_accepted_at, gm_dna_acceptance_source")
+    .from("user_agreement_acceptances")
+    .insert({
+      user_id: userId,
+      agreement_key: GM_DNA_AGREEMENT_KEY,
+      agreement_version: version,
+    })
+    .select("agreement_version, accepted_at")
     .single();
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    if (error.code === "23505") {
+      const again = await getGmDnaAcceptance(userId);
+      if (again) return again;
+    }
+    throw error;
+  }
+  return {
+    gm_dna_accepted_version: data.agreement_version ?? null,
+    gm_dna_accepted_at: data.accepted_at ?? null,
+  };
 }
 
-export { GM_DNA_VERSION };
+/** Content document version for display copy (legal agreement row uses AGREEMENT_VERSIONS). */
+export { GM_DNA_CONTENT_VERSION as GM_DNA_VERSION } from "@/lib/compliance/constants";

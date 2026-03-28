@@ -11,6 +11,7 @@
 | **GMW-RBAC-v1.0** | — | Rol Yönetimi module – production-ready |
 | **RBAC-V1-roles-checkpoint** | — | RBAC roles restored and aligned with RBAC V1 model |
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
+| **RB-024** | — | Onboarding end-to-end stabilized; first/last name; invite identity; completion API & state; final waiting screen; booking user test passed |
 
 ---
 
@@ -19,6 +20,7 @@
 | Rollback ID | Tarih | Saat | Ortam | Versiyon/Tag | Sayfa/Modül | Aktif Durum | Kilitle | Yedek | Yayın | Prod |
 |-------------|-------|------|-------|--------------|-------------|-------------|---------|-------|-------|------|
 | RB-021 | 2026-03-21 | 14:49 | Local + Dev | GMW-2026-03-RB021 | System / RBAC | Active | FALSE | TRUE | FALSE | FALSE |
+| RB-024 | 2026-03-28 | 12:00 | Local + Dev | RB-024 | Onboarding / Hub pipeline | Stabil | TRUE | TRUE | FALSE | FALSE |
 
 **RB-021 – Yapılan İşlem Özeti:**
 RBAC enforcement phase started.
@@ -42,6 +44,31 @@ RBAC is transitioning from bypass mode to controlled enforcement.
 - full permission matrix implementation
 - module-level access control
 - remove RBAC bypass safely
+
+---
+
+**RB-024 – Yapılan İşlem Özeti:**
+- Onboarding akışı uçtan uca stabilize edildi
+- `first_name` / `last_name` desteği eklendi
+- Davet akışı kimlik alanlarını kalıcı olacak şekilde güncellendi
+- Onboarding completion API ve state transition düzeltildi
+- Son bekleme ekranı çalışır hale getirildi
+- Booking kullanıcı testi geçti
+
+Bu checkpoint kapsamında **personel aktivasyon** implementasyonu başlatılmadı; sıradaki iterasyonda ele alınacak.
+
+**RB-024 – Son Stabil Durum:** Stabil (Dev – onboarding tamam)
+
+**RB-024 – Bilinen Sorun:** —
+
+**RB-024 – Risk Seviyesi:** Low–Medium
+
+**RB-024 – Rollback Hedefi:** RB-022
+
+**RB-024 – Git:** Annotated tag `RB-024` (rollback: `git checkout RB-024`).
+
+**RB-024 – Sıradaki Teknik İş:**
+- Personel atama / aktivasyon akışı (admin; `awaiting_activation` → `active`)
 
 ---
 

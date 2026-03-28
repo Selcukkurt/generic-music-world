@@ -21,7 +21,7 @@ export function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="ui-button-primary mt-4 px-4 py-2 text-sm font-semibold"
+          className="ui-button-primary mt-4 w-full px-4 py-2 text-sm font-semibold"
         >
           {actionLabel}
         </button>

@@ -1,4 +1,9 @@
-/** Invite / auth funnel (app_users.access_phase). Distinct from hub_pipeline_phase. */
+/**
+ * Invite / auth funnel (`app_users.access_phase`). Distinct from `hub_pipeline_phase`.
+ * DB CHECK (migration): invited → onboarding → awaiting_activation → active.
+ * Typical writes: invite/sync → onboarding; POST onboarding/start → onboarding (from invited);
+ * POST onboarding/complete → awaiting_activation; tryActivateUserServer → active.
+ */
 export type UserAccessPhase = "invited" | "onboarding" | "awaiting_activation" | "active";
 
 export type AppLifecycle = "active" | "passive" | "archived";

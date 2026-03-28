@@ -31,6 +31,9 @@ const EXTENDED_SELECT = `
   can_login,
   role,
   role_level,
+  access_phase,
+  hub_pipeline_phase,
+  hub_access_granted_at,
   lifecycle_status,
   created_at,
   updated_at,
@@ -75,11 +78,12 @@ function applyUserListFilters(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   q: any,
   sp: URLSearchParams,
-  opts?: { skipLifecycleColumn?: boolean }
+  opts?: { skipLifecycleColumn?: boolean; skipAccessPhaseColumn?: boolean }
 ) {
   const search = sp.get("search")?.trim();
   const activeParam = sp.get("active");
   const lifecycleParam = sp.get("lifecycle")?.trim();
+  const accessPhaseParam = sp.get("access_phase")?.trim();
   const unlinkedOnly = sp.get("unlinked") === "true";
   const includeArchived = sp.get("include_archived") === "true";
   const canLoginParam = sp.get("can_login");
@@ -100,6 +104,10 @@ function applyUserListFilters(
       // Include legacy rows where lifecycle_status is still NULL (pre-migration / backfill gaps).
       q = q.or("lifecycle_status.eq.active,lifecycle_status.eq.passive,lifecycle_status.is.null");
     }
+  }
+
+  if (accessPhaseParam && !opts?.skipAccessPhaseColumn) {
+    q = q.eq("access_phase", accessPhaseParam);
   }
 
   if (canLoginParam === "true") {
@@ -150,11 +158,11 @@ export async function GET(request: NextRequest) {
           .select(MINIMAL_SELECT)
           .is("deleted_at", null)
           .order("created_at", { ascending: false });
-        q2 = applyUserListFilters(q2, sp, { skipLifecycleColumn: true }).q;
+        q2 = applyUserListFilters(q2, sp, { skipLifecycleColumn: true, skipAccessPhaseColumn: true }).q;
         let second = await q2;
         if (second.error && /deleted_at/i.test(second.error.message ?? "")) {
           let q3 = supabase.from("app_users").select(MINIMAL_SELECT).order("created_at", { ascending: false });
-          q3 = applyUserListFilters(q3, sp, { skipLifecycleColumn: true }).q;
+          q3 = applyUserListFilters(q3, sp, { skipLifecycleColumn: true, skipAccessPhaseColumn: true }).q;
           second = await q3;
         }
         if (second.error) {
@@ -252,6 +260,9 @@ export async function GET(request: NextRequest) {
         linked_personnel_id: personnelByProfile[r.id as string]?.id ?? null,
         linked_personnel_name: personnelByProfile[r.id as string]?.display_name ?? null,
         last_login_at: lastLogin,
+        access_phase: (r.access_phase as string | null | undefined) ?? null,
+        hub_pipeline_phase: (r.hub_pipeline_phase as string | null | undefined) ?? null,
+        hub_access_granted_at: (r.hub_access_granted_at as string | null | undefined) ?? null,
       };
     });
 

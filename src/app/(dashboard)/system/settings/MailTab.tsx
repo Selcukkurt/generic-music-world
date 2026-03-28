@@ -70,10 +70,12 @@ export default function MailTab() {
           <p className="font-medium text-[var(--color-text)]">SSL Kullan</p>
           <p className="text-xs ui-text-muted">Bağlantıda SSL/TLS kullan.</p>
         </div>
-        <Checkbox
-          checked={m.useSSL}
-          onChange={(e) => setMail({ useSSL: e.target.checked })}
-        />
+        <label className="inline-flex cursor-pointer">
+          <Checkbox
+            checked={m.useSSL}
+            onChange={(e) => setMail({ useSSL: e.target.checked })}
+          />
+        </label>
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider ui-text-muted">

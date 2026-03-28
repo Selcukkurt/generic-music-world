@@ -45,4 +45,9 @@ export type AppUserWithRoles = AppUser & {
   linked_personnel_id?: string | null;
   linked_personnel_name?: string | null;
   last_login_at?: string | null;
+  /** Hub access phase from `app_users.access_phase` (invited, onboarding, awaiting_activation, active). */
+  access_phase?: string | null;
+  /** Hub pipeline from `app_users.hub_pipeline_phase`. */
+  hub_pipeline_phase?: string | null;
+  hub_access_granted_at?: string | null;
 };

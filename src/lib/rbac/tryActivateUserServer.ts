@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
+import { isOnboardingComplete } from "@/lib/auth/onboardingStatus";
 
 export type TryActivateResult = { activated: boolean; reason?: string };
 
@@ -18,6 +19,7 @@ export async function tryActivateUserServer(userId: string): Promise<TryActivate
   type AuRow = {
     access_phase: string | null;
     onboarding_completed_at: string | null;
+    onboarding_status: string | null;
     lifecycle_status: string | null;
   };
 
@@ -25,7 +27,7 @@ export async function tryActivateUserServer(userId: string): Promise<TryActivate
 
   const full = await supabase
     .from("app_users")
-    .select("access_phase, onboarding_completed_at, lifecycle_status")
+    .select("access_phase, onboarding_completed_at, onboarding_status, lifecycle_status")
     .eq("id", userId)
     .maybeSingle();
 
@@ -37,22 +39,36 @@ export async function tryActivateUserServer(userId: string): Promise<TryActivate
     }
     if (
       isMissingColumnError(full.error.message, "onboarding_completed_at") ||
+      isMissingColumnError(full.error.message, "onboarding_status") ||
       isPostgrestSchemaError(full.error.message)
     ) {
-      const core = await supabase
+      const withTs = await supabase
         .from("app_users")
-        .select("access_phase, lifecycle_status")
+        .select("access_phase, onboarding_completed_at, lifecycle_status")
         .eq("id", userId)
         .maybeSingle();
-      if (core.error || !core.data) {
-        return { activated: false, reason: "read_failed" };
+      if (!withTs.error && withTs.data) {
+        au = {
+          ...(withTs.data as AuRow),
+          onboarding_status: null,
+        };
+      } else {
+        const core = await supabase
+          .from("app_users")
+          .select("access_phase, lifecycle_status")
+          .eq("id", userId)
+          .maybeSingle();
+        if (core.error || !core.data) {
+          return { activated: false, reason: "read_failed" };
+        }
+        const c = core.data as Pick<AuRow, "access_phase" | "lifecycle_status">;
+        au = {
+          access_phase: c.access_phase,
+          lifecycle_status: c.lifecycle_status,
+          onboarding_completed_at: null,
+          onboarding_status: null,
+        };
       }
-      const c = core.data as Pick<AuRow, "access_phase" | "lifecycle_status">;
-      au = {
-        access_phase: c.access_phase,
-        lifecycle_status: c.lifecycle_status,
-        onboarding_completed_at: null,
-      };
     } else {
       return { activated: false, reason: "read_failed" };
     }
@@ -63,7 +79,7 @@ export async function tryActivateUserServer(userId: string): Promise<TryActivate
   const life = au.lifecycle_status as string | null | undefined;
   if (life === "archived") return { activated: false, reason: "archived" };
 
-  if (!au.onboarding_completed_at) return { activated: false, reason: "onboarding_incomplete" };
+  if (!isOnboardingComplete(au)) return { activated: false, reason: "onboarding_incomplete" };
 
   if (au.access_phase === "active") return { activated: true };
 

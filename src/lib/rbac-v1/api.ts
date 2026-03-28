@@ -24,7 +24,39 @@ async function rbacFetch<T>(path: string, options?: RequestInit): Promise<T> {
       res.statusText ??
       "Request failed";
     const code = (body as { code?: string }).code;
-    console.error("[rbac-v1/api]", options?.method ?? "GET", `/api/rbac${path}`, res.status, code ?? "", msg, body);
+    if (process.env.NODE_ENV === "development") {
+      // One line — avoid dumping large `body` objects (DevTools + terminal spam during RBAC issues).
+      console.warn(
+        `[rbac-v1/api] ${options?.method ?? "GET"} /api/rbac${path} → ${res.status}`,
+        code ?? "",
+        msg
+      );
+    }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/admin${path}`, {
+    ...options,
+    headers: { ...headers, ...options?.headers } as HeadersInit,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const msg =
+      (body as { error?: string; code?: string }).error ??
+      res.statusText ??
+      "Request failed";
+    const code = (body as { code?: string }).code;
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        `[rbac-v1/api] ${options?.method ?? "GET"} /api/admin${path} → ${res.status}`,
+        code ?? "",
+        msg
+      );
+    }
     throw new Error(msg);
   }
   return res.json() as Promise<T>;
@@ -36,6 +68,8 @@ export type FetchUsersFilters = {
   can_login?: boolean | null;
   /** Filter by `lifecycle_status` (active | passive | archived). */
   lifecycle?: string | null;
+  /** Filter by `app_users.access_phase` (e.g. awaiting_activation). */
+  access_phase?: string | null;
   role_level?: number | null;
 };
 
@@ -53,6 +87,7 @@ export async function fetchUsers(
   if (filters?.can_login === true) params.set("can_login", "true");
   if (filters?.can_login === false) params.set("can_login", "false");
   if (filters?.lifecycle) params.set("lifecycle", filters.lifecycle);
+  if (filters?.access_phase) params.set("access_phase", filters.access_phase);
   if (filters?.role_level != null && !Number.isNaN(filters.role_level)) {
     params.set("role_level", String(filters.role_level));
   }
@@ -107,7 +142,10 @@ export type InviteUserResult = {
 
 export async function inviteUser(params: {
   email: string;
-  role_id?: string;
+  role_id: string;
+  first_name: string;
+  last_name: string;
+  initial_can_login?: boolean;
 }): Promise<InviteUserResult> {
   return rbacFetch<InviteUserResult>("/users/invite", {
     method: "POST",
@@ -183,5 +221,24 @@ export async function updateUserEventAccess(
   await rbacFetch(`/users/${userId}/event-access`, {
     method: "PUT",
     body: JSON.stringify({ entries }),
+  });
+}
+
+export type PersonnelCandidate = { id: string; full_name: string | null; email: string | null };
+
+export async function fetchPersonnelCandidates(): Promise<PersonnelCandidate[]> {
+  return adminFetch<PersonnelCandidate[]>("/personnel-candidates");
+}
+
+export async function activateUserWithPersonnel(body: {
+  user_id: string;
+  personnel_id: string;
+  role_id: string;
+  title?: string;
+  department?: string;
+}): Promise<{ ok?: boolean; alreadyActive?: boolean; access_phase?: string; hub_pipeline_phase?: string }> {
+  return adminFetch("/users/activate", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }

@@ -7,6 +7,9 @@ import {
 } from "@/lib/supabase/missingColumn";
 
 const SELECT_FULL =
+  "role, role_level, is_active, can_login, lifecycle_status, access_phase, onboarding_completed_at, onboarding_status, activated_at, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
+/** Same as SELECT_FULL if onboarding_status is not migrated yet. */
+const SELECT_FULL_NO_ONBOARDING_STATUS =
   "role, role_level, is_active, can_login, lifecycle_status, access_phase, onboarding_completed_at, activated_at, compliance_completed_at, hub_pipeline_phase, hub_access_granted_at";
 /** When hub columns are missing, still load auth + invite fields. */
 const SELECT_PRE_HUB =
@@ -17,6 +20,7 @@ function withHubDefaults(row: Partial<AppUserLoginRow>): AppUserLoginRow {
   return {
     ...row,
     onboarding_completed_at: row.onboarding_completed_at ?? null,
+    onboarding_status: row.onboarding_status ?? null,
     activated_at: row.activated_at ?? null,
     compliance_completed_at: row.compliance_completed_at ?? null,
     hub_pipeline_phase: row.hub_pipeline_phase ?? "invited",
@@ -52,12 +56,24 @@ export async function fetchAppUserForAuth(
     isMissingColumnError(msg, "access_phase") ||
     isMissingColumnError(msg, "lifecycle_status") ||
     isMissingColumnError(msg, "onboarding_completed_at") ||
+    isMissingColumnError(msg, "onboarding_status") ||
     isMissingColumnError(msg, "activated_at") ||
     isMissingColumnError(msg, "compliance_completed_at") ||
     isMissingColumnError(msg, "hub_pipeline_phase") ||
     isMissingColumnError(msg, "hub_access_granted_at");
 
   if (retryForSchema) {
+    if (isMissingColumnError(msg, "onboarding_status")) {
+      const noStatus = await supabase
+        .from("app_users")
+        .select(SELECT_FULL_NO_ONBOARDING_STATUS)
+        .eq("id", userId)
+        .single();
+      if (!noStatus.error && noStatus.data) {
+        return withHubDefaults(noStatus.data as Partial<AppUserLoginRow>);
+      }
+    }
+
     const preHub = await supabase
       .from("app_users")
       .select(SELECT_PRE_HUB)
@@ -84,6 +100,7 @@ export async function fetchAppUserForAuth(
         ...(legacy.data as AppUserLoginRow),
         access_phase: "invited",
         onboarding_completed_at: null,
+        onboarding_status: null,
         compliance_completed_at: null,
         hub_pipeline_phase: "invited",
         hub_access_granted_at: null,
@@ -108,6 +125,7 @@ export async function fetchAppUserForAuth(
         ...(minimal.data as AppUserLoginRow),
         access_phase: "invited",
         onboarding_completed_at: null,
+        onboarding_status: null,
         compliance_completed_at: null,
         hub_pipeline_phase: "invited",
         hub_access_granted_at: null,
