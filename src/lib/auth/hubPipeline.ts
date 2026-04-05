@@ -151,7 +151,11 @@ export function needsOnboardingShell(u: HubGateUser): boolean {
   if (!effectiveComplianceAt(u)) return true;
   // Funnel phases: only force shell while auth invite flow still says invited/onboarding.
   if (u.hub_pipeline_phase === "invited" || u.hub_pipeline_phase === "onboarding") {
-    return u.access_phase === "invited" || u.access_phase === "onboarding";
+    return (
+      u.access_phase === "invited" ||
+      u.access_phase === "pending" ||
+      u.access_phase === "onboarding"
+    );
   }
   return false;
 }

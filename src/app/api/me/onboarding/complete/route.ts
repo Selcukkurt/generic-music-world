@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiUser } from "@/lib/version/api-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
-import { AGREEMENT_KEYS, type AgreementKey } from "@/lib/compliance/constants";
+import { AGREEMENT_KEYS, AGREEMENT_VERSIONS, type AgreementKey } from "@/lib/compliance/constants";
 import { aggregateActiveAgreements } from "@/lib/compliance/userAgreementAcceptances";
+import {
+  finalizeNdaAcceptanceDelivery,
+  ndaDeliveryResponseFields,
+  type FinalizeNdaAcceptanceDeliveryResult,
+} from "@/lib/compliance/finalizeNdaAcceptanceDelivery";
+import { getRequestClientIp } from "@/lib/http/clientIp";
 
 type Body = {
+  /** Onboarding UI / invite target — same source as GET /api/me/onboarding/state `email`. */
+  email?: string;
   firstName?: string;
   lastName?: string;
   /** @deprecated Prefer firstName + lastName; used as fallback when split fields absent. */
@@ -20,18 +28,35 @@ const REQUIRED_AGREEMENTS: AgreementKey[] = [
   AGREEMENT_KEYS.intellectual_property,
 ];
 
+/** Log this on every request; if it never appears, traffic is not hitting this deployment/build. */
+const ONBOARDING_COMPLETE_HANDLER_TAG =
+  "onboarding_complete_POST_v3_awaiting_activation_trim_20260328";
+
 export async function POST(request: NextRequest) {
   const { user, error } = await getApiUser(request);
-  if (error) return error;
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (error) {
+    console.warn("[onboarding/complete] RETURN_BRANCH getApiUser_error_response");
+    return error;
+  }
+  if (!user) {
+    console.warn("[onboarding/complete] RETURN_BRANCH 401_unauthorized_no_user");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  console.info("[onboarding-complete-debug] POST /api/me/onboarding/complete entered", {
+    userId: user.id,
+    handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
+  });
 
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
+    console.warn("[onboarding/complete] RETURN_BRANCH 400_invalid_json");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const bodyEmail = typeof body.email === "string" ? body.email.trim() : "";
   let firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
   let lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
   let titleIn = typeof body.title === "string" ? body.title.trim() : "";
@@ -50,6 +75,7 @@ export async function POST(request: NextRequest) {
   try {
     supabase = createServerClient();
   } catch {
+    console.warn("[onboarding/complete] RETURN_BRANCH 500_server_misconfigured_no_supabase");
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
@@ -68,10 +94,20 @@ export async function POST(request: NextRequest) {
     return s === "completed";
   }
 
-  /** Pre-compliance funnel phases allowed to finish onboarding, plus legacy `active` misalignment (backfill set active before compliance existed). */
+  /**
+   * Phases allowed to finish onboarding.
+   * `pending` is not in the DB CHECK (invited|onboarding|awaiting_activation|active) but appears in some
+   * environments as legacy/mis-synced data — treat like pre-completion funnel (same intent as `invited`).
+   */
   function canFinishComplianceFromAccessPhase(phase: string | null): boolean {
-    const p = phase ?? "";
-    return p === "invited" || p === "onboarding" || p === "active";
+    const p = (typeof phase === "string" ? phase : "").trim();
+    return (
+      p === "invited" ||
+      p === "pending" ||
+      p === "onboarding" ||
+      p === "active" ||
+      p === "awaiting_activation"
+    );
   }
 
   let row: OnboardingRow | null = null;
@@ -110,19 +146,24 @@ export async function POST(request: NextRequest) {
         isMissingColumnError(msg, "hub_pipeline_phase") ||
         isMissingColumnError(msg, "access_phase");
       if (!retry) {
+        console.warn("[onboarding/complete] RETURN_BRANCH 500_app_users_select_failed", { message: msg });
         return NextResponse.json({ error: msg }, { status: 500 });
       }
     }
   }
 
   if (!row) {
+    console.warn("[onboarding/complete] RETURN_BRANCH 404_profile_not_found");
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const phase = row.access_phase as string | null;
+  const phaseRaw = row.access_phase as string | null;
+  const phase = typeof phaseRaw === "string" ? phaseRaw.trim() : phaseRaw;
   console.info("[onboarding/complete] state before", {
     userId: user.id,
-    access_phase: phase,
+    handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
+    access_phase_raw: phaseRaw,
+    access_phase_trimmed: phase,
     hub_pipeline_phase: row.hub_pipeline_phase,
     compliance_completed_at: !!row.compliance_completed_at,
     onboarding_completed_at: !!row.onboarding_completed_at,
@@ -130,12 +171,49 @@ export async function POST(request: NextRequest) {
   });
 
   if (rowIndicatesOnboardingComplete(row)) {
-    console.info("[onboarding/complete] idempotent already completed", { userId: user.id, access_phase: phase });
+    console.info("[onboarding/complete] RETURN_BRANCH 200_already_completed_idempotent", {
+      userId: user.id,
+      access_phase: phase,
+    });
     return NextResponse.json({ ok: true, alreadyCompleted: true });
   }
 
+  let ndaOutcome: FinalizeNdaAcceptanceDeliveryResult | undefined;
+  const emailRow = await supabase.from("app_users").select("email").eq("id", user.id).maybeSingle();
+  const appUsersEmail =
+    !emailRow.error && emailRow.data
+      ? String((emailRow.data as { email?: string | null }).email ?? "").trim()
+      : "";
+  const recipientEmail = bodyEmail || appUsersEmail || (user.email?.trim() ?? "");
+  console.info("[onboarding/complete] NDA delivery recipient resolution", {
+    userId: user.id,
+    fromBody: Boolean(bodyEmail),
+    fromAppUsers: Boolean(appUsersEmail),
+    fromJwt: Boolean(user.email?.trim()),
+  });
+  if (recipientEmail) {
+    const ndaDeliveryAtIso = new Date().toISOString();
+    ndaOutcome = await finalizeNdaAcceptanceDelivery({
+      userId: user.id,
+      email: recipientEmail,
+      clientIp: getRequestClientIp(request),
+      acceptedAtIso: ndaDeliveryAtIso,
+      agreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.confidentiality],
+    });
+  } else {
+    console.warn("[onboarding/complete] NDA e-mail skipped: no recipient (body, app_users, JWT all empty)", {
+      userId: user.id,
+    });
+  }
+
   if (!canFinishComplianceFromAccessPhase(phase)) {
-    console.warn("[onboarding/complete] rejected access_phase", { userId: user.id, access_phase: phase });
+    console.warn("[onboarding/complete] RETURN_BRANCH 400_access_phase_gate_turkish_body", {
+      userId: user.id,
+      access_phase_raw: phaseRaw,
+      access_phase_trimmed: phase,
+      allowedPhases: ["invited", "pending", "onboarding", "active", "awaiting_activation"],
+      handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
+    });
     return NextResponse.json(
       { error: "Onboarding bu hesap için uygulanamaz (erişim aşaması uygun değil)." },
       { status: 400 }
@@ -150,6 +228,7 @@ export async function POST(request: NextRequest) {
 
   if (accErr) {
     if (isPostgrestSchemaError(accErr.message)) {
+      console.warn("[onboarding/complete] RETURN_BRANCH 503_user_agreement_acceptances_schema");
       return NextResponse.json(
         {
           error:
@@ -158,12 +237,14 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    console.warn("[onboarding/complete] RETURN_BRANCH 500_compliance_select_error");
     return NextResponse.json({ error: accErr.message }, { status: 500 });
   }
 
   const { activeKeys: acceptedActive } = aggregateActiveAgreements(accRows ?? []);
   for (const key of REQUIRED_AGREEMENTS) {
     if (!acceptedActive.has(key)) {
+      console.warn("[onboarding/complete] RETURN_BRANCH 400_missing_required_agreements", { missingKey: key });
       return NextResponse.json(
         { error: "Eksik onay: gizlilik ve fikri mülkiyet sözleşmeleri tamamlanmalıdır." },
         { status: 400 }
@@ -232,6 +313,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!firstName || !lastName) {
+    console.warn("[onboarding/complete] RETURN_BRANCH 400_missing_first_or_last_name");
     return NextResponse.json(
       { error: "Profilde veya hesap kaydında ad / soyad bulunamadı. Yöneticinize başvurun." },
       { status: 400 }
@@ -257,6 +339,7 @@ export async function POST(request: NextRequest) {
     user_metadata: mergedMeta,
   });
   if (authErr) {
+    console.warn("[onboarding/complete] RETURN_BRANCH 500_auth_update_user_metadata");
     return NextResponse.json({ error: authErr.message }, { status: 500 });
   }
 
@@ -338,6 +421,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (e) {
     console.error("[onboarding/complete] app_users.update unexpected error:", e);
+    console.warn("[onboarding/complete] RETURN_BRANCH 503_onboarding_update_exception");
     return NextResponse.json(
       {
         error:
@@ -358,6 +442,7 @@ export async function POST(request: NextRequest) {
       isMissingColumnError(upErr.message, "hub_pipeline_phase") ||
       isMissingColumnError(upErr.message, "access_phase");
     if (migrationLikely) {
+      console.warn("[onboarding/complete] RETURN_BRANCH 503_schema_migration_required");
       return NextResponse.json(
         {
           error:
@@ -368,15 +453,20 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    console.warn("[onboarding/complete] RETURN_BRANCH 500_app_users_update_failed");
     return NextResponse.json({ error: upErr.message }, { status: 500 });
   }
 
-  console.info("[onboarding/complete] transitioned", {
+  console.info("[onboarding/complete] RETURN_BRANCH 200_success_transitioned", {
     userId: user.id,
     access_phase: "awaiting_activation",
     hub_pipeline_phase: "awaiting_personnel",
     onboarding_status: "completed",
+    handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    ...ndaDeliveryResponseFields(ndaOutcome, "[onboarding/complete]"),
+  });
 }

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiUser, createVersionClient } from "@/lib/version/api-auth";
 import { AGREEMENT_KEYS, AGREEMENT_VERSIONS, type AgreementKey } from "@/lib/compliance/constants";
 import { resolveAcceptanceSourceForWrite } from "@/lib/compliance/userAgreementAcceptances";
+import {
+  finalizeNdaAcceptanceDelivery,
+  ndaDeliveryResponseFields,
+  type FinalizeNdaAcceptanceDeliveryResult,
+} from "@/lib/compliance/finalizeNdaAcceptanceDelivery";
+import { getRequestClientIp } from "@/lib/http/clientIp";
 
 export async function POST(request: NextRequest) {
   const { user, error } = await getApiUser(request);
@@ -63,9 +69,25 @@ export async function POST(request: NextRequest) {
     if (updErr) {
       return NextResponse.json({ error: updErr.message }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, status: "completed", reactivated: true });
+    let ndaOutcome: FinalizeNdaAcceptanceDeliveryResult | undefined;
+    if (key === AGREEMENT_KEYS.confidentiality) {
+      ndaOutcome = await finalizeNdaAcceptanceDelivery({
+        userId: user.id,
+        email: user.email ?? "",
+        clientIp: getRequestClientIp(request),
+        acceptedAtIso: nowIso,
+        agreementVersion: version,
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      status: "completed",
+      reactivated: true,
+      ...ndaDeliveryResponseFields(ndaOutcome, "[compliance/agreement]"),
+    });
   }
 
+  // Already accepted: do not regenerate PDF or resend e-mail.
   if (existing && existing.revoked_at == null) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
@@ -76,14 +98,30 @@ export async function POST(request: NextRequest) {
     agreement_version: version,
     locale,
     acceptance_source: acceptanceSource,
+    accepted_at: nowIso,
   });
 
   if (insErr) {
+    // Race: another request recorded acceptance — treat as duplicate; no NDA e-mail.
     if (insErr.code === "23505") {
       return NextResponse.json({ ok: true, duplicate: true });
     }
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, status: "completed" });
+  let ndaOutcome: FinalizeNdaAcceptanceDeliveryResult | undefined;
+  if (key === AGREEMENT_KEYS.confidentiality) {
+    ndaOutcome = await finalizeNdaAcceptanceDelivery({
+      userId: user.id,
+      email: user.email ?? "",
+      clientIp: getRequestClientIp(request),
+      acceptedAtIso: nowIso,
+      agreementVersion: version,
+    });
+  }
+  return NextResponse.json({
+    ok: true,
+    status: "completed",
+    ...ndaDeliveryResponseFields(ndaOutcome, "[compliance/agreement]"),
+  });
 }

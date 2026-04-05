@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 
 import {
   NDA_COMPANY,
+  NDA_DOCUMENT_TITLE,
+  NDA_PDF_SIGNFOOT,
   NDA_SECTIONS,
   NDA_SUMMARY_BULLETS,
 } from "@/content/compliance/nda-gizlilik-content";
@@ -343,7 +345,7 @@ export default function NdaAcceptanceModal({
                   id="nda-modal-title"
                   className="text-base font-semibold tracking-tight text-[var(--color-text)] sm:text-lg"
                 >
-                  Gizlilik Sözleşmesi
+                  {NDA_DOCUMENT_TITLE}
                 </h2>
                 <p
                   id="nda-modal-desc"
@@ -427,6 +429,7 @@ export default function NdaAcceptanceModal({
                       </div>
                     </section>
                   ))}
+                  <p className="text-sm leading-[1.7] text-[var(--color-text-secondary)]">{NDA_PDF_SIGNFOOT}</p>
                 </div>
               </div>
               <div

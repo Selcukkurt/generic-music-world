@@ -16,6 +16,11 @@ export type OnboardingProgressProfile = {
   compliance_completed_at?: string | null;
 };
 
+/** Pre-funnel until POST /api/me/onboarding/start promotes to `onboarding`. */
+export function isPreStartAccessPhase(access_phase: string | null): boolean {
+  return access_phase === "invited" || access_phase === "pending";
+}
+
 /**
  * Wizard position from `app_users` + agreement snapshot.
  *
@@ -30,17 +35,20 @@ export function derivePersistedOnboardingStep(
 
   const conf = compliance.agreements[AGREEMENT_KEYS.confidentiality];
   const ip = compliance.agreements[AGREEMENT_KEYS.intellectual_property];
+  const preStart = isPreStartAccessPhase(state.access_phase);
 
-  if (conf && ip) return 3;
+  // Tamamlama only after access_phase has left invited|pending (POST /onboarding/start).
+  if (conf && ip && !preStart) return 3;
 
   if (!conf) {
-    if (state.access_phase === "invited") return 0;
+    if (preStart) return 0;
     return 1;
   }
 
   if (!ip) return 2;
 
-  return 3;
+  // Both agreements done but still pre-start — stay on welcome until POST /onboarding/start runs.
+  return 0;
 }
 
 /**
@@ -50,9 +58,10 @@ export function deriveOnboardingStepWithFallbackCompliance(
   state: OnboardingProgressProfile,
   compliance: WizardComplianceSnapshot | null
 ): number {
+  const preStart = isPreStartAccessPhase(state.access_phase);
   if (compliance) return derivePersistedOnboardingStep(state, compliance);
   if (isOnboardingComplete(state)) return 3;
-  if (state.compliance_completed_at) return 3;
-  if (state.access_phase === "invited") return 0;
+  if (state.compliance_completed_at && !preStart) return 3;
+  if (preStart) return 0;
   return 1;
 }

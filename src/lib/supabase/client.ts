@@ -1,18 +1,20 @@
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { getSupabaseClientEnv } from "./env";
 
 /**
  * Lazy singleton so `next build` / prerender does not require Supabase env at module evaluation.
- * Env is read on first real use (e.g. `supabaseBrowser.auth.getSession()`).
+ * Uses @supabase/ssr so the session is stored in cookies and server routes (e.g. GET /api/*) can read it.
  */
 let _client: SupabaseClient | null = null;
 
 function getClient(): SupabaseClient {
   if (!_client) {
     const { url, anonKey } = getSupabaseClientEnv();
-    _client = createClient(url, anonKey);
+    _client = createBrowserClient(url, anonKey);
   }
   return _client;
 }

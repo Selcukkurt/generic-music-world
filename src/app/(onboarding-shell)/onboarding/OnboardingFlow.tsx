@@ -384,6 +384,25 @@ export default function OnboardingFlow() {
     return data;
   }, []);
 
+  /**
+   * POST /api/me/onboarding/start must run before completion can succeed (pending|invited → onboarding).
+   * Called on flow entry, reload, finalize guard, and explicitly from welcome «Başla».
+   */
+  const ensureOnboardingStartIfNeeded = useCallback(
+    async (profile: OnboardingState): Promise<OnboardingState> => {
+      const ap = profile.access_phase;
+      if (ap !== "invited" && ap !== "pending") return profile;
+      console.info("[OnboardingFlow] POST /api/me/onboarding/start (invited|pending → onboarding)");
+      const res = await meApiFetch("/api/me/onboarding/start", { method: "POST" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error ?? "Onboarding başlatılamadı");
+      }
+      return loadState();
+    },
+    [loadState]
+  );
+
   const progressStep = Math.min(Math.max(step, 0), LAST_ONBOARDING_STEP_INDEX);
   const effectiveReviewStep =
     reviewStep !== null &&
@@ -456,7 +475,19 @@ export default function OnboardingFlow() {
         const { data, ms: apiStateMs } = await stateP;
         if (cancelled) return;
 
-        const leave = shouldLeaveOnboarding(data);
+        let profile = data;
+        try {
+          profile = await ensureOnboardingStartIfNeeded(profile);
+        } catch (e) {
+          if (!cancelled) {
+            setError(e instanceof Error ? e.message : "Onboarding başlatılamadı");
+            setComplianceLoading(false);
+          }
+          return;
+        }
+        if (cancelled) return;
+
+        const leave = shouldLeaveOnboarding(profile);
         if (leave) {
           router.replace(leave);
           return;
@@ -477,7 +508,7 @@ export default function OnboardingFlow() {
           setError("Uyumluluk durumu alınamadı; sayfayı yenileyin veya tekrar deneyin.");
         }
 
-        setStep(deriveOnboardingStepWithFallbackCompliance(data, comp));
+        setStep(deriveOnboardingStepWithFallbackCompliance(profile, comp));
 
         onboardingLoadMetricsSetFlowApi({
           apiStateMs,
@@ -499,7 +530,7 @@ export default function OnboardingFlow() {
     return () => {
       cancelled = true;
     };
-  }, [applyCompliancePayload, loadState, pullComplianceStatus, router]);
+  }, [applyCompliancePayload, ensureOnboardingStartIfNeeded, loadState, pullComplianceStatus, router]);
 
   /** Final step: persist onboarding completion using existing profile / auth names (no form). */
   useEffect(() => {
@@ -517,9 +548,17 @@ export default function OnboardingFlow() {
       setSubmitting(true);
       setError(null);
       try {
+        if (state && (state.access_phase === "invited" || state.access_phase === "pending")) {
+          await ensureOnboardingStartIfNeeded(state);
+        }
+        const onboardEmail = state?.email?.trim();
+        console.info("[OnboardingFlow] POST /api/me/onboarding/complete (finalize; not start/state)", {
+          finalizeRetryNonce,
+          hasOnboardEmail: Boolean(onboardEmail),
+        });
         const res = await meApiFetch("/api/me/onboarding/complete", {
           method: "POST",
-          body: JSON.stringify({}),
+          body: JSON.stringify(onboardEmail ? { email: onboardEmail } : {}),
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -546,10 +585,13 @@ export default function OnboardingFlow() {
     };
   }, [
     step,
+    state?.email,
+    state?.access_phase,
     state?.compliance_completed_at,
     state?.onboarding_completed_at,
     state?.onboarding_status,
     finalizeRetryNonce,
+    ensureOnboardingStartIfNeeded,
     loadState,
   ]);
 
@@ -560,7 +602,8 @@ export default function OnboardingFlow() {
     setComplianceLoading(true);
     void (async () => {
       try {
-        const data = await loadState();
+        let data = await loadState();
+        data = await ensureOnboardingStartIfNeeded(data);
         const leave = shouldLeaveOnboarding(data);
         if (leave) {
           router.replace(leave);
@@ -587,12 +630,7 @@ export default function OnboardingFlow() {
     setError(null);
     setSubmitting(true);
     try {
-      const startRes = await meApiFetch("/api/me/onboarding/start", { method: "POST" });
-      if (!startRes.ok) {
-        const j = await startRes.json().catch(() => ({}));
-        throw new Error((j as { error?: string }).error ?? "Başlatılamadı");
-      }
-      const data = await loadState();
+      const data = await ensureOnboardingStartIfNeeded(await loadState());
       const comp = await pullComplianceStatus().catch(() => null);
       if (comp) applyCompliancePayload(comp);
       else {
@@ -801,6 +839,9 @@ export default function OnboardingFlow() {
                 type="button"
                 className="mt-3 text-sm font-medium text-[var(--brand-yellow)] underline-offset-4 hover:underline"
                 onClick={() => {
+                  console.info(
+                    "[OnboardingFlow] Tekrar dene: bump finalizeRetryNonce → same useEffect re-runs POST /api/me/onboarding/complete only"
+                  );
                   setError(null);
                   setSubmitting(false);
                   setFinalizeRetryNonce((n) => n + 1);
@@ -908,11 +949,13 @@ export default function OnboardingFlow() {
           allowRevoke={!isOnboardingComplete(state)}
           onRevoke={isReviewMode ? undefined : revokeNda}
           revokeSubmitting={revokeNdaSubmitting}
-          showBack={isReviewMode || state.access_phase === "invited"}
+          showBack={
+            isReviewMode || state.access_phase === "invited" || state.access_phase === "pending"
+          }
           onBack={
             isReviewMode
               ? () => setReviewStep(null)
-              : state.access_phase === "invited"
+              : state.access_phase === "invited" || state.access_phase === "pending"
                 ? () => setStep(0)
                 : undefined
           }

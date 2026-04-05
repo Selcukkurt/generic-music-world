@@ -23,7 +23,7 @@ export function deriveUserLifecycleStatus(
   if (life === "archived") return "archived";
   if (life === "passive") return "awaiting_activation";
 
-  if (accessPhase === "invited") return "invited";
+  if (accessPhase === "invited" || accessPhase === "pending") return "invited";
   if (accessPhase === "onboarding") return "onboarding";
   if (accessPhase === "awaiting_activation") return "awaiting_activation";
   return "active";

@@ -15,9 +15,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
+  /** `pending` is non-schema legacy; same intent as `invited` — promote into the real funnel. */
+  const preStartPhases = ["invited", "pending"] as const;
   const withPipeline = { access_phase: "onboarding" as const, hub_pipeline_phase: "onboarding" as const };
   let upErr = (
-    await supabase.from("app_users").update(withPipeline).eq("id", user.id).in("access_phase", ["invited"])
+    await supabase.from("app_users").update(withPipeline).eq("id", user.id).in("access_phase", [...preStartPhases])
   ).error;
 
   if (upErr && isMissingColumnError(upErr.message, "hub_pipeline_phase")) {
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
         .from("app_users")
         .update({ access_phase: "onboarding" })
         .eq("id", user.id)
-        .in("access_phase", ["invited"])
+        .in("access_phase", [...preStartPhases])
     ).error;
   }
 

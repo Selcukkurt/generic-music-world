@@ -1,10 +1,16 @@
 /**
  * Invite / auth funnel (`app_users.access_phase`). Distinct from `hub_pipeline_phase`.
  * DB CHECK (migration): invited → onboarding → awaiting_activation → active.
- * Typical writes: invite/sync → onboarding; POST onboarding/start → onboarding (from invited);
+ * `pending` is not allowed by CHECK but may exist in legacy rows — treat like pre-funnel `invited` in app code.
+ * Typical writes: invite/sync → onboarding; POST onboarding/start → onboarding (from invited|pending);
  * POST onboarding/complete → awaiting_activation; tryActivateUserServer → active.
  */
-export type UserAccessPhase = "invited" | "onboarding" | "awaiting_activation" | "active";
+export type UserAccessPhase =
+  | "invited"
+  | "pending"
+  | "onboarding"
+  | "awaiting_activation"
+  | "active";
 
 export type AppLifecycle = "active" | "passive" | "archived";
 
@@ -20,6 +26,7 @@ export function pathAllowsOnboardingShell(pathname: string): boolean {
 export function normalizeAccessPhase(value: unknown): UserAccessPhase {
   if (
     value === "invited" ||
+    value === "pending" ||
     value === "onboarding" ||
     value === "awaiting_activation" ||
     value === "active"
@@ -43,7 +50,7 @@ export function pathAllowedForPhase(
   if (lifecycle === "archived") {
     return pathname.startsWith("/account-archived");
   }
-  if (phase === "invited" || phase === "onboarding") {
+  if (phase === "invited" || phase === "pending" || phase === "onboarding") {
     return pathAllowsOnboardingShell(pathname);
   }
   if (phase === "awaiting_activation") {
@@ -53,7 +60,7 @@ export function pathAllowedForPhase(
 }
 
 export function shouldUseOnboardingShell(accessPhase: UserAccessPhase): boolean {
-  return accessPhase === "invited" || accessPhase === "onboarding";
+  return accessPhase === "invited" || accessPhase === "pending" || accessPhase === "onboarding";
 }
 
 export function shouldUseAwaitingShell(accessPhase: UserAccessPhase): boolean {
