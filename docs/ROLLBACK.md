@@ -13,14 +13,13 @@
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 | **RB-024** | — | Onboarding end-to-end stabilized; first/last name; invite identity; completion API & state; final waiting screen; booking user test passed |
 | **RB-025** | a53c5b6 | Onboarding milestone: load path + persistence + review mode + UX + internal benchmarks (LOCKED) |
-| **RB-026** | 97b6fc5 | Onboarding stabilization: 4-step flow, NDA/IP agreements, locale + RLS, completion/activation landing |
+| **RB-026** | — | Onboarding stabilization: 4-step flow, NDA/IP agreements, locale + RLS, completion/activation landing |
 
 ---
 
 ## RB-026: Onboarding stabilization (checkpoint)
 
-**Tag:** `RB-026` (annotated) — **`git rev-parse RB-026^{commit}`** points at this checkpoint on `main`.  
-**Commit:** `97b6fc5` (rollback notes on tip of `07c9cbb` feature checkpoint)  
+**Tag:** `RB-026` (annotated) — **`git rev-parse RB-026^{commit}`** is the rollback tip on `main` (feature body: `07c9cbb`; docs + table row may follow in the same tag tip).  
 **Scope:** Simplified onboarding, agreement storage, and access policies aligned with hub/activation.
 
 **Summary:**
