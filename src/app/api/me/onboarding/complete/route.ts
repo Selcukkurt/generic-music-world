@@ -3,7 +3,7 @@ import { getApiUser } from "@/lib/version/api-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
 import { AGREEMENT_KEYS, type AgreementKey } from "@/lib/compliance/constants";
-import { GM_DNA_ONBOARDING_SECTION_KEYS, type GmDnaSectionKey } from "@/content/compliance/gm-dna-sections";
+import { aggregateActiveAgreements } from "@/lib/compliance/userAgreementAcceptances";
 
 type Body = {
   firstName?: string;
@@ -14,10 +14,10 @@ type Body = {
   department?: string;
 };
 
+/** Legal onboarding funnel only; GM DNA is post-onboarding elsewhere. */
 const REQUIRED_AGREEMENTS: AgreementKey[] = [
   AGREEMENT_KEYS.confidentiality,
   AGREEMENT_KEYS.intellectual_property,
-  AGREEMENT_KEYS.gm_dna_final,
 ];
 
 export async function POST(request: NextRequest) {
@@ -144,8 +144,9 @@ export async function POST(request: NextRequest) {
 
   const { data: accRows, error: accErr } = await supabase
     .from("user_agreement_acceptances")
-    .select("agreement_key")
-    .eq("user_id", user.id);
+    .select("agreement_key, agreement_version")
+    .eq("user_id", user.id)
+    .is("revoked_at", null);
 
   if (accErr) {
     if (isPostgrestSchemaError(accErr.message)) {
@@ -160,39 +161,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: accErr.message }, { status: 500 });
   }
 
-  const accepted = new Set((accRows ?? []).map((r) => r.agreement_key as string));
+  const { activeKeys: acceptedActive } = aggregateActiveAgreements(accRows ?? []);
   for (const key of REQUIRED_AGREEMENTS) {
-    if (!accepted.has(key)) {
+    if (!acceptedActive.has(key)) {
       return NextResponse.json(
-        { error: "Eksik onay: tüm sözleşme ve GM DNA onayları tamamlanmalıdır." },
-        { status: 400 }
-      );
-    }
-  }
-
-  const { data: dnaRows, error: dnaErr } = await supabase
-    .from("user_gm_dna_section_progress")
-    .select("section_key")
-    .eq("user_id", user.id);
-
-  if (dnaErr) {
-    if (isPostgrestSchemaError(dnaErr.message)) {
-      return NextResponse.json(
-        {
-          error:
-            "GM DNA bölüm tablosu eksik veya şema güncel değil (user_gm_dna_section_progress). Veritabanı migrasyonlarını uygulayın.",
-        },
-        { status: 503 }
-      );
-    }
-    return NextResponse.json({ error: dnaErr.message }, { status: 500 });
-  }
-
-  const dnaDone = new Set((dnaRows ?? []).map((r) => r.section_key as GmDnaSectionKey));
-  for (const key of GM_DNA_ONBOARDING_SECTION_KEYS) {
-    if (!dnaDone.has(key)) {
-      return NextResponse.json(
-        { error: "GM DNA: tüm bölümler işaretlenmelidir." },
+        { error: "Eksik onay: gizlilik ve fikri mülkiyet sözleşmeleri tamamlanmalıdır." },
         { status: 400 }
       );
     }

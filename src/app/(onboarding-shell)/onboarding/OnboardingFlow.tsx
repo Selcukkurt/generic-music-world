@@ -28,10 +28,11 @@ import {
 import { AGREEMENT_KEYS, AGREEMENT_VERSIONS, type AgreementKey } from "@/lib/compliance/constants";
 import {
   GM_DNA_ONBOARDING_SECTION_KEYS,
-  GM_DNA_SECTION_LABELS,
   GM_DNA_SECTION_COUNT,
 } from "@/content/compliance/gm-dna-sections";
-import Checkbox from "@/components/ui/Checkbox";
+import NdaAcceptanceModal, { NETWORK_ERR } from "@/components/onboarding/NdaAcceptanceModal";
+import IpAcceptanceModal from "@/components/onboarding/IpAcceptanceModal";
+import { useIpAgreementStepRegressionGuards } from "@/lib/onboarding/agreementStepRegressionGuards";
 import OnboardingInfoHints from "@/components/onboarding/OnboardingInfoHints";
 import { ONBOARDING_STEP_NAV } from "@/components/onboarding/onboardingStepNavStyles";
 import { isOnboardingComplete } from "@/lib/auth/onboardingStatus";
@@ -56,6 +57,7 @@ type OnboardingState = {
 
 type ComplianceStatus = {
   agreements: Record<AgreementKey, boolean>;
+  agreement_accepted_at?: Partial<Record<AgreementKey, string>>;
   gm_dna_sections: Record<string, boolean>;
   gm_dna_sections_completed: number;
   gm_dna_sections_total: number;
@@ -68,27 +70,13 @@ function emptyComplianceStatus(): ComplianceStatus {
       [AGREEMENT_KEYS.intellectual_property]: false,
       [AGREEMENT_KEYS.gm_dna_final]: false,
     },
+    agreement_accepted_at: {},
     gm_dna_sections: Object.fromEntries(
       GM_DNA_ONBOARDING_SECTION_KEYS.map((k) => [k, false])
     ) as ComplianceStatus["gm_dna_sections"],
     gm_dna_sections_completed: 0,
     gm_dna_sections_total: GM_DNA_SECTION_COUNT,
   };
-}
-
-/** Count of onboarding subsections marked done — same keys as API `gm_dna_sections` / DB progress. */
-function countGmDnaOnboardingDone(c: ComplianceStatus | null): number {
-  if (!c) return 0;
-  return GM_DNA_ONBOARDING_SECTION_KEYS.filter((k) => Boolean(c.gm_dna_sections?.[k])).length;
-}
-
-function isGmDnaOnboardingComplete(c: ComplianceStatus | null): boolean {
-  if (!c) return false;
-  if (countGmDnaOnboardingDone(c) >= GM_DNA_SECTION_COUNT) return true;
-  return (
-    typeof c.gm_dna_sections_completed === "number" &&
-    c.gm_dna_sections_completed >= GM_DNA_SECTION_COUNT
-  );
 }
 
 const ONBOARDING_STEPS = [
@@ -103,7 +91,6 @@ const ONBOARDING_STEPS = [
     hint: "Gizlilik taahhüdü",
   },
   { id: "ip", label: "Fikri mülkiyet", hint: "Fikri mülkiyet çerçevesi" },
-  { id: "gm-dna", label: "GM DNA", hint: "Kurumsal DNA bölümleri" },
   { id: "completion", label: "Tamamlama", hint: "Aktivasyon bekleme" },
 ] as const;
 
@@ -120,11 +107,112 @@ function getStepNavStatus(index: number, progressStep: number, reviewStep: numbe
   return "locked";
 }
 
-function stepNavStatusLabel(s: StepNavStatus): string {
-  if (s === "done") return "Tamamlandı";
-  if (s === "current") return "Devam ediyor";
-  if (s === "review") return "İnceleniyor";
-  return "Kilitli";
+function agreementAcceptedForStepIndex(index: number, c: ComplianceStatus | null): boolean {
+  if (!c?.agreements) return false;
+  if (index === 1) return Boolean(c.agreements[AGREEMENT_KEYS.confidentiality]);
+  if (index === 2) return Boolean(c.agreements[AGREEMENT_KEYS.intellectual_property]);
+  return false;
+}
+
+/** Strict sequence: each step is done only when all prior steps are done and this step’s requirement is met. */
+function isStepIndexCompleted(
+  index: number,
+  compliance: ComplianceStatus | null,
+  state: OnboardingState,
+  progressStep: number
+): boolean {
+  const confOk = agreementAcceptedForStepIndex(1, compliance);
+  const ipOk = agreementAcceptedForStepIndex(2, compliance);
+
+  switch (index) {
+    case 0:
+      return progressStep >= 1;
+    case 1:
+      return confOk;
+    case 2:
+      return confOk && ipOk;
+    case 3: {
+      const welcomeOk = progressStep >= 1;
+      return welcomeOk && confOk && ipOk && isOnboardingComplete(state);
+    }
+    default:
+      return false;
+  }
+}
+
+function getFirstIncompletePipelineStepIndex(
+  compliance: ComplianceStatus | null,
+  state: OnboardingState,
+  progressStep: number
+): number | null {
+  for (let i = 0; i <= LAST_ONBOARDING_STEP_INDEX; i++) {
+    if (!isStepIndexCompleted(i, compliance, state, progressStep)) return i;
+  }
+  return null;
+}
+
+/**
+ * Single label for stepper, aside, and agreement cards. Exactly one step may be «İnceleniyor»:
+ * the first incomplete step in pipeline order; earlier incomplete steps block later ones (Beklemede).
+ */
+function getOnboardingStepStatusLabel(
+  index: number,
+  progressStep: number,
+  _reviewStep: number | null,
+  compliance: ComplianceStatus | null,
+  state: OnboardingState | null
+): string {
+  if (state === null) return "Beklemede";
+
+  if (isStepIndexCompleted(index, compliance, state, progressStep)) {
+    return "Tamamlandı";
+  }
+
+  const firstIncomplete = getFirstIncompletePipelineStepIndex(compliance, state, progressStep);
+  if (firstIncomplete === null) {
+    return "Tamamlandı";
+  }
+
+  if (index === firstIncomplete) {
+    return index === LAST_ONBOARDING_STEP_INDEX ? "Devam ediyor" : "İnceleniyor";
+  }
+  return "Beklemede";
+}
+
+/** Route / server flags alone must not imply Tamamlama done without compliance funnel. Fails loudly in development. */
+function assertOnboardingSequentialIntegrity(
+  compliance: ComplianceStatus | null,
+  state: OnboardingState,
+  progressStep: number
+): void {
+  if (process.env.NODE_ENV !== "development") return;
+  if (!isStepIndexCompleted(3, compliance, state, progressStep)) return;
+  for (let i = 0; i < 3; i++) {
+    if (!isStepIndexCompleted(i, compliance, state, progressStep)) {
+      console.error(
+        "[Onboarding] Invalid state: Tamamlama treated as complete while prerequisite step",
+        i,
+        "is incomplete. Check isStepIndexCompleted / server profile vs compliance."
+      );
+    }
+  }
+}
+
+function agreementStepCardBadgeClass(
+  index: number,
+  progressStep: number,
+  reviewStep: number | null,
+  compliance: ComplianceStatus | null,
+  state: OnboardingState | null
+): string {
+  const label = getOnboardingStepStatusLabel(index, progressStep, reviewStep, compliance, state);
+  if (label === "Tamamlandı") {
+    return "border-emerald-500/35 bg-emerald-500/[0.08] text-emerald-200/90";
+  }
+  if (label === "İnceleniyor" || label === "Devam ediyor") {
+    return "border-sky-500/30 bg-sky-500/[0.06] text-sky-100/85";
+  }
+  return "border-[var(--color-border)] bg-[var(--color-bg)]/40 text-[var(--color-text-muted)]";
 }
 
 function stepNavStatusIcon(s: StepNavStatus): string {
@@ -197,11 +285,17 @@ export default function OnboardingFlow() {
   /** Until first compliance payload is applied (bootstrap or refresh). */
   const [complianceLoading, setComplianceLoading] = useState(true);
 
-  const [confAck, setConfAck] = useState(false);
-  const [ipAck, setIpAck] = useState(false);
-  const [dnaFinalAck, setDnaFinalAck] = useState(false);
   const finalizeInFlightRef = useRef(false);
   const [finalizeRetryNonce, setFinalizeRetryNonce] = useState(0);
+  /** NDA modal is user-triggered only — never auto-opened from step/hydration/fetch */
+  const [isNdaOpen, setIsNdaOpen] = useState(false);
+  const [isIpOpen, setIsIpOpen] = useState(false);
+  /** Isolate from global `submitting` (welcome, step-3 finalize) so agreement modals stay usable. */
+  const [ndaAgreementSubmitting, setNdaAgreementSubmitting] = useState(false);
+  const [ipAgreementSubmitting, setIpAgreementSubmitting] = useState(false);
+  const [ndaModalInstance, setNdaModalInstance] = useState(0);
+  const [ipModalInstance, setIpModalInstance] = useState(0);
+  const [revokeNdaSubmitting, setRevokeNdaSubmitting] = useState(false);
 
   /**
    * Drop invalid or stale `reviewStep` (e.g. after `setStep` lowers progress, React commits before a
@@ -227,29 +321,53 @@ export default function OnboardingFlow() {
 
   const applyCompliancePayload = useCallback((data: ComplianceStatus) => {
     setCompliance(data);
-    if (data.agreements[AGREEMENT_KEYS.confidentiality]) setConfAck(true);
-    if (data.agreements[AGREEMENT_KEYS.intellectual_property]) setIpAck(true);
-    if (data.agreements[AGREEMENT_KEYS.gm_dna_final]) setDnaFinalAck(true);
+    setComplianceLoading(false);
+  }, []);
+
+  const markAgreementAcceptedLocally = useCallback((key: AgreementKey) => {
+    const nowIso = new Date().toISOString();
+    setCompliance((prev) => {
+      const base = prev ?? emptyComplianceStatus();
+      return {
+        ...base,
+        agreements: { ...base.agreements, [key]: true },
+        agreement_accepted_at: {
+          ...base.agreement_accepted_at,
+          [key]: base.agreement_accepted_at?.[key] ?? nowIso,
+        },
+      };
+    });
     setComplianceLoading(false);
   }, []);
 
   const loadCompliance = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      try {
-        const data = await pullComplianceStatus();
-        applyCompliancePayload(data);
-        return true;
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Uyumluluk durumu alınamadı";
-        if (!opts?.silent) {
-          setCompliance(emptyComplianceStatus());
-          setComplianceLoading(false);
-          setError(`Uyumluluk durumu alınamadı: ${msg}`);
-        } else if (process.env.NODE_ENV === "development") {
-          console.warn("[OnboardingFlow] compliance refresh failed (silent):", msg);
+    async (opts?: { silent?: boolean; attempts?: number }): Promise<ComplianceStatus | null> => {
+      const maxAttempts = Math.max(1, opts?.attempts ?? 1);
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const data = await pullComplianceStatus();
+          applyCompliancePayload(data);
+          if (process.env.NODE_ENV === "development") {
+            console.log("[OnboardingFlow] compliance/refetch agreements:", { ...data.agreements });
+          }
+          return data;
+        } catch (e) {
+          lastErr = e;
+          if (attempt + 1 < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 350));
+          }
         }
-        return false;
       }
+      const msg = lastErr instanceof Error ? lastErr.message : "Uyumluluk durumu alınamadı";
+      if (!opts?.silent) {
+        setCompliance(emptyComplianceStatus());
+        setComplianceLoading(false);
+        setError(`Uyumluluk durumu alınamadı: ${msg}`);
+      } else if (process.env.NODE_ENV === "development") {
+        console.warn("[OnboardingFlow] compliance refresh failed (silent):", msg);
+      }
+      return null;
     },
     [applyCompliancePayload, pullComplianceStatus]
   );
@@ -276,6 +394,25 @@ export default function OnboardingFlow() {
       : null;
   const displayStep = effectiveReviewStep ?? progressStep;
   const isReviewMode = effectiveReviewStep !== null;
+
+  useEffect(() => {
+    if (displayStep !== 1) setIsNdaOpen(false);
+    if (displayStep !== 2) setIsIpOpen(false);
+  }, [displayStep]);
+
+  const ndaAccepted = agreementAcceptedForStepIndex(1, compliance);
+  const ipAccepted = agreementAcceptedForStepIndex(2, compliance);
+
+  useIpAgreementStepRegressionGuards({
+    activeCompletable: !loading && state !== null && displayStep === 2 && !isReviewMode,
+    modalOpen: isIpOpen,
+    alreadyAccepted: ipAccepted,
+  });
+
+  useEffect(() => {
+    if (loading || state === null) return;
+    assertOnboardingSequentialIntegrity(compliance, state, progressStep);
+  }, [loading, state, compliance, progressStep]);
 
   const handleStepNavigate = useCallback(
     (index: number) => {
@@ -366,7 +503,7 @@ export default function OnboardingFlow() {
 
   /** Final step: persist onboarding completion using existing profile / auth names (no form). */
   useEffect(() => {
-    if (step !== 4) {
+    if (step !== 3) {
       finalizeInFlightRef.current = false;
       return;
     }
@@ -470,82 +607,93 @@ export default function OnboardingFlow() {
     }
   };
 
-  const postAgreement = async (key: AgreementKey) => {
-    const res = await meApiFetch("/api/me/compliance/agreement", {
-      method: "POST",
-      body: JSON.stringify({ agreement_key: key, agreement_version: AGREEMENT_VERSIONS[key] }),
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error((j as { error?: string }).error ?? "Onay kaydedilemedi");
-    }
-    await loadCompliance({ silent: true });
-  };
-
-  const postGmSection = async (sectionKey: string) => {
-    const res = await meApiFetch("/api/me/compliance/gm-dna-section", {
-      method: "POST",
-      body: JSON.stringify({ section_key: sectionKey }),
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error((j as { error?: string }).error ?? "Bölüm kaydedilemedi");
-    }
-    await loadCompliance({ silent: true });
-  };
-
-  const acceptConfidentiality = async () => {
-    if (!confAck) {
-      setError("Devam etmek için kutuyu işaretleyin");
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
+  const postAgreement = async (key: AgreementKey, opts?: { skipComplianceReload?: boolean }) => {
+    let res: Response;
     try {
-      await postAgreement(AGREEMENT_KEYS.confidentiality);
-      setStep(2);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Kaydedilemedi");
+      res = await meApiFetch("/api/me/compliance/agreement", {
+        method: "POST",
+        body: JSON.stringify({
+          agreement_key: key,
+          agreement_version: AGREEMENT_VERSIONS[key],
+          locale: typeof navigator !== "undefined" ? navigator.language : null,
+          acceptance_source: "onboarding",
+        }),
+      });
+    } catch {
+      throw new Error(NETWORK_ERR);
+    }
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      throw new Error(j.error ?? "Onay kaydedilemedi");
+    }
+    markAgreementAcceptedLocally(key);
+    if (!opts?.skipComplianceReload) {
+      await loadCompliance({ silent: true, attempts: 3 });
+    }
+  };
+
+  const acceptNda = async () => {
+    setError(null);
+    setNdaAgreementSubmitting(true);
+    try {
+      let res: Response;
+      try {
+        res = await meApiFetch("/api/me/compliance/agreement", {
+          method: "POST",
+          body: JSON.stringify({
+            agreement_key: AGREEMENT_KEYS.confidentiality,
+            agreement_version: AGREEMENT_VERSIONS[AGREEMENT_KEYS.confidentiality],
+            locale: typeof navigator !== "undefined" ? navigator.language : null,
+            acceptance_source: "onboarding",
+          }),
+        });
+      } catch {
+        throw new Error(NETWORK_ERR);
+      }
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      markAgreementAcceptedLocally(AGREEMENT_KEYS.confidentiality);
     } finally {
-      setSubmitting(false);
+      setNdaAgreementSubmitting(false);
+    }
+  };
+
+  const revokeNda = async () => {
+    setError(null);
+    setRevokeNdaSubmitting(true);
+    try {
+      let res: Response;
+      try {
+        res = await meApiFetch("/api/me/compliance/agreement/revoke", {
+          method: "POST",
+          body: JSON.stringify({ agreement_key: AGREEMENT_KEYS.confidentiality }),
+        });
+      } catch {
+        throw new Error(NETWORK_ERR);
+      }
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      const fresh = await pullComplianceStatus();
+      applyCompliancePayload(fresh);
+      const st = await loadState();
+      setStep(deriveOnboardingStepWithFallbackCompliance(st, fresh));
+      setReviewStep(null);
+    } finally {
+      setRevokeNdaSubmitting(false);
     }
   };
 
   const acceptIp = async () => {
-    if (!ipAck) {
-      setError("Devam etmek için kutuyu işaretleyin");
-      return;
-    }
     setError(null);
-    setSubmitting(true);
+    setIpAgreementSubmitting(true);
     try {
-      await postAgreement(AGREEMENT_KEYS.intellectual_property);
-      setStep(3);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Kaydedilemedi");
+      await postAgreement(AGREEMENT_KEYS.intellectual_property, { skipComplianceReload: true });
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const acceptGmDnaFinal = async () => {
-    if (!isGmDnaOnboardingComplete(compliance)) {
-      setError("Önce tüm GM DNA bölümlerini işaretleyin");
-      return;
-    }
-    if (!dnaFinalAck) {
-      setError("Nihai GM DNA onayı için kutuyu işaretleyin");
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await postAgreement(AGREEMENT_KEYS.gm_dna_final);
-      setStep(4);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Kaydedilemedi");
-    } finally {
-      setSubmitting(false);
+      setIpAgreementSubmitting(false);
     }
   };
 
@@ -579,9 +727,11 @@ export default function OnboardingFlow() {
     );
   }
 
-  const dnaComplete = isGmDnaOnboardingComplete(compliance);
   const welcomeName = displayLegalName(state);
-  const allOnboardingStepsDone = progressStep >= 4;
+  const allOnboardingStepsDone = isStepIndexCompleted(3, compliance, state, progressStep);
+  const firstPipelineIncomplete = getFirstIncompletePipelineStepIndex(compliance, state, progressStep);
+  const completionViewOutOfSync =
+    displayStep === 3 && firstPipelineIncomplete !== null && firstPipelineIncomplete < 3;
   const pageStepMeta = ONBOARDING_STEPS[displayStep] ?? ONBOARDING_STEPS[0];
 
   const btnPrimary =
@@ -617,7 +767,7 @@ export default function OnboardingFlow() {
                 <li key={meta.id} className={ONBOARDING_STEP_NAV.topListItem}>
                   <button
                     {...navProps}
-                    title={`${stepNavStatusLabel(st)} — ${meta.label}`}
+                    title={`${getOnboardingStepStatusLabel(i, progressStep, effectiveReviewStep, compliance, state)} — ${meta.label}`}
                     className={`${ONBOARDING_STEP_NAV.topButton} transition enabled:cursor-pointer enabled:hover:bg-[var(--color-surface-hover)]/40 disabled:cursor-not-allowed disabled:opacity-40 ${stepNavChipClass(st)}`}
                     aria-current={displayStep === i ? "step" : undefined}
                   >
@@ -626,7 +776,9 @@ export default function OnboardingFlow() {
                         {stepNavStatusIcon(st)}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className={ONBOARDING_STEP_NAV.status}>{stepNavStatusLabel(st)}</span>
+                        <span className={ONBOARDING_STEP_NAV.status}>
+                          {getOnboardingStepStatusLabel(i, progressStep, effectiveReviewStep, compliance, state)}
+                        </span>
                         <span className={ONBOARDING_STEP_NAV.title}>{meta.label}</span>
                       </span>
                     </span>
@@ -644,7 +796,7 @@ export default function OnboardingFlow() {
             className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 text-sm text-[var(--color-text-secondary)]"
           >
             <p>{error}</p>
-            {progressStep === 4 ? (
+            {progressStep === 3 ? (
               <button
                 type="button"
                 className="mt-3 text-sm font-medium text-[var(--brand-yellow)] underline-offset-4 hover:underline"
@@ -686,11 +838,11 @@ export default function OnboardingFlow() {
           <div className="flex justify-center">
             <div className="ui-glass w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-8 shadow-[var(--shadow-medium)] backdrop-blur-sm">
               <p className="text-center text-sm leading-relaxed text-[var(--color-text-muted)]">
-                Bu süreç, Platforma erişiminizden önceki kurumsal uyum adımlarıdır: <strong className="font-medium text-[var(--color-text-secondary)]">gizlilik</strong>,{" "}
-                <strong className="font-medium text-[var(--color-text-secondary)]">fikri mülkiyet</strong> ve{" "}
-                <strong className="font-medium text-[var(--color-text-secondary)]">Generic Music DNA</strong> onayları.
-                Adımlar tamamlandığında kimlik bilgilerinizi netleştirir; görev tanımı, çalışma modeli ve sözleşme ise
-                personel atamanız sonrasında İK ve yönetici akışında yürütülür.
+                Bu süreç, Platforma erişiminizden önceki yasal uyum adımlarıdır:{" "}
+                <strong className="font-medium text-[var(--color-text-secondary)]">gizlilik</strong> ve{" "}
+                <strong className="font-medium text-[var(--color-text-secondary)]">fikri mülkiyet</strong> taahhütleri.
+                Tamamlandığında kimlik bilgileriniz netleşir; görev tanımı, çalışma modeli ve sözleşme personel
+                atamanız sonrasında İK ve yönetici akışında yürütülür.
               </p>
               {!isReviewMode ? (
                 <button
@@ -711,202 +863,181 @@ export default function OnboardingFlow() {
         )}
 
       {displayStep === 1 && (
-        <div
-          className={`rounded-2xl border border-[var(--color-border)]/80 bg-[var(--color-surface)]/40 p-6 sm:p-8 ${isReviewMode ? "opacity-[0.97]" : ""}`}
-        >
-          <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
-            <span className="font-medium text-[var(--color-text-secondary)]">Gizlilik taahhüdü.</span> Generic Music
-            World ve iş ortaklarına ait gizli bilgileri koruyacağınızı beyan edersiniz.
-          </p>
-          <div className="mt-6 max-h-48 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/40 p-4 text-left text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            <p>
-              Bu kurumsal onboarding kapsamında, size erişim verilen ticari sırlar, teknik bilgiler,
-              finansal veriler ve üçüncü taraflara ait gizli içerikleri yalnızca yetkili iş amaçlarıyla
-              kullanmayı; yetkisiz üçüncü kişilerle paylaşmamayı ve yürürlükteki politikalarımıza uymayı
-              kabul edersiniz.
-            </p>
-          </div>
-          <label
-            htmlFor="onboarding-conf-ack"
-            className="mt-6 flex cursor-pointer items-start gap-3 text-left text-sm text-[var(--color-text)]"
-          >
-            <Checkbox
-              id="onboarding-conf-ack"
-              checked={confAck}
-              onChange={(e) => setConfAck(e.target.checked)}
-              disabled={isReviewMode}
-              className="mt-0.5 shrink-0"
-            />
-            <span>Metni okudum ve gizlilik taahhüdünü kabul ediyorum.</span>
-          </label>
-          {!isReviewMode ? (
-            <div className="mt-10 flex justify-end gap-3">
-              <button type="button" onClick={() => void acceptConfidentiality()} disabled={submitting} className={btnPrimary}>
-                {submitting ? "…" : "Onayla ve devam et"}
-              </button>
+        <div className="rounded-2xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/50 p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">Gizlilik</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                Gizlilik taahhüdünü okuyup onaylamanız gerekir. Metin yalnızca açılan pencerede gösterilir.
+              </p>
             </div>
+            <span
+              className={`inline-flex shrink-0 self-start rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${agreementStepCardBadgeClass(1, progressStep, effectiveReviewStep, compliance, state)}`}
+            >
+              {getOnboardingStepStatusLabel(1, progressStep, effectiveReviewStep, compliance, state)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setNdaModalInstance((n) => n + 1);
+              setIsNdaOpen(true);
+            }}
+            className={`mt-5 w-full rounded-xl border px-4 py-2.5 text-sm font-semibold transition sm:w-auto ${
+              ndaAccepted && !isReviewMode
+                ? "border-[var(--color-border)] bg-[var(--color-surface-hover)]/50 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+                : "border-[var(--brand-yellow)]/40 bg-[var(--brand-yellow)]/15 text-[var(--color-text)] hover:bg-[var(--brand-yellow)]/25"
+            }`}
+          >
+            Sözleşmeyi Aç
+          </button>
+          {isReviewMode ? (
+            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              Salt okunur inceleme: sözleşmeyi görüntülemek için &quot;Sözleşmeyi Aç&quot; kullanın.
+            </p>
           ) : null}
         </div>
       )}
 
+      {isNdaOpen && displayStep === 1 ? (
+        <NdaAcceptanceModal
+          key={ndaModalInstance}
+          readOnly={isReviewMode}
+          alreadyAccepted={ndaAccepted}
+          acceptedAt={compliance?.agreement_accepted_at?.[AGREEMENT_KEYS.confidentiality] ?? null}
+          allowRevoke={!isOnboardingComplete(state)}
+          onRevoke={isReviewMode ? undefined : revokeNda}
+          revokeSubmitting={revokeNdaSubmitting}
+          showBack={isReviewMode || state.access_phase === "invited"}
+          onBack={
+            isReviewMode
+              ? () => setReviewStep(null)
+              : state.access_phase === "invited"
+                ? () => setStep(0)
+                : undefined
+          }
+          onClose={() => setIsNdaOpen(false)}
+          onAccept={acceptNda}
+          onAfterAcceptSuccess={() => {
+            void (async () => {
+              const comp = await loadCompliance({ silent: true, attempts: 3 });
+              const data = await loadState().catch(() => null);
+              if (data !== null && comp !== null) {
+                setStep(deriveOnboardingStepWithFallbackCompliance(data, comp));
+              } else {
+                setStep(2);
+              }
+              setReviewStep(null);
+              setIsNdaOpen(false);
+            })();
+          }}
+          submitting={ndaAgreementSubmitting}
+        />
+      ) : null}
+
       {displayStep === 2 && (
-        <div
-          className={`rounded-2xl border border-[var(--color-border)]/80 bg-[var(--color-surface)]/40 p-6 sm:p-8 ${isReviewMode ? "opacity-[0.97]" : ""}`}
-        >
-          <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
-            Çalışmalarınızdan doğan haklar ve şirket fikri mülkiyeti hakkında boş zaman
-            taahhüdüdür—ayrıntılar görev kapsamınıza göre personel sürecinde netleştirilir.
-          </p>
-          <div className="mt-6 max-h-48 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/40 p-4 text-left text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            <p>
-              Kurumsal kaynaklarla üretilen veya bunlara dayanan eserlerin ve geliştirmelerin,
-              ilgili mevzuat ve şirket politikaları çerçevesinde Generic Music tarafından kullanımına
-              ilişkin çerçeve bu taahhüt ile onaylanır. Görev tanımınıza özgü ayrıntılı hükümler,
-              personel atama ve sözleşme aşamasında ele alınacaktır.
-            </p>
+        <div className={`rounded-2xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/50 p-5 sm:p-6 ${isReviewMode ? "opacity-[0.97]" : ""}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">Fikri mülkiyet</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                Taahhüt metnini okuyup onaylamanız gerekir. Tam metin yalnızca açılan pencerede gösterilir.
+              </p>
+            </div>
+            <span
+              className={`inline-flex shrink-0 self-start rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${agreementStepCardBadgeClass(2, progressStep, effectiveReviewStep, compliance, state)}`}
+            >
+              {getOnboardingStepStatusLabel(2, progressStep, effectiveReviewStep, compliance, state)}
+            </span>
           </div>
-          <label
-            htmlFor="onboarding-ip-ack"
-            className="mt-6 flex cursor-pointer items-start gap-3 text-left text-sm text-[var(--color-text)]"
+          <button
+            type="button"
+            data-onboarding-ip-open
+            onClick={() => {
+              setIpModalInstance((n) => n + 1);
+              setIsIpOpen(true);
+            }}
+            className={`mt-5 w-full rounded-xl border px-4 py-2.5 text-sm font-semibold transition sm:w-auto ${
+              ipAccepted && !isReviewMode
+                ? "border-[var(--color-border)] bg-[var(--color-surface-hover)]/50 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+                : "border-[var(--brand-yellow)]/40 bg-[var(--brand-yellow)]/15 text-[var(--color-text)] hover:bg-[var(--brand-yellow)]/25"
+            }`}
           >
-            <Checkbox
-              id="onboarding-ip-ack"
-              checked={ipAck}
-              onChange={(e) => setIpAck(e.target.checked)}
-              disabled={isReviewMode}
-              className="mt-0.5 shrink-0"
-            />
-            <span>Metni okudum ve fikri mülkiyet çerçevesini kabul ediyorum.</span>
-          </label>
+            Sözleşmeyi Aç
+          </button>
           {!isReviewMode ? (
-            <div className="mt-10 flex justify-between gap-3">
+            <div className="mt-6 flex justify-start">
               <button type="button" onClick={() => setStep(1)} className={btnGhost}>
                 Geri
               </button>
-              <button type="button" onClick={() => void acceptIp()} disabled={submitting} className={btnPrimary}>
-                {submitting ? "…" : "Onayla ve devam et"}
-              </button>
             </div>
-          ) : null}
+          ) : (
+            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              Salt okunur inceleme: taahhüdü görüntülemek için &quot;Sözleşmeyi Aç&quot; kullanın.
+            </p>
+          )}
         </div>
       )}
 
-      {displayStep === 3 && (
+      {isIpOpen && displayStep === 2 ? (
+        <IpAcceptanceModal
+          key={ipModalInstance}
+          readOnly={isReviewMode}
+          alreadyAccepted={ipAccepted}
+          acceptedAt={compliance?.agreement_accepted_at?.[AGREEMENT_KEYS.intellectual_property] ?? null}
+          showBack
+          onBack={() => setIsIpOpen(false)}
+          onClose={() => setIsIpOpen(false)}
+          onAccept={acceptIp}
+          onAfterAcceptSuccess={() => {
+            void (async () => {
+              const comp = await loadCompliance({ silent: true, attempts: 3 });
+              const data = await loadState().catch(() => null);
+              if (data !== null && comp !== null) {
+                setStep(deriveOnboardingStepWithFallbackCompliance(data, comp));
+              } else {
+                setStep(3);
+              }
+              setReviewStep(null);
+              setIsIpOpen(false);
+            })();
+          }}
+          submitting={ipAgreementSubmitting}
+        />
+      ) : null}
+
+      {displayStep === 3 && completionViewOutOfSync ? (
         <div
-          className={`rounded-2xl border border-[var(--color-border)]/80 bg-[var(--color-surface)]/40 p-6 sm:p-8 ${isReviewMode ? "opacity-[0.97]" : ""}`}
+          className="rounded-2xl border border-amber-500/35 bg-amber-500/[0.07] px-5 py-5 text-sm text-[var(--color-text-secondary)] sm:px-6"
+          role="alert"
         >
-          <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
-            Toplam <strong className="font-semibold text-[var(--color-text)]">{GM_DNA_SECTION_COUNT}</strong>{" "}
-            alt bölüm vardır (GM DNA okuyucu ile aynı liste). Her satırda &quot;Okudum&quot; ile
-            işaretleyin (
-            <strong className="font-semibold text-[var(--color-text)]">
-              {countGmDnaOnboardingDone(compliance)}
-            </strong>{" "}
-            / {GM_DNA_SECTION_COUNT}). Ardından aşağıdaki nihai onayı işaretleyin.
+          <p className="font-medium text-[var(--color-text)]">İlerleme uyumsuzluğu</p>
+          <p className="mt-2 leading-relaxed">
+            Tamamlama ekranı açık görünüyor; kayıtlı uyumluluk adımları henüz bitmemiş. Önce{" "}
+            <strong>{ONBOARDING_STEPS[firstPipelineIncomplete!]?.label ?? "ilgili"}</strong> adımını tamamlayın.
           </p>
-          {/*
-            Avoid a short max-height scroll trap: only ~4 rows fit in max-h-56, so users completed
-            visible rows and thought they were done while the counter showed e.g. 4/14.
-            Let the page scroll so all subsections are discoverable.
-          */}
-          <div className="mt-4 min-h-[22rem] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/40 p-3">
-            {complianceLoading ? (
-              <ul className="animate-pulse space-y-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <li
-                    key={`dna-skel-${i}`}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)]/40 px-3 py-3"
-                  >
-                    <div className="h-4 min-w-0 flex-1 rounded bg-[var(--color-surface2)]" />
-                    <div className="h-7 w-16 shrink-0 rounded-lg bg-[var(--color-surface2)]" />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <ul className="space-y-2">
-                {GM_DNA_ONBOARDING_SECTION_KEYS.map((key) => {
-                  const done = compliance?.gm_dna_sections?.[key] ?? false;
-                  return (
-                    <li
-                      key={key}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)]/60 px-3 py-2 text-sm"
-                    >
-                      <span className={`text-left ${done ? "text-[var(--color-text-muted)] line-through" : ""}`}>
-                        {GM_DNA_SECTION_LABELS[key]}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={done || submitting || isReviewMode}
-                        onClick={() => {
-                          setError(null);
-                          setSubmitting(true);
-                          void postGmSection(key)
-                            .catch((e) => setError(e instanceof Error ? e.message : "Kaydedilemedi"))
-                            .finally(() => setSubmitting(false));
-                        }}
-                        className="shrink-0 rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-xs font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-40"
-                      >
-                        {done ? "Tamam" : "Okudum"}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-          {/*
-            Do not pass disabled={!dnaComplete} on the checkbox: a disabled input ignores label/box
-            clicks in browsers — if dnaComplete is wrong, onboarding is permanently blocked.
-            Gate submission on the CTA instead; acceptGmDnaFinal still validates sections + ack.
-          */}
-          <label
-            htmlFor="onboarding-gm-dna-final-ack"
-            className="mt-6 flex cursor-pointer items-start gap-3 text-left text-sm text-[var(--color-text)]"
+          <button
+            type="button"
+            onClick={() => {
+              setReviewStep(null);
+              setStep(firstPipelineIncomplete!);
+            }}
+            className="mt-4 rounded-xl bg-[var(--brand-yellow)] px-5 py-2.5 text-sm font-semibold text-[#121212]"
           >
-            <Checkbox
-              id="onboarding-gm-dna-final-ack"
-              checked={dnaFinalAck}
-              onChange={(e) => setDnaFinalAck(e.target.checked)}
-              disabled={isReviewMode}
-              className="mt-0.5 shrink-0"
-            />
-            <span>
-              Tüm GM DNA bölümlerini okuduğumu ve kurumsal çerçeveyi onayladığımı beyan ederim.
-              {!dnaComplete ? (
-                <span className="mt-1 block text-xs font-normal text-[var(--color-text-muted)]">
-                  Önce yukarıdaki tüm bölümleri &quot;Okudum&quot; ile tamamlayın; ardından bu kutuyu
-                  işaretleyip devam edin.
-                </span>
-              ) : null}
-            </span>
-          </label>
-          {!isReviewMode ? (
-            <div className="mt-10 flex justify-between gap-3">
-              <button type="button" onClick={() => setStep(2)} className={btnGhost}>
-                Geri
-              </button>
-              <button
-                type="button"
-                onClick={() => void acceptGmDnaFinal()}
-                disabled={submitting || !dnaFinalAck || !dnaComplete}
-                className={btnPrimary}
-              >
-                {submitting ? "…" : "Nihai onay ve devam"}
-              </button>
-            </div>
-          ) : null}
+            Eksik adıma git
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {displayStep === 4 && (
+      {displayStep === 3 && !completionViewOutOfSync ? (
         <div className="space-y-6">
           <div className="rounded-2xl border border-[var(--brand-yellow)]/25 bg-[var(--brand-yellow)]/[0.06] px-4 py-4 text-center sm:px-6 sm:text-left">
             <p className="text-sm font-medium text-[var(--color-text-secondary)]">
               <span aria-hidden>🎉</span> Kurumsal uyum adımlarınız tamamlandı.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
-              Gizlilik, fikri mülkiyet ve Generic Music DNA uyumluluğunuz kaydedildi. Kimlik bilgileriniz hesap
-              oluşturma aşamasındaki kayıtlarınızla eşleştirilir; ek alan doldurmanız gerekmez.
+              Gizlilik ve fikri mülkiyet taahhütleriniz kaydedildi. Kimlik bilgileriniz hesap oluşturma
+              aşamasındaki kayıtlarınızla eşleştirilir; ek alan doldurmanız gerekmez.
             </p>
           </div>
 
@@ -940,7 +1071,7 @@ export default function OnboardingFlow() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
         </div>
       </div>
 
@@ -965,7 +1096,7 @@ export default function OnboardingFlow() {
                 <li key={meta.id}>
                   <button
                     {...navProps}
-                    title={`${stepNavStatusLabel(st)} — ${meta.label}`}
+                    title={`${getOnboardingStepStatusLabel(i, progressStep, effectiveReviewStep, compliance, state)} — ${meta.label}`}
                     className={`${ONBOARDING_STEP_NAV.asideButton} transition enabled:cursor-pointer enabled:hover:bg-[var(--color-surface-hover)]/40 disabled:cursor-not-allowed disabled:opacity-40 ${stepNavChipClass(st)}`}
                     aria-current={displayStep === i ? "step" : undefined}
                   >
@@ -974,7 +1105,9 @@ export default function OnboardingFlow() {
                         {stepNavStatusIcon(st)}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className={ONBOARDING_STEP_NAV.status}>{stepNavStatusLabel(st)}</span>
+                        <span className={ONBOARDING_STEP_NAV.status}>
+                          {getOnboardingStepStatusLabel(i, progressStep, effectiveReviewStep, compliance, state)}
+                        </span>
                         <span className={ONBOARDING_STEP_NAV.title}>{meta.label}</span>
                         <span className={ONBOARDING_STEP_NAV.hint}>{meta.hint}</span>
                       </span>
@@ -985,7 +1118,7 @@ export default function OnboardingFlow() {
             })}
           </ol>
         </div>
-        {progressStep === 4 ? <OnboardingInfoHints /> : null}
+        {progressStep === 3 ? <OnboardingInfoHints /> : null}
       </aside>
     </div>
   );

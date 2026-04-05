@@ -3,6 +3,7 @@ import { getApiUser } from "@/lib/version/api-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { isPostgrestSchemaError } from "@/lib/supabase/missingColumn";
 import { AGREEMENT_KEYS, type AgreementKey } from "@/lib/compliance/constants";
+import { aggregateActiveAgreements } from "@/lib/compliance/userAgreementAcceptances";
 import {
   GM_DNA_ONBOARDING_SECTION_KEYS,
   GM_DNA_SECTION_COUNT,
@@ -29,8 +30,14 @@ export async function GET(request: NextRequest) {
     gm_dna_final: false,
   };
 
+  const agreement_accepted_at: Partial<Record<AgreementKey, string>> = {};
+
   const [acc, prog] = await Promise.all([
-    supabase.from("user_agreement_acceptances").select("agreement_key").eq("user_id", user.id),
+    supabase
+      .from("user_agreement_acceptances")
+      .select("agreement_key, agreement_version, accepted_at")
+      .eq("user_id", user.id)
+      .is("revoked_at", null),
     supabase.from("user_gm_dna_section_progress").select("section_key").eq("user_id", user.id),
   ]);
 
@@ -40,10 +47,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: m }, { status: 500 });
     }
   } else {
-    for (const row of acc.data ?? []) {
-      const k = row.agreement_key as AgreementKey | undefined;
-      if (k && k in agreements) agreements[k] = true;
+    const { activeKeys, agreementAcceptedAt } = aggregateActiveAgreements(acc.data ?? []);
+    for (const k of AGREEMENT_LIST) {
+      agreements[k] = activeKeys.has(k);
     }
+    Object.assign(agreement_accepted_at, agreementAcceptedAt);
   }
 
   const gmDone = new Set<GmDnaSectionKey>();
@@ -61,6 +69,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     agreements,
+    agreement_accepted_at,
     agreement_keys_required: AGREEMENT_LIST,
     gm_dna_sections_completed: gmDone.size,
     gm_dna_sections_total: GM_DNA_SECTION_COUNT,

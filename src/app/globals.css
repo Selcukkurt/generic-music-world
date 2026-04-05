@@ -118,6 +118,13 @@ select {
   appearance: none;
 }
 
+/* Native check/radio must keep platform drawing; blanket `appearance: none` on input hides the checkmark. */
+input[type="checkbox"],
+input[type="radio"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,

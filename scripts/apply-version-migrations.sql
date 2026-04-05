@@ -649,6 +649,20 @@ CREATE POLICY "RBAC directory reads agreement acceptances"
   ON public.user_agreement_acceptances FOR SELECT TO authenticated
   USING (public.can_read_rbac_user_directory(auth.uid()));
 
+ALTER TABLE public.user_agreement_acceptances
+  ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS locale TEXT,
+  ADD COLUMN IF NOT EXISTS acceptance_source TEXT;
+
+ALTER TABLE public.user_agreement_acceptances
+  ALTER COLUMN acceptance_source SET DEFAULT 'onboarding';
+
+DROP POLICY IF EXISTS "Users update own agreement acceptances" ON public.user_agreement_acceptances;
+CREATE POLICY "Users update own agreement acceptances"
+  ON public.user_agreement_acceptances FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 CREATE TABLE IF NOT EXISTS public.user_gm_dna_section_progress (
   user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
   section_key TEXT NOT NULL,

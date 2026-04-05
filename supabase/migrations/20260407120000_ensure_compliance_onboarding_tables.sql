@@ -36,6 +36,21 @@ CREATE POLICY "RBAC directory reads agreement acceptances"
   ON public.user_agreement_acceptances FOR SELECT TO authenticated
   USING (public.can_read_rbac_user_directory(auth.uid()));
 
+-- Align with 20260408120000_user_agreement_revoke_and_metadata.sql when table already existed without these columns
+ALTER TABLE public.user_agreement_acceptances
+  ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS locale TEXT,
+  ADD COLUMN IF NOT EXISTS acceptance_source TEXT;
+
+ALTER TABLE public.user_agreement_acceptances
+  ALTER COLUMN acceptance_source SET DEFAULT 'onboarding';
+
+DROP POLICY IF EXISTS "Users update own agreement acceptances" ON public.user_agreement_acceptances;
+CREATE POLICY "Users update own agreement acceptances"
+  ON public.user_agreement_acceptances FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- ---------------------------------------------------------------------------
 -- GM DNA onboarding: one row per completed section (no per-user DNA booleans)
 -- ---------------------------------------------------------------------------

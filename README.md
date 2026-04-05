@@ -63,6 +63,21 @@ supabase db push
 
 After migration, the RBAC page (`/system/rbac`) should load users without errors.
 
+### After onboarding / compliance migrations (e.g. `revoked_at`)
+
+This repo does **not** use Prisma — skip `prisma generate`.
+
+1. **Regenerate Supabase TypeScript types** (optional; run against the **same** project you migrated):
+   ```bash
+   npm run db:gen-types
+   ```
+   Requires a [linked](https://supabase.com/docs/reference/cli/supabase-link) project (`supabase link`). Writes `src/lib/supabase/database.types.ts`.  
+   Until you adopt `createClient<Database>()` app‑wide, hand-maintained row shapes stay in `src/lib/compliance/userAgreementAcceptances.ts`.
+
+2. **Restart the dev server** — stop the current process (Ctrl+C), then `npm run dev` (port **3005**).
+
+3. **Reload onboarding** — hard refresh the page (Cmd+Shift+R / Ctrl+Shift+R) or open `/onboarding` in a fresh tab so the client refetches compliance state.
+
 ---
 
 Rollback için: git checkout main && git pull && git checkout tags/GMW-2026-02-10-ROLLBACK

@@ -28,6 +28,7 @@ export async function getGmDnaAcceptance(userId: string): Promise<GmDnaAcceptanc
     .select("agreement_version, accepted_at")
     .eq("user_id", userId)
     .eq("agreement_key", GM_DNA_AGREEMENT_KEY)
+    .is("revoked_at", null)
     .order("accepted_at", { ascending: false })
     .limit(1)
     .maybeSingle();

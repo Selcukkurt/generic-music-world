@@ -1,13 +1,9 @@
-import { AGREEMENT_KEYS, type AgreementKey } from "@/lib/compliance/constants";
-import {
-  GM_DNA_ONBOARDING_SECTION_KEYS,
-  GM_DNA_SECTION_COUNT,
-} from "@/content/compliance/gm-dna-sections";
+import { AGREEMENT_KEYS } from "@/lib/compliance/constants";
 import { isOnboardingComplete } from "@/lib/auth/onboardingStatus";
 
-/** Snapshot shape from GET /api/me/compliance/status (subset used for routing). */
+/** Snapshot shape from GET /api/me/compliance/status (subset used for routing). GM DNA fields stay for API parity; wizard steps ignore them. */
 export type WizardComplianceSnapshot = {
-  agreements: Record<AgreementKey, boolean>;
+  agreements: Record<string, boolean>;
   gm_dna_sections: Record<string, boolean>;
   gm_dna_sections_completed: number;
   gm_dna_sections_total: number;
@@ -20,46 +16,29 @@ export type OnboardingProgressProfile = {
   compliance_completed_at?: string | null;
 };
 
-function countGmDnaOnboardingDone(c: WizardComplianceSnapshot): number {
-  return GM_DNA_ONBOARDING_SECTION_KEYS.filter((k) => Boolean(c.gm_dna_sections?.[k])).length;
-}
-
-function isGmDnaOnboardingComplete(c: WizardComplianceSnapshot): boolean {
-  if (countGmDnaOnboardingDone(c) >= GM_DNA_SECTION_COUNT) return true;
-  return (
-    typeof c.gm_dna_sections_completed === "number" &&
-    c.gm_dna_sections_completed >= GM_DNA_SECTION_COUNT
-  );
-}
-
 /**
- * Single source of truth for wizard position: `app_users` access/completion fields +
- * `user_agreement_acceptances` + `user_gm_dna_section_progress` (via compliance snapshot).
+ * Wizard position from `app_users` + agreement snapshot.
  *
- * Step indices match `ONBOARDING_STEPS` in OnboardingFlow:
- * 0 welcome, 1 confidentiality, 2 IP, 3 GM DNA, 4 completion / finalize-wait.
+ * Step indices (4 steps): 0 welcome, 1 Gizlilik, 2 Fikri mülkiyet, 3 Tamamlama / finalize.
+ * GM DNA is out of onboarding; handled elsewhere post-onboarding.
  */
 export function derivePersistedOnboardingStep(
   state: OnboardingProgressProfile,
   compliance: WizardComplianceSnapshot
 ): number {
-  if (isOnboardingComplete(state)) return 4;
+  if (isOnboardingComplete(state)) return 3;
 
   const conf = compliance.agreements[AGREEMENT_KEYS.confidentiality];
   const ip = compliance.agreements[AGREEMENT_KEYS.intellectual_property];
-  const dnaFinal = compliance.agreements[AGREEMENT_KEYS.gm_dna_final];
 
-  if (dnaFinal) return 4;
+  if (conf && ip) return 3;
 
-  if (!ip) {
-    if (!conf) {
-      if (state.access_phase === "invited") return 0;
-      return 1;
-    }
-    return 2;
+  if (!conf) {
+    if (state.access_phase === "invited") return 0;
+    return 1;
   }
 
-  if (!isGmDnaOnboardingComplete(compliance)) return 3;
+  if (!ip) return 2;
 
   return 3;
 }
@@ -72,8 +51,8 @@ export function deriveOnboardingStepWithFallbackCompliance(
   compliance: WizardComplianceSnapshot | null
 ): number {
   if (compliance) return derivePersistedOnboardingStep(state, compliance);
-  if (isOnboardingComplete(state)) return 4;
-  if (state.compliance_completed_at) return 4;
+  if (isOnboardingComplete(state)) return 3;
+  if (state.compliance_completed_at) return 3;
   if (state.access_phase === "invited") return 0;
   return 1;
 }

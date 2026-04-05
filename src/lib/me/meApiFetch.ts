@@ -7,5 +7,9 @@ export async function meApiFetch(path: string, init?: RequestInit): Promise<Resp
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(path, { ...init, headers });
+  const url =
+    path.startsWith("http://") || path.startsWith("https://")
+      ? path
+      : `${typeof window !== "undefined" ? window.location.origin : ""}${path.startsWith("/") ? path : `/${path}`}`;
+  return fetch(url, { ...init, headers });
 }
