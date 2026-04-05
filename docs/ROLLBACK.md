@@ -13,6 +13,33 @@
 | **RBAC-M04-STABLE** | 4193d4e | RBAC + M04 İK & Organizasyon – stabilization checkpoint |
 | **RB-024** | — | Onboarding end-to-end stabilized; first/last name; invite identity; completion API & state; final waiting screen; booking user test passed |
 | **RB-025** | a53c5b6 | Onboarding milestone: load path + persistence + review mode + UX + internal benchmarks (LOCKED) |
+| **RB-026** | 97b6fc5 | Onboarding stabilization: 4-step flow, NDA/IP agreements, locale + RLS, completion/activation landing |
+
+---
+
+## RB-026: Onboarding stabilization (checkpoint)
+
+**Tag:** `RB-026` (annotated) — **`git rev-parse RB-026^{commit}`** points at this checkpoint on `main`.  
+**Commit:** `97b6fc5` (rollback notes on tip of `07c9cbb` feature checkpoint)  
+**Scope:** Simplified onboarding, agreement storage, and access policies aligned with hub/activation.
+
+**Summary:**
+- Onboarding flow: **welcome → confidentiality → intellectual_property → completion** (GM DNA **not** in wizard; retained for later product use).
+- **Completion / compliance** state derivation fixed; **legacy privacy ↔ confidentiality** mapping kept compatible.
+- **`user_agreement_acceptances`:** `locale` and revoke/metadata columns (migrations); **user-scoped RLS** reinforced in ensure/repair paths.
+- **`user_gm_dna_section_progress`:** **user-scoped RLS** (with directory read policy where applicable) via compliance/onboarding table migrations.
+- **NDA/IP** in-app modals, agreement + revoke API surfaces, regression guard hooks in development.
+- Post-wizard routing lands on **activation waiting** (`hub-pending` / gate) as intended.
+
+**Stable state:** Onboarding + agreement persistence path stable for current Dev scope.
+
+**Rollback target:** Prior milestone **`RB-025`** (or **`RB-024`** if a deeper rollback is required):
+
+```bash
+git checkout RB-025
+```
+
+**Next recommended work:** Apply Supabase migrations to target environments; smoke-test invite → onboarding → waiting screen.
 
 ---
 
@@ -57,6 +84,7 @@ git checkout RB-024
 | RB-021 | 2026-03-21 | 14:49 | Local + Dev | GMW-2026-03-RB021 | System / RBAC | Active | FALSE | TRUE | FALSE | FALSE |
 | RB-024 | 2026-03-28 | 12:00 | Local + Dev | RB-024 | Onboarding / Hub pipeline | Stabil | TRUE | TRUE | FALSE | FALSE |
 | **RB-025** | **2026-03-28** | **—** | **Local + Dev** | **RB-025** | **Onboarding** | **Stabil** | **TRUE** | **TRUE** | **FALSE** | **FALSE** |
+| **RB-026** | **2026-03-28** | **—** | **Local + Dev** | **RB-026** | **Onboarding / Compliance** | **Stabil** | **TRUE** | **TRUE** | **FALSE** | **FALSE** |
 
 **RB-021 – Yapılan İşlem Özeti:**
 RBAC enforcement phase started.
@@ -105,6 +133,28 @@ Bu checkpoint kapsamında **personel aktivasyon** implementasyonu başlatılmad�
 
 **RB-024 – Sıradaki Teknik İş:**
 - Personel atama / aktivasyon akışı (admin; `awaiting_activation` → `active`)
+
+---
+
+**RB-026 – Yapılan İşlem Özeti:**
+- Onboarding sadeleştirildi: **Karşılama → Gizlilik (NDA) → Fikri mülkiyet → Tamamlandı**; GM DNA sihirbazda yok (içerik/altyapı sonrası kullanım için duruyor).
+- Tamamlanma / uyum durumu uyumsuzluğu giderildi; eski **privacy / confidentiality** eşlemesi korundu.
+- `user_agreement_acceptances`: **locale** kolonu; iptal/üstveri migrasyonları; kullanıcı kapsamı **RLS**.
+- `user_gm_dna_section_progress`: kullanıcı kapsamı **RLS** (uyum migrasyonlarıyla).
+- NDA/IP modalları, anlaşma API’leri; aktivasyon bekleme ekranına doğru yönlendirme.
+
+**RB-026 – Son Stabil Durum:** Stabil (Dev – onboarding + uyum tabloları)
+
+**RB-026 – Bilinen Sorun:** —
+
+**RB-026 – Risk Seviyesi:** Low–Medium (hedef ortamda migration uygulanmalı)
+
+**RB-026 – Rollback Hedefi:** RB-025
+
+**RB-026 – Git:** Annotated tag `RB-026` (rollback: `git checkout RB-026` veya önceki: `git checkout RB-025`).
+
+**RB-026 – Sıradaki Teknik İş:**
+- Hedef Supabase ortamlarında migrasyon doğrulaması; davet → onboarding → bekleme ekranı duman testi
 
 ---
 
