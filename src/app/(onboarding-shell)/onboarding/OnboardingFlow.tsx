@@ -286,6 +286,8 @@ export default function OnboardingFlow() {
   const [complianceLoading, setComplianceLoading] = useState(true);
 
   const finalizeInFlightRef = useRef(false);
+  /** After a successful POST /api/me/onboarding/complete this session — avoids duplicate calls while effect deps churn. */
+  const postedOnboardingCompleteOkRef = useRef(false);
   const [finalizeRetryNonce, setFinalizeRetryNonce] = useState(0);
   /** NDA modal is user-triggered only — never auto-opened from step/hydration/fetch */
   const [isNdaOpen, setIsNdaOpen] = useState(false);
@@ -401,6 +403,56 @@ export default function OnboardingFlow() {
       return loadState();
     },
     [loadState]
+  );
+
+  /**
+   * Single implementation for POST /api/me/onboarding/complete (authenticated via meApiFetch bearer + cookies).
+   * Called from the step-3 effect and from IP acceptance success so the request always runs once onboarding is done.
+   */
+  const runFinalizeOnboardingComplete = useCallback(
+    async (profile: OnboardingState | null, signal?: { cancelled: boolean }) => {
+      if (!profile) return;
+      if (postedOnboardingCompleteOkRef.current) return;
+      if (finalizeInFlightRef.current) return;
+      finalizeInFlightRef.current = true;
+      setSubmitting(true);
+      setError(null);
+      try {
+        let p = profile;
+        if (p.access_phase === "invited" || p.access_phase === "pending") {
+          p = await ensureOnboardingStartIfNeeded(p);
+        }
+        const onboardEmail = p.email?.trim();
+        console.info("[OnboardingFlow] POST /api/me/onboarding/complete (finalize; not start/state)", {
+          finalizeRetryNonce,
+          hasOnboardEmail: Boolean(onboardEmail),
+        });
+        const res = await meApiFetch("/api/me/onboarding/complete", {
+          method: "POST",
+          credentials: "include",
+          body: JSON.stringify(onboardEmail ? { email: onboardEmail } : {}),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = (j as { error?: string }).error ?? "Kayıt tamamlanamadı";
+          console.error("[OnboardingFlow] POST /api/me/onboarding/complete failed:", res.status, detail);
+          throw new Error(detail);
+        }
+        postedOnboardingCompleteOkRef.current = true;
+        await supabaseBrowser.auth.refreshSession();
+        if (!signal?.cancelled) await loadState();
+      } catch (e) {
+        if (!signal?.cancelled) {
+          const message = e instanceof Error ? e.message : "Kayıt tamamlanamadı";
+          console.error("[OnboardingFlow] finalize onboarding error:", message, e);
+          setError(message);
+        }
+      } finally {
+        finalizeInFlightRef.current = false;
+        if (!signal?.cancelled) setSubmitting(false);
+      }
+    },
+    [finalizeRetryNonce, ensureOnboardingStartIfNeeded, loadState]
   );
 
   const progressStep = Math.min(Math.max(step, 0), LAST_ONBOARDING_STEP_INDEX);
@@ -538,62 +590,13 @@ export default function OnboardingFlow() {
       finalizeInFlightRef.current = false;
       return;
     }
-    if (state && isOnboardingComplete(state)) {
-      return;
-    }
-    if (finalizeInFlightRef.current) return;
-    finalizeInFlightRef.current = true;
-    let cancelled = false;
-    (async () => {
-      setSubmitting(true);
-      setError(null);
-      try {
-        if (state && (state.access_phase === "invited" || state.access_phase === "pending")) {
-          await ensureOnboardingStartIfNeeded(state);
-        }
-        const onboardEmail = state?.email?.trim();
-        console.info("[OnboardingFlow] POST /api/me/onboarding/complete (finalize; not start/state)", {
-          finalizeRetryNonce,
-          hasOnboardEmail: Boolean(onboardEmail),
-        });
-        const res = await meApiFetch("/api/me/onboarding/complete", {
-          method: "POST",
-          body: JSON.stringify(onboardEmail ? { email: onboardEmail } : {}),
-        });
-        const j = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const detail = (j as { error?: string }).error ?? "Kayıt tamamlanamadı";
-          console.error("[OnboardingFlow] POST /api/me/onboarding/complete failed:", res.status, detail);
-          throw new Error(detail);
-        }
-        await supabaseBrowser.auth.refreshSession();
-        if (!cancelled) await loadState();
-        finalizeInFlightRef.current = false;
-      } catch (e) {
-        finalizeInFlightRef.current = false;
-        const message = e instanceof Error ? e.message : "Kayıt tamamlanamadı";
-        if (!cancelled) {
-          console.error("[OnboardingFlow] finalize onboarding error:", message, e);
-          setError(message);
-        }
-      } finally {
-        if (!cancelled) setSubmitting(false);
-      }
-    })();
+    if (!state) return;
+    const sig = { cancelled: false };
+    void runFinalizeOnboardingComplete(state, sig);
     return () => {
-      cancelled = true;
+      sig.cancelled = true;
     };
-  }, [
-    step,
-    state?.email,
-    state?.access_phase,
-    state?.compliance_completed_at,
-    state?.onboarding_completed_at,
-    state?.onboarding_status,
-    finalizeRetryNonce,
-    ensureOnboardingStartIfNeeded,
-    loadState,
-  ]);
+  }, [step, state, finalizeRetryNonce, runFinalizeOnboardingComplete]);
 
   const retryLoad = () => {
     setError(null);
@@ -1043,6 +1046,10 @@ export default function OnboardingFlow() {
               }
               setReviewStep(null);
               setIsIpOpen(false);
+              const profileForFinalize = data ?? (await loadState().catch(() => null));
+              if (profileForFinalize) {
+                await runFinalizeOnboardingComplete(profileForFinalize);
+              }
             })();
           }}
           submitting={ipAgreementSubmitting}

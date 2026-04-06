@@ -7,6 +7,7 @@ import { aggregateActiveAgreements } from "@/lib/compliance/userAgreementAccepta
 import {
   finalizeNdaAcceptanceDelivery,
   ndaDeliveryResponseFields,
+  type DebugNdaDeliveryPayload,
   type FinalizeNdaAcceptanceDeliveryResult,
 } from "@/lib/compliance/finalizeNdaAcceptanceDelivery";
 import { getRequestClientIp } from "@/lib/http/clientIp";
@@ -193,6 +194,11 @@ export async function POST(request: NextRequest) {
   });
   if (recipientEmail) {
     const ndaDeliveryAtIso = new Date().toISOString();
+    console.info("[debugNdaDelivery]", {
+      stage: "onboarding_before_finalizeNdaAcceptanceDelivery",
+      userId: user.id,
+      recipientEmail,
+    });
     ndaOutcome = await finalizeNdaAcceptanceDelivery({
       userId: user.id,
       email: recipientEmail,
@@ -200,9 +206,19 @@ export async function POST(request: NextRequest) {
       acceptedAtIso: ndaDeliveryAtIso,
       agreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.confidentiality],
     });
+    console.info("[debugNdaDelivery]", {
+      stage: "onboarding_after_finalizeNdaAcceptanceDelivery",
+      userId: user.id,
+      debugNdaDelivery: ndaOutcome.debugNdaDelivery ?? null,
+    });
   } else {
     console.warn("[onboarding/complete] NDA e-mail skipped: no recipient (body, app_users, JWT all empty)", {
       userId: user.id,
+    });
+    console.info("[debugNdaDelivery]", {
+      stage: "onboarding_finalizeNdaAcceptanceDelivery_not_called",
+      userId: user.id,
+      reason: "no_recipient_email",
     });
   }
 
@@ -465,8 +481,21 @@ export async function POST(request: NextRequest) {
     handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
   });
 
+  const debugNdaNoRecipient: DebugNdaDeliveryPayload = {
+    reachedFinalizeNdaAcceptanceDelivery: false,
+    pdfByteLength: null,
+    storageUploadAttempted: false,
+    storageUploadSucceeded: false,
+    storageVerifyWarning: false,
+    emailAttempted: false,
+    emailSkipped: true,
+    resendSucceeded: false,
+    resendErrorMessage: null,
+  };
+
   return NextResponse.json({
     ok: true,
     ...ndaDeliveryResponseFields(ndaOutcome, "[onboarding/complete]"),
+    debugNdaDelivery: ndaOutcome?.debugNdaDelivery ?? debugNdaNoRecipient,
   });
 }

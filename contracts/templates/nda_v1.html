@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{document_title}}</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.45;
+        color: #1a1a1a;
+        margin: 0;
+        padding: 0;
+      }
+      h1 {
+        font-size: 16pt;
+        font-weight: 700;
+        margin: 0 0 1rem;
+        text-align: center;
+        letter-spacing: 0.02em;
+      }
+      .meta {
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.25rem;
+        background: #fafafa;
+        font-size: 10pt;
+      }
+      .meta dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 9.5rem 1fr;
+        gap: 0.35rem 0.75rem;
+      }
+      .meta dt {
+        font-weight: 600;
+        color: #444;
+      }
+      .meta dd {
+        margin: 0;
+      }
+      .sections section {
+        margin-bottom: 1rem;
+      }
+      .sections h2 {
+        font-size: 11pt;
+        font-weight: 700;
+        margin: 0 0 0.5rem;
+        color: #111;
+      }
+      .sections p {
+        margin: 0 0 0.5rem;
+        text-align: justify;
+      }
+      .signfoot {
+        margin-top: 1.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #ddd;
+        font-size: 9pt;
+        color: #555;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>{{document_title}}</h1>
+
+    <div class="meta">
+      <dl>
+        <dt>Ad Soyad</dt>
+        <dd>{{full_name}}</dd>
+        <dt>E-posta</dt>
+        <dd>{{email}}</dd>
+        <dt>IP adresi</dt>
+        <dd>{{ip_address}}</dd>
+        <dt>Onay tarihi</dt>
+        <dd>{{accepted_at}}</dd>
+        <dt>Belge tarihi</dt>
+        <dd>{{date}}</dd>
+        <dt>Sözleşme sürümü</dt>
+        <dd>{{agreement_version}}</dd>
+      </dl>
+    </div>
+
+    <div class="sections">{{SECTIONS_HTML}}</div>
+
+    <p class="signfoot">{{signfoot}}</p>
+  </body>
+</html>

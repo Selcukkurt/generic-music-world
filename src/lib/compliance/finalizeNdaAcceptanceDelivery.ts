@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { buildGmwDarkCardEmailHtml } from "@/lib/email/gmwTransactionalEmail";
 import { generateNDAPdf } from "@/lib/pdf/generateNDA";
 import { Resend } from "resend";
 
@@ -9,14 +10,6 @@ const PDF_STALL_LOG_INTERVAL_MS = 25_000;
 const CONTRACTS_BUCKET = "contracts";
 const NDA_OBJECT_PATH = (userId: string) => `generated/${userId}/nda_v1.pdf`;
 const SIGNED_URL_SECONDS = 60 * 60 * 24 * 7;
-
-function escapeEmailHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 async function loadAppUserDisplayName(
   supabase: SupabaseClient,
@@ -57,6 +50,33 @@ export type FinalizeNdaAcceptanceDeliveryInput = {
   agreementVersion: string;
 };
 
+/** Temporary onboarding NDA pipeline observability (remove when stable). */
+export type DebugNdaDeliveryPayload = {
+  reachedFinalizeNdaAcceptanceDelivery: boolean;
+  pdfByteLength: number | null;
+  storageUploadAttempted: boolean;
+  storageUploadSucceeded: boolean;
+  storageVerifyWarning: boolean;
+  emailAttempted: boolean;
+  emailSkipped: boolean;
+  resendSucceeded: boolean;
+  resendErrorMessage: string | null;
+};
+
+function mergeDebugNdaDelivery(p: Partial<DebugNdaDeliveryPayload>): DebugNdaDeliveryPayload {
+  return {
+    reachedFinalizeNdaAcceptanceDelivery: p.reachedFinalizeNdaAcceptanceDelivery ?? true,
+    pdfByteLength: p.pdfByteLength ?? null,
+    storageUploadAttempted: p.storageUploadAttempted ?? false,
+    storageUploadSucceeded: p.storageUploadSucceeded ?? false,
+    storageVerifyWarning: p.storageVerifyWarning ?? false,
+    emailAttempted: p.emailAttempted ?? false,
+    emailSkipped: p.emailSkipped ?? true,
+    resendSucceeded: p.resendSucceeded ?? false,
+    resendErrorMessage: p.resendErrorMessage ?? null,
+  };
+}
+
 export type FinalizeNdaAcceptanceDeliveryResult = {
   pdf_generated: boolean;
   storage_uploaded: boolean;
@@ -67,6 +87,7 @@ export type FinalizeNdaAcceptanceDeliveryResult = {
   storagePath?: string;
   signedUrl?: string;
   error?: string;
+  debugNdaDelivery?: DebugNdaDeliveryPayload;
 };
 
 function finalizeSuccess(
@@ -77,7 +98,8 @@ function finalizeSuccess(
     partial.storage_uploaded &&
     partial.signed_url_created &&
     partial.email_sent;
-  return { ...partial, success };
+  const { debugNdaDelivery, ...rest } = partial;
+  return { ...rest, success, ...(debugNdaDelivery ? { debugNdaDelivery } : {}) };
 }
 
 export function ndaDeliveryResponseFields(
@@ -126,12 +148,19 @@ export async function finalizeNdaAcceptanceDelivery(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[finalizeNdaAcceptanceDelivery] unexpected:", msg);
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      emailSkipped: true,
+      resendErrorMessage: msg,
+    });
+    console.info("[debugNdaDelivery]", { stage: "finalize_throw", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: false,
       storage_uploaded: false,
       signed_url_created: false,
       email_sent: false,
       error: msg,
+      debugNdaDelivery,
     });
   }
 }
@@ -141,12 +170,19 @@ async function runNdaAcceptanceDelivery(
 ): Promise<FinalizeNdaAcceptanceDeliveryResult> {
   const email = input.email?.trim();
   if (!email) {
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      emailSkipped: true,
+      resendErrorMessage: "Missing user email for NDA delivery",
+    });
+    console.info("[debugNdaDelivery]", { stage: "no_recipient_email", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: false,
       storage_uploaded: false,
       signed_url_created: false,
       email_sent: false,
       error: "Missing user email for NDA delivery",
+      debugNdaDelivery,
     });
   }
 
@@ -155,12 +191,20 @@ async function runNdaAcceptanceDelivery(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      emailSkipped: true,
+      resendErrorMessage:
+        "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for NDA storage",
+    });
+    console.info("[debugNdaDelivery]", { stage: "storage_env_missing", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: false,
       storage_uploaded: false,
       signed_url_created: false,
       email_sent: false,
       error: "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for NDA storage",
+      debugNdaDelivery,
     });
   }
 
@@ -189,16 +233,30 @@ async function runNdaAcceptanceDelivery(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[finalizeNdaAcceptanceDelivery] PDF generation:", msg);
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      pdfByteLength: null,
+      emailSkipped: true,
+      resendErrorMessage: `NDA PDF generation failed: ${msg}`,
+    });
+    console.info("[debugNdaDelivery]", { stage: "pdf_failed", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: false,
       storage_uploaded: false,
       signed_url_created: false,
       email_sent: false,
       error: `NDA PDF generation failed: ${msg}`,
+      debugNdaDelivery,
     });
   } finally {
     clearInterval(pdfStallTimer);
   }
+
+  const pdfByteLength = pdfBuffer.length;
+  console.info("[debugNdaDelivery]", {
+    stage: "pdf_ok",
+    pdfByteLength,
+  });
 
   const storagePath = NDA_OBJECT_PATH(input.userId);
   console.info(`${NDA_FLOW_LOG} 6. storage upload started`, { storagePath, bucket: CONTRACTS_BUCKET });
@@ -211,6 +269,15 @@ async function runNdaAcceptanceDelivery(
   if (uploadError) {
     const msg = `NDA storage upload failed: ${uploadError.message}`;
     console.error("[finalizeNdaAcceptanceDelivery]", msg);
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      pdfByteLength,
+      storageUploadAttempted: true,
+      storageUploadSucceeded: false,
+      emailSkipped: true,
+      resendErrorMessage: msg,
+    });
+    console.info("[debugNdaDelivery]", { stage: "storage_upload_failed", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: true,
       storage_uploaded: false,
@@ -218,10 +285,38 @@ async function runNdaAcceptanceDelivery(
       email_sent: false,
       storagePath,
       error: msg,
+      debugNdaDelivery,
     });
   }
 
   console.info(`${NDA_FLOW_LOG} 7. storage upload finished`, { storagePath });
+
+  const { data: verifyBlob, error: downloadErr } = await supabaseAdmin.storage
+    .from(CONTRACTS_BUCKET)
+    .download(storagePath);
+  let verifyBytes = 0;
+  if (verifyBlob) {
+    try {
+      verifyBytes = (await verifyBlob.arrayBuffer()).byteLength;
+    } catch {
+      verifyBytes = 0;
+    }
+  }
+  console.info("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD", {
+    storagePath,
+    success: !downloadErr && verifyBytes > 0,
+    downloadError: downloadErr?.message ?? null,
+    downloadedByteLength: verifyBytes,
+  });
+  const storageVerifyWarning = Boolean(downloadErr || verifyBytes === 0);
+  if (downloadErr || verifyBytes === 0) {
+    console.warn("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD_WARN", {
+      storagePath,
+      downloadErr: downloadErr?.message ?? null,
+      verifyBytes,
+      note: "Upload succeeded — continuing to signed URL + email",
+    });
+  }
 
   let signedUrl: string | undefined;
   console.info(`${NDA_FLOW_LOG} 8. signed URL started`, { storagePath });
@@ -245,6 +340,17 @@ async function runNdaAcceptanceDelivery(
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM ?? process.env.RESEND_FROM;
   if (!apiKey || !fromAddress) {
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      pdfByteLength,
+      storageUploadAttempted: true,
+      storageUploadSucceeded: true,
+      storageVerifyWarning,
+      emailSkipped: true,
+      resendErrorMessage:
+        "RESEND_API_KEY and EMAIL_FROM (or RESEND_FROM) must be set for NDA confirmation e-mail (storage upload completed).",
+    });
+    console.info("[debugNdaDelivery]", { stage: "email_skipped_resend_config", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: true,
       storage_uploaded: true,
@@ -254,20 +360,23 @@ async function runNdaAcceptanceDelivery(
       signedUrl,
       error:
         "RESEND_API_KEY and EMAIL_FROM (or RESEND_FROM) must be set for NDA confirmation e-mail (storage upload completed).",
+      debugNdaDelivery,
     });
   }
   const from = `Generic Music World <${fromAddress}>`;
 
   const resend = new Resend(apiKey);
-  const safeName = escapeEmailHtml(fullName);
-  const linkBlock =
-    signedUrl != null
-      ? (() => {
-          const href = signedUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-          return `<p>You can also download the same document using this link (private, expires in 7 days):<br />
-<a href="${href}">Download NDA PDF</a></p>`;
-        })()
-      : "<p>A direct download link could not be generated; please use the attached PDF.</p>";
+
+  const onboardingCompleteEmailHtml = buildGmwDarkCardEmailHtml({
+    headlineHtml: "GMW onboarding süreciniz tamamlandı",
+    bodyHtml: `<p style="margin:0;font-size:15px;line-height:1.55;color:#d1d5db;">
+Hesabınız şu anda aktif değildir. Yetkili tarafından personel atamanız gerçekleştirildikten sonra tarafınıza bilgilendirme e-postası gönderilecektir. Bu e-postayı aldıktan sonra sisteme giriş yapabilirsiniz.
+</p>
+<p style="margin:16px 0 0 0;font-size:15px;line-height:1.55;color:#d1d5db;">
+Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığınız sözleşmenin bir kopyasını bu e-postanın ekinde bulabilirsiniz.
+</p>`,
+    signatureLine: "Generic Music World",
+  });
 
   console.info(`${NDA_FLOW_LOG} 10. email send started`, { to: email });
   console.info("[nda-email-debug] Resend send — recipient", { to: email });
@@ -279,11 +388,8 @@ async function runNdaAcceptanceDelivery(
     resendResult = await resend.emails.send({
       from,
       to,
-      subject: "NDA Agreement Confirmation",
-      html: `<p>Hello ${safeName},</p>
-<p>Thank you for accepting the non-disclosure agreement. A copy of your agreement is attached to this message.</p>
-${linkBlock}
-<p>— Generic Music World</p>`,
+      subject: "GMW Onboarding Süreciniz Tamamlandı",
+      html: onboardingCompleteEmailHtml,
       attachments: [{ filename: "nda_v1.pdf", content: pdfBuffer, contentType: "application/pdf" }],
     });
   } catch (error) {
@@ -291,6 +397,18 @@ ${linkBlock}
     const msg =
       error instanceof Error ? error.message : `NDA e-mail send threw: ${String(error)}`;
     console.error("[finalizeNdaAcceptanceDelivery]", msg);
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      pdfByteLength,
+      storageUploadAttempted: true,
+      storageUploadSucceeded: true,
+      storageVerifyWarning,
+      emailAttempted: true,
+      emailSkipped: false,
+      resendSucceeded: false,
+      resendErrorMessage: msg,
+    });
+    console.info("[debugNdaDelivery]", { stage: "resend_throw", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: true,
       storage_uploaded: true,
@@ -299,6 +417,7 @@ ${linkBlock}
       storagePath,
       signedUrl,
       error: msg,
+      debugNdaDelivery,
     });
   }
 
@@ -316,6 +435,18 @@ ${linkBlock}
     console.error("ONBOARDING MAIL ERROR:", mailError);
     const msg = `NDA e-mail send failed: ${mailError.message}`;
     console.error("[finalizeNdaAcceptanceDelivery]", msg);
+    const debugNdaDelivery = mergeDebugNdaDelivery({
+      reachedFinalizeNdaAcceptanceDelivery: true,
+      pdfByteLength,
+      storageUploadAttempted: true,
+      storageUploadSucceeded: true,
+      storageVerifyWarning,
+      emailAttempted: true,
+      emailSkipped: false,
+      resendSucceeded: false,
+      resendErrorMessage: mailError.message,
+    });
+    console.info("[debugNdaDelivery]", { stage: "resend_api_error", debugNdaDelivery });
     return finalizeSuccess({
       pdf_generated: true,
       storage_uploaded: true,
@@ -324,9 +455,22 @@ ${linkBlock}
       storagePath,
       signedUrl,
       error: msg,
+      debugNdaDelivery,
     });
   }
 
+  const successDebug = mergeDebugNdaDelivery({
+    reachedFinalizeNdaAcceptanceDelivery: true,
+    pdfByteLength,
+    storageUploadAttempted: true,
+    storageUploadSucceeded: true,
+    storageVerifyWarning,
+    emailAttempted: true,
+    emailSkipped: false,
+    resendSucceeded: true,
+    resendErrorMessage: null,
+  });
+  console.info("[debugNdaDelivery]", { stage: "complete", debugNdaDelivery: successDebug });
   return finalizeSuccess({
     pdf_generated: true,
     storage_uploaded: true,
@@ -334,6 +478,7 @@ ${linkBlock}
     email_sent: true,
     storagePath,
     signedUrl,
+    debugNdaDelivery: successDebug,
     ...(signedUrl
       ? {}
       : {
