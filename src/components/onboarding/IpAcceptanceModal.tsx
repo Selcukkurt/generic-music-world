@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { IP_SECTIONS, IP_SUMMARY_BULLETS } from "@/content/compliance/ip-fikri-mulkiyet-content";
+import {
+  IP_DOCUMENT_TITLE,
+  IP_SECTIONS,
+  IP_SUMMARY_BULLETS,
+} from "@/content/compliance/ip-fikri-mulkiyet-content";
 import { NETWORK_ERR } from "@/components/onboarding/NdaAcceptanceModal";
 
 const SCROLL_EPSILON = 32;
@@ -294,14 +298,14 @@ export default function IpAcceptanceModal({
                 id="ip-modal-title"
                 className="text-base font-semibold tracking-tight text-[var(--color-text)] sm:text-lg"
               >
-                Fikri mülkiyet taahhüdü
+                {IP_DOCUMENT_TITLE}
               </h2>
               <p
                 id="ip-modal-desc"
                 className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)] sm:text-sm"
               >
                 {alreadyAccepted && !readOnly
-                  ? "Bu taahhüt sistemde kayıtlıdır."
+                  ? "Bu sözleşme sistemde kayıtlıdır."
                   : readOnly
                     ? "Salt okunur inceleme."
                     : "Metni sonuna kadar inceleyin; ardından kutuyu işaretleyip onayı kaydedin."}
@@ -331,7 +335,7 @@ export default function IpAcceptanceModal({
             style={{ maxWidth: MAX_READING_WIDTH }}
           >
             <div className="rounded-lg bg-[var(--color-bg)]/50 px-4 py-3">
-              <p className="text-xs font-medium text-[var(--color-text)]">Bu taahhüt:</p>
+              <p className="text-xs font-medium text-[var(--color-text)]">Bu sözleşme:</p>
               <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-relaxed text-[var(--color-text-secondary)]">
                 {IP_SUMMARY_BULLETS.map((line) => (
                   <li key={line}>{line}</li>
@@ -369,7 +373,7 @@ export default function IpAcceptanceModal({
             <div className="min-w-0 flex-1 space-y-2 text-left">
               {saveSuccess ? (
                 <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                  Fikri mülkiyet taahhüdü onaylandı.
+                  Fikri mülkiyet sözleşmesi onaylandı.
                 </p>
               ) : null}
               {flowError ? (

@@ -1,10 +1,10 @@
 /**
- * Fikri Mülkiyet ve Eser Devri Taahhüdü — sürüm 1.0
+ * @deprecated Kanonik metin ve sürüm: `ip-fikri-mulkiyet-content.ts` + `AGREEMENT_VERSIONS.intellectual_property`.
  * Yasal metin kurum içi hukuk onayından geçirilmelidir.
  */
-export const INTELLECTUAL_PROPERTY_DOCUMENT_VERSION = "1.0";
+export const INTELLECTUAL_PROPERTY_DOCUMENT_VERSION = "2.0";
 
-export const INTELLECTUAL_PROPERTY_TITLE = "Fikri Mülkiyet ve Eser Devri Taahhüdü";
+export const INTELLECTUAL_PROPERTY_TITLE = "FİKRİ MÜLKİYET VE BULUŞLARIN DEVRİ SÖZLEŞMESİ";
 
 export const INTELLECTUAL_PROPERTY_ARTICLES: { id: string; title: string; body: string }[] = [
   {

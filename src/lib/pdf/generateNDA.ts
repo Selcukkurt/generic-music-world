@@ -8,7 +8,15 @@ import {
   NDA_SECTIONS,
 } from "@/content/compliance/nda-gizlilik-content";
 import { applyPlaceholders, sectionsToHtml } from "@/lib/pdf/pdfTemplateUtils";
-import { renderHtmlToPdfBuffer } from "@/lib/pdf/renderHtmlToPdf";
+import { renderHtmlToPdfBuffer, type PdfPageMargins } from "@/lib/pdf/renderHtmlToPdf";
+
+/** NDA template uses `@page { margin }`; avoid doubling with Puppeteer. */
+const NDA_PDF_MARGIN: PdfPageMargins = {
+  top: "0mm",
+  right: "0mm",
+  bottom: "0mm",
+  left: "0mm",
+};
 
 const NDA_TEMPLATE_REL = path.join("contracts", "templates", "nda_v1.html");
 const NDA_FLOW_LOG = "[nda-accept-flow]";
@@ -46,7 +54,7 @@ export async function generateNDAPdf(input: GenerateNDAPdfInput): Promise<Buffer
   const pdfGenT0 = Date.now();
   console.info(`${NDA_FLOW_LOG} 4. PDF generation started`);
 
-  const buf = await renderHtmlToPdfBuffer(html);
+  const buf = await renderHtmlToPdfBuffer(html, NDA_PDF_MARGIN);
   console.info(`${NDA_FLOW_LOG} 5. PDF generation finished`, { durationMs: Date.now() - pdfGenT0 });
   return buf;
 }

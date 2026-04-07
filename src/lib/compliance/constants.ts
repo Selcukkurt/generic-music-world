@@ -9,7 +9,7 @@ export type AgreementKey = (typeof AGREEMENT_KEYS)[keyof typeof AGREEMENT_KEYS];
 
 export const AGREEMENT_VERSIONS: Record<AgreementKey, string> = {
   confidentiality: "2.0",
-  intellectual_property: "1.0",
+  intellectual_property: "2.0",
   gm_dna_final: "1.0",
 };
 
