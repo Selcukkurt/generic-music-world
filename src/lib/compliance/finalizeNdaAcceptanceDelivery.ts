@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { AGREEMENT_KEYS, AGREEMENT_VERSIONS } from "@/lib/compliance/constants";
 import { buildGmwDarkCardEmailHtml } from "@/lib/email/gmwTransactionalEmail";
+import { generateIpPdf } from "@/lib/pdf/generateIpPdf";
 import { generateNDAPdf } from "@/lib/pdf/generateNDA";
 import { Resend } from "resend";
 
@@ -9,13 +11,24 @@ const PDF_STALL_LOG_INTERVAL_MS = 25_000;
 
 const CONTRACTS_BUCKET = "contracts";
 const NDA_OBJECT_PATH = (userId: string) => `generated/${userId}/nda_v1.pdf`;
+const IP_OBJECT_PATH = (userId: string) => `generated/${userId}/ip_v1.pdf`;
 const SIGNED_URL_SECONDS = 60 * 60 * 24 * 7;
+
+export type AgreementLegResult = {
+  pdf_generated: boolean;
+  storage_uploaded: boolean;
+  storagePath?: string;
+};
+
+export type NdaLegResult = AgreementLegResult & {
+  signed_url_created: boolean;
+  signedUrl?: string;
+};
 
 async function loadAppUserDisplayName(
   supabase: SupabaseClient,
   userId: string,
-  fallbackEmail: string
-): Promise<string> {
+  fallbackEmail: string ): Promise<string> {
   const { data, error } = await supabase
     .from("app_users")
     .select("full_name, first_name, last_name")
@@ -48,15 +61,25 @@ export type FinalizeNdaAcceptanceDeliveryInput = {
   clientIp: string;
   acceptedAtIso: string;
   agreementVersion: string;
+  /** When true (e.g. onboarding completion), also generate IP PDF, upload, and attach both. Default false for NDA-only API paths. */
+  includeIntellectualPropertyPdf?: boolean;
+  /** Defaults to `AGREEMENT_VERSIONS.intellectual_property` when `includeIntellectualPropertyPdf` is true. */
+  ipAgreementVersion?: string;
 };
 
-/** Temporary onboarding NDA pipeline observability (remove when stable). */
+/** Temporary onboarding delivery pipeline observability. */
 export type DebugNdaDeliveryPayload = {
   reachedFinalizeNdaAcceptanceDelivery: boolean;
+  /** NDA PDF size */
   pdfByteLength: number | null;
+  /** IP PDF size (null when IP leg skipped) */
+  ipPdfByteLength: number | null;
   storageUploadAttempted: boolean;
   storageUploadSucceeded: boolean;
+  ipStorageUploadAttempted: boolean;
+  ipStorageUploadSucceeded: boolean;
   storageVerifyWarning: boolean;
+  ipStorageVerifyWarning: boolean;
   emailAttempted: boolean;
   emailSkipped: boolean;
   resendSucceeded: boolean;
@@ -67,9 +90,13 @@ function mergeDebugNdaDelivery(p: Partial<DebugNdaDeliveryPayload>): DebugNdaDel
   return {
     reachedFinalizeNdaAcceptanceDelivery: p.reachedFinalizeNdaAcceptanceDelivery ?? true,
     pdfByteLength: p.pdfByteLength ?? null,
+    ipPdfByteLength: p.ipPdfByteLength ?? null,
     storageUploadAttempted: p.storageUploadAttempted ?? false,
     storageUploadSucceeded: p.storageUploadSucceeded ?? false,
+    ipStorageUploadAttempted: p.ipStorageUploadAttempted ?? false,
+    ipStorageUploadSucceeded: p.ipStorageUploadSucceeded ?? false,
     storageVerifyWarning: p.storageVerifyWarning ?? false,
+    ipStorageVerifyWarning: p.ipStorageVerifyWarning ?? false,
     emailAttempted: p.emailAttempted ?? false,
     emailSkipped: p.emailSkipped ?? true,
     resendSucceeded: p.resendSucceeded ?? false,
@@ -78,27 +105,39 @@ function mergeDebugNdaDelivery(p: Partial<DebugNdaDeliveryPayload>): DebugNdaDel
 }
 
 export type FinalizeNdaAcceptanceDeliveryResult = {
-  pdf_generated: boolean;
-  storage_uploaded: boolean;
-  signed_url_created: boolean;
+  nda: NdaLegResult;
+  ip: AgreementLegResult;
   email_sent: boolean;
-  /** True only when all four stages succeeded. */
   success: boolean;
-  storagePath?: string;
-  signedUrl?: string;
   error?: string;
   debugNdaDelivery?: DebugNdaDeliveryPayload;
 };
 
-function finalizeSuccess(
-  partial: Omit<FinalizeNdaAcceptanceDeliveryResult, "success">
-): FinalizeNdaAcceptanceDeliveryResult {
-  const success =
-    partial.pdf_generated &&
-    partial.storage_uploaded &&
-    partial.signed_url_created &&
-    partial.email_sent;
-  const { debugNdaDelivery, ...rest } = partial;
+function emptyIpLeg(): AgreementLegResult {
+  return { pdf_generated: false, storage_uploaded: false };
+}
+
+function emptyNdaLeg(): NdaLegResult {
+  return { pdf_generated: false, storage_uploaded: false, signed_url_created: false };
+}
+
+/** IP leg is informational only; success requires NDA + email (signed URL as today). */
+function deliverySuccess(nda: NdaLegResult, email_sent: boolean): boolean {
+  const ndaOk =
+    nda.pdf_generated && nda.storage_uploaded && nda.signed_url_created;
+  return ndaOk && email_sent;
+}
+
+function finalizeSuccess(args: {
+  nda: NdaLegResult;
+  ip: AgreementLegResult;
+  email_sent: boolean;
+  error?: string;
+  debugNdaDelivery?: DebugNdaDeliveryPayload;
+  includeIp: boolean;
+}): FinalizeNdaAcceptanceDeliveryResult {
+  const { includeIp: _includeIp, debugNdaDelivery, ...rest } = args;
+  const success = deliverySuccess(rest.nda, rest.email_sent);
   return { ...rest, success, ...(debugNdaDelivery ? { debugNdaDelivery } : {}) };
 }
 
@@ -108,43 +147,52 @@ export function ndaDeliveryResponseFields(
 ): Record<string, unknown> {
   if (!outcome) return {};
   if (!outcome.success) {
-    console.error(`${logLabel} NDA delivery incomplete`, {
+    console.error(`${logLabel} agreement e-mail delivery incomplete`, {
       error: outcome.error,
-      pdf_generated: outcome.pdf_generated,
-      storage_uploaded: outcome.storage_uploaded,
-      signed_url_created: outcome.signed_url_created,
+      nda: outcome.nda,
+      ip: outcome.ip,
       email_sent: outcome.email_sent,
     });
   }
   return {
     nda: {
       delivered: outcome.success,
-      pdf_generated: outcome.pdf_generated,
-      storage_uploaded: outcome.storage_uploaded,
-      signed_url_created: outcome.signed_url_created,
+      pdf_generated: outcome.nda.pdf_generated,
+      storage_uploaded: outcome.nda.storage_uploaded,
+      signed_url_created: outcome.nda.signed_url_created,
       email_sent: outcome.email_sent,
-      ...(outcome.storagePath ? { storagePath: outcome.storagePath } : {}),
-      ...(outcome.signedUrl ? { signedUrl: outcome.signedUrl } : {}),
+      ...(outcome.nda.storagePath ? { storagePath: outcome.nda.storagePath } : {}),
+      ...(outcome.nda.signedUrl ? { signedUrl: outcome.nda.signedUrl } : {}),
       ...(outcome.error ? { error: outcome.error } : {}),
     },
+    ip: {
+      pdf_generated: outcome.ip.pdf_generated,
+      storage_uploaded: outcome.ip.storage_uploaded,
+      ...(outcome.ip.storagePath ? { storagePath: outcome.ip.storagePath } : {}),
+    },
+    email_sent: outcome.email_sent,
   };
 }
 
 /**
- * After NDA (confidentiality) is recorded: PDF → Supabase Storage → signed URL → Resend e-mail with attachment.
- * Single orchestration entry point; storage + `app_users` name lookup use service role (`createClient` + `SUPABASE_SERVICE_ROLE_KEY`). Does not throw; returns per-stage flags.
- * If signed URL creation fails but upload succeeded, e-mail is still attempted (attachment only, no link).
+ * After agreement(s) recorded: PDF(s) → Supabase Storage → signed URL (NDA) → Resend e-mail with attachment(s).
+ * Does not throw; returns per-stage flags. Use `includeIntellectualPropertyPdf` for onboarding-complete (both PDFs).
  */
 export async function finalizeNdaAcceptanceDelivery(
   input: FinalizeNdaAcceptanceDeliveryInput
 ): Promise<FinalizeNdaAcceptanceDeliveryResult> {
+  const includeIp = Boolean(input.includeIntellectualPropertyPdf);
+  const ipVersion =
+    input.ipAgreementVersion ?? AGREEMENT_VERSIONS[AGREEMENT_KEYS.intellectual_property];
+
   console.log("FINALIZE NDA DELIVERY START");
   console.info("[nda-email-debug] finalizeNdaAcceptanceDelivery started", {
     userId: input.userId,
     recipientEmail: input.email?.trim() ?? null,
+    includeIntellectualPropertyPdf: includeIp,
   });
   try {
-    return await runNdaAcceptanceDelivery(input);
+    return await runNdaAcceptanceDelivery(input, includeIp, ipVersion);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[finalizeNdaAcceptanceDelivery] unexpected:", msg);
@@ -155,18 +203,20 @@ export async function finalizeNdaAcceptanceDelivery(
     });
     console.info("[debugNdaDelivery]", { stage: "finalize_throw", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: false,
-      storage_uploaded: false,
-      signed_url_created: false,
+      nda: emptyNdaLeg(),
+      ip: emptyIpLeg(),
       email_sent: false,
       error: msg,
       debugNdaDelivery,
+      includeIp,
     });
   }
 }
 
 async function runNdaAcceptanceDelivery(
-  input: FinalizeNdaAcceptanceDeliveryInput
+  input: FinalizeNdaAcceptanceDeliveryInput,
+  includeIp: boolean,
+  ipVersion: string
 ): Promise<FinalizeNdaAcceptanceDeliveryResult> {
   const email = input.email?.trim();
   if (!email) {
@@ -177,12 +227,12 @@ async function runNdaAcceptanceDelivery(
     });
     console.info("[debugNdaDelivery]", { stage: "no_recipient_email", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: false,
-      storage_uploaded: false,
-      signed_url_created: false,
+      nda: emptyNdaLeg(),
+      ip: emptyIpLeg(),
       email_sent: false,
       error: "Missing user email for NDA delivery",
       debugNdaDelivery,
+      includeIp,
     });
   }
 
@@ -199,12 +249,12 @@ async function runNdaAcceptanceDelivery(
     });
     console.info("[debugNdaDelivery]", { stage: "storage_env_missing", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: false,
-      storage_uploaded: false,
-      signed_url_created: false,
+      nda: emptyNdaLeg(),
+      ip: emptyIpLeg(),
       email_sent: false,
       error: "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for NDA storage",
       debugNdaDelivery,
+      includeIp,
     });
   }
 
@@ -241,12 +291,12 @@ async function runNdaAcceptanceDelivery(
     });
     console.info("[debugNdaDelivery]", { stage: "pdf_failed", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: false,
-      storage_uploaded: false,
-      signed_url_created: false,
+      nda: emptyNdaLeg(),
+      ip: emptyIpLeg(),
       email_sent: false,
       error: `NDA PDF generation failed: ${msg}`,
       debugNdaDelivery,
+      includeIp,
     });
   } finally {
     clearInterval(pdfStallTimer);
@@ -279,44 +329,125 @@ async function runNdaAcceptanceDelivery(
     });
     console.info("[debugNdaDelivery]", { stage: "storage_upload_failed", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: true,
-      storage_uploaded: false,
-      signed_url_created: false,
+      nda: { pdf_generated: true, storage_uploaded: false, storagePath, signed_url_created: false },
+      ip: emptyIpLeg(),
       email_sent: false,
-      storagePath,
       error: msg,
       debugNdaDelivery,
+      includeIp,
     });
   }
 
   console.info(`${NDA_FLOW_LOG} 7. storage upload finished`, { storagePath });
 
-  const { data: verifyBlob, error: downloadErr } = await supabaseAdmin.storage
-    .from(CONTRACTS_BUCKET)
-    .download(storagePath);
-  let verifyBytes = 0;
-  if (verifyBlob) {
-    try {
-      verifyBytes = (await verifyBlob.arrayBuffer()).byteLength;
-    } catch {
-      verifyBytes = 0;
+  let storageVerifyWarning = false;
+  {
+    const { data: verifyBlob, error: downloadErr } = await supabaseAdmin.storage
+      .from(CONTRACTS_BUCKET)
+      .download(storagePath);
+    let verifyBytes = 0;
+    if (verifyBlob) {
+      try {
+        verifyBytes = (await verifyBlob.arrayBuffer()).byteLength;
+      } catch {
+        verifyBytes = 0;
+      }
+    }
+    console.info("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD", {
+      storagePath,
+      success: !downloadErr && verifyBytes > 0,
+      downloadError: downloadErr?.message ?? null,
+      downloadedByteLength: verifyBytes,
+    });
+    storageVerifyWarning = Boolean(downloadErr || verifyBytes === 0);
+    if (downloadErr || verifyBytes === 0) {
+      console.warn("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD_WARN", {
+        storagePath,
+        downloadErr: downloadErr?.message ?? null,
+        verifyBytes,
+        note: "Upload succeeded — continuing",
+      });
     }
   }
-  console.info("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD", {
-    storagePath,
-    success: !downloadErr && verifyBytes > 0,
-    downloadError: downloadErr?.message ?? null,
-    downloadedByteLength: verifyBytes,
-  });
-  const storageVerifyWarning = Boolean(downloadErr || verifyBytes === 0);
-  if (downloadErr || verifyBytes === 0) {
-    console.warn("[finalizeNdaAcceptanceDelivery] STORAGE_VERIFY_DOWNLOAD_WARN", {
-      storagePath,
-      downloadErr: downloadErr?.message ?? null,
-      verifyBytes,
-      note: "Upload succeeded — continuing to signed URL + email",
-    });
+
+  let ipBuffer: Buffer | undefined;
+  let ipPdfByteLength: number | null = null;
+  let ipStoragePath: string | undefined;
+  let ipStorageVerifyWarning = false;
+  let ipPdfGenerated = false;
+  let ipStorageUploaded = false;
+  let ipStorageUploadAttempted = false;
+
+  if (includeIp) {
+    ipStoragePath = IP_OBJECT_PATH(input.userId);
+    try {
+      console.log("STEP IP PDF START");
+      ipBuffer = await generateIpPdf({
+        full_name: fullName,
+        email,
+        ip_address: input.clientIp,
+        accepted_at: input.acceptedAtIso,
+        date,
+        agreement_version: ipVersion,
+      });
+      ipPdfGenerated = true;
+      ipPdfByteLength = ipBuffer.length;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[finalizeNdaAcceptanceDelivery] IP PDF generation failed (non-blocking, NDA e-mail continues):", msg);
+      ipBuffer = undefined;
+      ipPdfGenerated = false;
+      ipPdfByteLength = null;
+      console.info("[debugNdaDelivery]", { stage: "ip_pdf_failed_non_blocking", error: msg });
+    }
+
+    if (ipPdfGenerated && ipBuffer && ipStoragePath) {
+      ipStorageUploadAttempted = true;
+      console.info(`${NDA_FLOW_LOG} 6b. IP storage upload started`, { storagePath: ipStoragePath, bucket: CONTRACTS_BUCKET });
+      const { error: ipUploadErr } = await supabaseAdmin.storage
+        .from(CONTRACTS_BUCKET)
+        .upload(ipStoragePath, ipBuffer, { contentType: "application/pdf", upsert: true });
+
+      if (ipUploadErr) {
+        const msg = `IP storage upload failed: ${ipUploadErr.message}`;
+        console.error("[finalizeNdaAcceptanceDelivery] IP upload failed (non-blocking, NDA e-mail continues):", msg);
+        ipStorageUploaded = false;
+        console.info("[debugNdaDelivery]", { stage: "ip_storage_upload_failed_non_blocking", error: msg });
+      } else {
+        ipStorageUploaded = true;
+        console.info(`${NDA_FLOW_LOG} 7b. IP storage upload finished`, { storagePath: ipStoragePath });
+
+        const { data: verifyBlob, error: downloadErr } = await supabaseAdmin.storage
+          .from(CONTRACTS_BUCKET)
+          .download(ipStoragePath);
+        let verifyBytes = 0;
+        if (verifyBlob) {
+          try {
+            verifyBytes = (await verifyBlob.arrayBuffer()).byteLength;
+          } catch {
+            verifyBytes = 0;
+          }
+        }
+        console.info("[finalizeNdaAcceptanceDelivery] IP_STORAGE_VERIFY_DOWNLOAD", {
+          storagePath: ipStoragePath,
+          success: !downloadErr && verifyBytes > 0,
+          downloadError: downloadErr?.message ?? null,
+          downloadedByteLength: verifyBytes,
+        });
+        ipStorageVerifyWarning = Boolean(downloadErr || verifyBytes === 0);
+        if (downloadErr || verifyBytes === 0) {
+          console.warn("[finalizeNdaAcceptanceDelivery] IP_STORAGE_VERIFY_DOWNLOAD_WARN", {
+            storagePath: ipStoragePath,
+            downloadErr: downloadErr?.message ?? null,
+            verifyBytes,
+            note: "Upload succeeded — continuing",
+          });
+        }
+      }
+    }
   }
+
+  const ipAttachedToEmail = ipPdfGenerated && ipStorageUploaded;
 
   let signedUrl: string | undefined;
   console.info(`${NDA_FLOW_LOG} 8. signed URL started`, { storagePath });
@@ -343,29 +474,46 @@ async function runNdaAcceptanceDelivery(
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       pdfByteLength,
+      ipPdfByteLength: includeIp ? ipPdfByteLength : null,
       storageUploadAttempted: true,
       storageUploadSucceeded: true,
       storageVerifyWarning,
+      ipStorageUploadAttempted,
+      ipStorageUploadSucceeded: ipStorageUploaded,
+      ipStorageVerifyWarning,
       emailSkipped: true,
       resendErrorMessage:
         "RESEND_API_KEY and EMAIL_FROM (or RESEND_FROM) must be set for NDA confirmation e-mail (storage upload completed).",
     });
     console.info("[debugNdaDelivery]", { stage: "email_skipped_resend_config", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: true,
-      storage_uploaded: true,
-      signed_url_created: Boolean(signedUrl),
+      nda: {
+        pdf_generated: true,
+        storage_uploaded: true,
+        signed_url_created: Boolean(signedUrl),
+        storagePath,
+        signedUrl,
+      },
+      ip: {
+        pdf_generated: ipPdfGenerated,
+        storage_uploaded: ipStorageUploaded,
+        storagePath: ipStoragePath,
+      },
       email_sent: false,
-      storagePath,
-      signedUrl,
       error:
         "RESEND_API_KEY and EMAIL_FROM (or RESEND_FROM) must be set for NDA confirmation e-mail (storage upload completed).",
       debugNdaDelivery,
+      includeIp,
     });
   }
   const from = `Generic Music World <${fromAddress}>`;
 
   const resend = new Resend(apiKey);
+
+  const bodySecondParagraph =
+    includeIp && ipAttachedToEmail
+      ? `Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) ve Fikri Mülkiyet taahhüdünü onayladınız. Onayladığınız belgelerin kopyalarını bu e-postanın eklerinde bulabilirsiniz.`
+      : `Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığınız sözleşmenin bir kopyasını bu e-postanın ekinde bulabilirsiniz.`;
 
   const onboardingCompleteEmailHtml = buildGmwDarkCardEmailHtml({
     headlineHtml: "GMW onboarding süreciniz tamamlandı",
@@ -373,10 +521,29 @@ async function runNdaAcceptanceDelivery(
 Hesabınız şu anda aktif değildir. Yetkili tarafından personel atamanız gerçekleştirildikten sonra tarafınıza bilgilendirme e-postası gönderilecektir. Bu e-postayı aldıktan sonra sisteme giriş yapabilirsiniz.
 </p>
 <p style="margin:16px 0 0 0;font-size:15px;line-height:1.55;color:#d1d5db;">
-Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığınız sözleşmenin bir kopyasını bu e-postanın ekinde bulabilirsiniz.
+${bodySecondParagraph}
 </p>`,
     signatureLine: "Generic Music World",
   });
+
+  const attachments: {
+    filename: string;
+    content: Buffer;
+    contentType: "application/pdf";
+  }[] = [
+    {
+      filename: "Gizlilik-Sozlesmesi.pdf",
+      content: pdfBuffer,
+      contentType: "application/pdf",
+    },
+  ];
+  if (ipPdfGenerated && ipStorageUploaded && ipBuffer) {
+    attachments.push({
+      filename: "Fikri-Mulkiyet-Sozlesmesi.pdf",
+      content: ipBuffer,
+      contentType: "application/pdf",
+    });
+  }
 
   console.info(`${NDA_FLOW_LOG} 10. email send started`, { to: email });
   console.info("[nda-email-debug] Resend send — recipient", { to: email });
@@ -390,7 +557,7 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
       to,
       subject: "GMW Onboarding Süreciniz Tamamlandı",
       html: onboardingCompleteEmailHtml,
-      attachments: [{ filename: "nda_v1.pdf", content: pdfBuffer, contentType: "application/pdf" }],
+      attachments,
     });
   } catch (error) {
     console.error("ONBOARDING MAIL ERROR:", error);
@@ -400,9 +567,13 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       pdfByteLength,
+      ipPdfByteLength: includeIp ? ipPdfByteLength : null,
       storageUploadAttempted: true,
       storageUploadSucceeded: true,
       storageVerifyWarning,
+      ipStorageUploadAttempted,
+      ipStorageUploadSucceeded: ipStorageUploaded,
+      ipStorageVerifyWarning,
       emailAttempted: true,
       emailSkipped: false,
       resendSucceeded: false,
@@ -410,14 +581,22 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
     });
     console.info("[debugNdaDelivery]", { stage: "resend_throw", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: true,
-      storage_uploaded: true,
-      signed_url_created: Boolean(signedUrl),
+      nda: {
+        pdf_generated: true,
+        storage_uploaded: true,
+        signed_url_created: Boolean(signedUrl),
+        storagePath,
+        signedUrl,
+      },
+      ip: {
+        pdf_generated: ipPdfGenerated,
+        storage_uploaded: ipStorageUploaded,
+        storagePath: ipStoragePath,
+      },
       email_sent: false,
-      storagePath,
-      signedUrl,
       error: msg,
       debugNdaDelivery,
+      includeIp,
     });
   }
 
@@ -438,9 +617,13 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       pdfByteLength,
+      ipPdfByteLength: includeIp ? ipPdfByteLength : null,
       storageUploadAttempted: true,
       storageUploadSucceeded: true,
       storageVerifyWarning,
+      ipStorageUploadAttempted,
+      ipStorageUploadSucceeded: ipStorageUploaded,
+      ipStorageVerifyWarning,
       emailAttempted: true,
       emailSkipped: false,
       resendSucceeded: false,
@@ -448,23 +631,35 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
     });
     console.info("[debugNdaDelivery]", { stage: "resend_api_error", debugNdaDelivery });
     return finalizeSuccess({
-      pdf_generated: true,
-      storage_uploaded: true,
-      signed_url_created: Boolean(signedUrl),
+      nda: {
+        pdf_generated: true,
+        storage_uploaded: true,
+        signed_url_created: Boolean(signedUrl),
+        storagePath,
+        signedUrl,
+      },
+      ip: {
+        pdf_generated: ipPdfGenerated,
+        storage_uploaded: ipStorageUploaded,
+        storagePath: ipStoragePath,
+      },
       email_sent: false,
-      storagePath,
-      signedUrl,
       error: msg,
       debugNdaDelivery,
+      includeIp,
     });
   }
 
   const successDebug = mergeDebugNdaDelivery({
     reachedFinalizeNdaAcceptanceDelivery: true,
     pdfByteLength,
+    ipPdfByteLength: includeIp ? ipPdfByteLength : null,
     storageUploadAttempted: true,
     storageUploadSucceeded: true,
     storageVerifyWarning,
+    ipStorageUploadAttempted,
+    ipStorageUploadSucceeded: ipStorageUploaded,
+    ipStorageVerifyWarning,
     emailAttempted: true,
     emailSkipped: false,
     resendSucceeded: true,
@@ -472,18 +667,26 @@ Bu süreç kapsamında Gizlilik Sözleşmesi'ni (NDA) onayladınız. Onayladığ
   });
   console.info("[debugNdaDelivery]", { stage: "complete", debugNdaDelivery: successDebug });
   return finalizeSuccess({
-    pdf_generated: true,
-    storage_uploaded: true,
-    signed_url_created: Boolean(signedUrl),
+    nda: {
+      pdf_generated: true,
+      storage_uploaded: true,
+      signed_url_created: Boolean(signedUrl),
+      storagePath,
+      signedUrl,
+    },
+    ip: {
+      pdf_generated: ipPdfGenerated,
+      storage_uploaded: ipStorageUploaded,
+      storagePath: ipStoragePath,
+    },
     email_sent: true,
-    storagePath,
-    signedUrl,
     debugNdaDelivery: successDebug,
+    includeIp,
     ...(signedUrl
       ? {}
       : {
           error:
-            "Signed URL was not created; the NDA PDF was still attached to the e-mail. Check storage signing configuration.",
+            "Signed URL was not created; agreement PDFs were still attached to the e-mail. Check storage signing configuration.",
         }),
   });
 }

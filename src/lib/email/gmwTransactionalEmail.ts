@@ -1,8 +1,11 @@
 /**
  * Shared table-based transactional email shell (dark navy card) aligned with
  * `docs/templates/supabase-invite-user.html` — used by app-sent mail (e.g. onboarding complete).
- * Logo URL uses `NEXT_PUBLIC_SITE_URL` + `/generic-music-logo-v2.png` when set.
+ * Logo: public Supabase Storage URL (email-safe, absolute).
  */
+
+const GMW_LOGO_PUBLIC_URL =
+  "https://jiluzroutsabxezthcrp.supabase.co/storage/v1/object/public/public-assets/GMW-Logo.png";
 
 const COLORS = {
   pageBg: "#0f1419",
@@ -15,19 +18,8 @@ const COLORS = {
   brandYellow: "#f5c542",
 } as const;
 
-function siteOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim() ?? "";
-  if (!raw) return "";
-  return raw.replace(/\/$/, "");
-}
-
 function logoImgTag(): string {
-  const origin = siteOrigin();
-  if (!origin) {
-    return `<p style="margin:0;font-size:20px;font-weight:700;color:${COLORS.brandYellow};letter-spacing:0.04em;">GMW</p>`;
-  }
-  const src = `${origin}/generic-music-logo-v2.png`;
-  return `<img src="${src}" alt="Generic Music World" width="168" style="display:block;height:auto;max-width:168px;margin:0 auto;border:0;outline:none;text-decoration:none;" />`;
+  return `<img src="${GMW_LOGO_PUBLIC_URL}" alt="Generic Music World" width="140" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />`;
 }
 
 export type GmwDarkCardEmailContent = {

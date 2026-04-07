@@ -205,6 +205,8 @@ export async function POST(request: NextRequest) {
       clientIp: getRequestClientIp(request),
       acceptedAtIso: ndaDeliveryAtIso,
       agreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.confidentiality],
+      includeIntellectualPropertyPdf: true,
+      ipAgreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.intellectual_property],
     });
     console.info("[debugNdaDelivery]", {
       stage: "onboarding_after_finalizeNdaAcceptanceDelivery",
@@ -484,9 +486,13 @@ export async function POST(request: NextRequest) {
   const debugNdaNoRecipient: DebugNdaDeliveryPayload = {
     reachedFinalizeNdaAcceptanceDelivery: false,
     pdfByteLength: null,
+    ipPdfByteLength: null,
     storageUploadAttempted: false,
     storageUploadSucceeded: false,
+    ipStorageUploadAttempted: false,
+    ipStorageUploadSucceeded: false,
     storageVerifyWarning: false,
+    ipStorageVerifyWarning: false,
     emailAttempted: false,
     emailSkipped: true,
     resendSucceeded: false,

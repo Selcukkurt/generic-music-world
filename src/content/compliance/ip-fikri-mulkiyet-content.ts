@@ -1,6 +1,14 @@
 /**
- * Fikri mülkiyet taahhüdü — onboarding modal. Sürüm `AGREEMENT_VERSIONS.intellectual_property` ile uyumludur.
+ * Fikri mülkiyet taahhüdü — onboarding modal ve PDF (`contracts/templates/ip_v1.html`).
+ * Sürüm `AGREEMENT_VERSIONS.intellectual_property` ile uyumludur.
  */
+
+/** PDF h1 / şablon `document_title` ile aynı olmalıdır. */
+export const IP_DOCUMENT_TITLE = "Fikri Mülkiyet ve Eser Devri Taahhüdü";
+
+/** PDF alt bilgi; onboarding gövdesinde madde metinlerinden sonra gösterilir. */
+export const IP_PDF_SIGNFOOT =
+  "Bu belge, yukarıda bilgileri yer alan kullanıcının elektronik ortamda verdiği fikri mülkiyet taahhüdünün PDF çıktısıdır.";
 
 export const IP_SUMMARY_BULLETS = [
   "Kurumsal kaynaklarla üretilen içerik ve geliştirmeler için çerçeve taahhüdüdür",
