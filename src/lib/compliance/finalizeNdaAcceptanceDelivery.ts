@@ -84,6 +84,22 @@ export type DebugNdaDeliveryPayload = {
   emailSkipped: boolean;
   resendSucceeded: boolean;
   resendErrorMessage: string | null;
+  /** Route or pipeline stage reason when delivery was skipped or short-circuited */
+  skip_reason?: string | null;
+  /** Best-effort single message for clients (duplicate of key errors, never contains secrets) */
+  error_message?: string | null;
+  /** Snapshot when evaluating mail — booleans only */
+  resend_env?: {
+    has_api_key: boolean;
+    has_from: boolean;
+    from_source: "EMAIL_FROM" | "RESEND_FROM" | null;
+  };
+  /** True when running on Vercel serverless (PDF uses bundled Chromium) */
+  runtime_vercel?: boolean;
+  /** Mirrors `nda.pdf_generated` / `nda.storage_uploaded` / outcome `email_sent` for a single debug blob */
+  pdf_generated?: boolean | null;
+  storage_uploaded?: boolean | null;
+  email_sent?: boolean | null;
 };
 
 function mergeDebugNdaDelivery(p: Partial<DebugNdaDeliveryPayload>): DebugNdaDeliveryPayload {
@@ -101,7 +117,40 @@ function mergeDebugNdaDelivery(p: Partial<DebugNdaDeliveryPayload>): DebugNdaDel
     emailSkipped: p.emailSkipped ?? true,
     resendSucceeded: p.resendSucceeded ?? false,
     resendErrorMessage: p.resendErrorMessage ?? null,
+    skip_reason: p.skip_reason ?? null,
+    error_message: p.error_message ?? p.resendErrorMessage ?? null,
+    resend_env: p.resend_env,
+    runtime_vercel: p.runtime_vercel ?? process.env.VERCEL === "1",
+    pdf_generated: p.pdf_generated ?? null,
+    storage_uploaded: p.storage_uploaded ?? null,
+    email_sent: p.email_sent ?? null,
   };
+}
+
+function snapshotResendEnv(): DebugNdaDeliveryPayload["resend_env"] {
+  const has_api_key = Boolean(process.env.RESEND_API_KEY?.trim());
+  const fromEmail = process.env.EMAIL_FROM?.trim();
+  const fromResend = process.env.RESEND_FROM?.trim();
+  const has_from = Boolean(fromEmail || fromResend);
+  const from_source: "EMAIL_FROM" | "RESEND_FROM" | null = fromEmail
+    ? "EMAIL_FROM"
+    : fromResend
+      ? "RESEND_FROM"
+      : null;
+  return { has_api_key, has_from, from_source };
+}
+
+/** Route-level skip (e.g. already-completed idempotent) without entering finalize. */
+export function buildRouteLevelSkippedNdaDebug(skip_reason: string): DebugNdaDeliveryPayload {
+  return mergeDebugNdaDelivery({
+    reachedFinalizeNdaAcceptanceDelivery: false,
+    skip_reason,
+    emailSkipped: true,
+    resend_env: snapshotResendEnv(),
+    pdf_generated: false,
+    storage_uploaded: false,
+    email_sent: false,
+  });
 }
 
 export type FinalizeNdaAcceptanceDeliveryResult = {
@@ -138,7 +187,15 @@ function finalizeSuccess(args: {
 }): FinalizeNdaAcceptanceDeliveryResult {
   const { includeIp: _includeIp, debugNdaDelivery, ...rest } = args;
   const success = deliverySuccess(rest.nda, rest.email_sent);
-  return { ...rest, success, ...(debugNdaDelivery ? { debugNdaDelivery } : {}) };
+  const mergedDebug = debugNdaDelivery
+    ? {
+        ...debugNdaDelivery,
+        pdf_generated: rest.nda.pdf_generated,
+        storage_uploaded: rest.nda.storage_uploaded,
+        email_sent: rest.email_sent,
+      }
+    : undefined;
+  return { ...rest, success, ...(mergedDebug ? { debugNdaDelivery: mergedDebug } : {}) };
 }
 
 export function ndaDeliveryResponseFields(
@@ -199,7 +256,9 @@ export async function finalizeNdaAcceptanceDelivery(
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       emailSkipped: true,
+      skip_reason: "finalize_unexpected_throw",
       resendErrorMessage: msg,
+      resend_env: snapshotResendEnv(),
     });
     console.info("[debugNdaDelivery]", { stage: "finalize_throw", debugNdaDelivery });
     return finalizeSuccess({
@@ -223,7 +282,9 @@ async function runNdaAcceptanceDelivery(
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       emailSkipped: true,
+      skip_reason: "missing_recipient_email",
       resendErrorMessage: "Missing user email for NDA delivery",
+      resend_env: snapshotResendEnv(),
     });
     console.info("[debugNdaDelivery]", { stage: "no_recipient_email", debugNdaDelivery });
     return finalizeSuccess({
@@ -237,6 +298,10 @@ async function runNdaAcceptanceDelivery(
   }
 
   console.info(`${NDA_FLOW_LOG} 3. finalizeNdaAcceptanceDelivery started`);
+  console.info("[nda-email-debug] runtime + resend env snapshot (booleans only)", {
+    runtime_vercel: process.env.VERCEL === "1",
+    ...snapshotResendEnv(),
+  });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -244,8 +309,10 @@ async function runNdaAcceptanceDelivery(
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       emailSkipped: true,
+      skip_reason: "supabase_storage_env_missing",
       resendErrorMessage:
         "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for NDA storage",
+      resend_env: snapshotResendEnv(),
     });
     console.info("[debugNdaDelivery]", { stage: "storage_env_missing", debugNdaDelivery });
     return finalizeSuccess({
@@ -287,7 +354,9 @@ async function runNdaAcceptanceDelivery(
       reachedFinalizeNdaAcceptanceDelivery: true,
       pdfByteLength: null,
       emailSkipped: true,
+      skip_reason: "nda_pdf_generation_failed",
       resendErrorMessage: `NDA PDF generation failed: ${msg}`,
+      resend_env: snapshotResendEnv(),
     });
     console.info("[debugNdaDelivery]", { stage: "pdf_failed", debugNdaDelivery });
     return finalizeSuccess({
@@ -325,7 +394,9 @@ async function runNdaAcceptanceDelivery(
       storageUploadAttempted: true,
       storageUploadSucceeded: false,
       emailSkipped: true,
+      skip_reason: "nda_storage_upload_failed",
       resendErrorMessage: msg,
+      resend_env: snapshotResendEnv(),
     });
     console.info("[debugNdaDelivery]", { stage: "storage_upload_failed", debugNdaDelivery });
     return finalizeSuccess({
@@ -471,6 +542,8 @@ async function runNdaAcceptanceDelivery(
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM ?? process.env.RESEND_FROM;
   if (!apiKey || !fromAddress) {
+    const resend_env = snapshotResendEnv();
+    console.warn("[nda-email-debug] Resend blocked — env incomplete", resend_env);
     const debugNdaDelivery = mergeDebugNdaDelivery({
       reachedFinalizeNdaAcceptanceDelivery: true,
       pdfByteLength,
@@ -482,8 +555,10 @@ async function runNdaAcceptanceDelivery(
       ipStorageUploadSucceeded: ipStorageUploaded,
       ipStorageVerifyWarning,
       emailSkipped: true,
+      skip_reason: "resend_env_incomplete_at_runtime",
       resendErrorMessage:
         "RESEND_API_KEY and EMAIL_FROM (or RESEND_FROM) must be set for NDA confirmation e-mail (storage upload completed).",
+      resend_env,
     });
     console.info("[debugNdaDelivery]", { stage: "email_skipped_resend_config", debugNdaDelivery });
     return finalizeSuccess({
@@ -546,7 +621,10 @@ ${bodySecondParagraph}
   }
 
   console.info(`${NDA_FLOW_LOG} 10. email send started`, { to: email });
-  console.info("[nda-email-debug] Resend send — recipient", { to: email });
+  console.info("[nda-email-debug] Resend send — recipient + from (domain only)", {
+    to: email,
+    fromDomain: fromAddress.includes("@") ? fromAddress.split("@")[1] : "unknown",
+  });
   console.log("ONBOARDING MAIL START");
   const to = email;
   console.log("recipient:", to);
@@ -664,6 +742,8 @@ ${bodySecondParagraph}
     emailSkipped: false,
     resendSucceeded: true,
     resendErrorMessage: null,
+    skip_reason: null,
+    resend_env: snapshotResendEnv(),
   });
   console.info("[debugNdaDelivery]", { stage: "complete", debugNdaDelivery: successDebug });
   return finalizeSuccess({

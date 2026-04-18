@@ -5,12 +5,15 @@ import { isMissingColumnError, isPostgrestSchemaError } from "@/lib/supabase/mis
 import { AGREEMENT_KEYS, AGREEMENT_VERSIONS, type AgreementKey } from "@/lib/compliance/constants";
 import { aggregateActiveAgreements } from "@/lib/compliance/userAgreementAcceptances";
 import {
+  buildRouteLevelSkippedNdaDebug,
   finalizeNdaAcceptanceDelivery,
   ndaDeliveryResponseFields,
-  type DebugNdaDeliveryPayload,
   type FinalizeNdaAcceptanceDeliveryResult,
 } from "@/lib/compliance/finalizeNdaAcceptanceDelivery";
 import { getRequestClientIp } from "@/lib/http/clientIp";
+
+export const maxDuration = 60;
+export const runtime = "nodejs";
 
 type Body = {
   /** Onboarding UI / invite target — same source as GET /api/me/onboarding/state `email`. */
@@ -21,6 +24,11 @@ type Body = {
   fullName?: string;
   title?: string;
   department?: string;
+  /**
+   * When true and the profile is already marked complete, still runs PDF + mail pipeline once
+   * (recovery after env fixes or missed delivery). Omit for normal idempotent behaviour.
+   */
+  resendOnboardingCompletionEmail?: boolean;
 };
 
 /** Legal onboarding funnel only; GM DNA is post-onboarding elsewhere. */
@@ -171,15 +179,6 @@ export async function POST(request: NextRequest) {
     onboarding_status: row.onboarding_status ?? null,
   });
 
-  if (rowIndicatesOnboardingComplete(row)) {
-    console.info("[onboarding/complete] RETURN_BRANCH 200_already_completed_idempotent", {
-      userId: user.id,
-      access_phase: phase,
-    });
-    return NextResponse.json({ ok: true, alreadyCompleted: true });
-  }
-
-  let ndaOutcome: FinalizeNdaAcceptanceDeliveryResult | undefined;
   const emailRow = await supabase.from("app_users").select("email").eq("id", user.id).maybeSingle();
   const appUsersEmail =
     !emailRow.error && emailRow.data
@@ -192,6 +191,55 @@ export async function POST(request: NextRequest) {
     fromAppUsers: Boolean(appUsersEmail),
     fromJwt: Boolean(user.email?.trim()),
   });
+
+  let ndaOutcome: FinalizeNdaAcceptanceDeliveryResult | undefined;
+  const wantsResendWhenComplete = body.resendOnboardingCompletionEmail === true;
+
+  if (rowIndicatesOnboardingComplete(row)) {
+    if (recipientEmail && wantsResendWhenComplete) {
+      const ndaDeliveryAtIso = new Date().toISOString();
+      console.info("[onboarding/complete] alreadyCompleted + resendOnboardingCompletionEmail — running finalize", {
+        userId: user.id,
+      });
+      ndaOutcome = await finalizeNdaAcceptanceDelivery({
+        userId: user.id,
+        email: recipientEmail,
+        clientIp: getRequestClientIp(request),
+        acceptedAtIso: ndaDeliveryAtIso,
+        agreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.confidentiality],
+        includeIntellectualPropertyPdf: true,
+        ipAgreementVersion: AGREEMENT_VERSIONS[AGREEMENT_KEYS.intellectual_property],
+      });
+      console.info("[debugNdaDelivery]", {
+        stage: "onboarding_after_finalizeNdaAcceptanceDelivery_resend",
+        userId: user.id,
+        debugNdaDelivery: ndaOutcome.debugNdaDelivery ?? null,
+      });
+    } else {
+      console.info("[onboarding/complete] RETURN_BRANCH 200_already_completed_idempotent", {
+        userId: user.id,
+        access_phase: phase,
+        resendRequested: wantsResendWhenComplete,
+        hasRecipient: Boolean(recipientEmail),
+      });
+    }
+
+    const debugWhenSkipped =
+      ndaOutcome?.debugNdaDelivery ??
+      (recipientEmail && !wantsResendWhenComplete
+        ? buildRouteLevelSkippedNdaDebug("already_completed_resend_not_requested")
+        : !recipientEmail
+          ? buildRouteLevelSkippedNdaDebug("already_completed_no_recipient_email")
+          : buildRouteLevelSkippedNdaDebug("already_completed_unknown_skip"));
+
+    return NextResponse.json({
+      ok: true,
+      alreadyCompleted: true,
+      ...ndaDeliveryResponseFields(ndaOutcome, "[onboarding/complete]"),
+      debugNdaDelivery: debugWhenSkipped,
+    });
+  }
+
   if (recipientEmail) {
     const ndaDeliveryAtIso = new Date().toISOString();
     console.info("[debugNdaDelivery]", {
@@ -483,25 +531,13 @@ export async function POST(request: NextRequest) {
     handlerTag: ONBOARDING_COMPLETE_HANDLER_TAG,
   });
 
-  const debugNdaNoRecipient: DebugNdaDeliveryPayload = {
-    reachedFinalizeNdaAcceptanceDelivery: false,
-    pdfByteLength: null,
-    ipPdfByteLength: null,
-    storageUploadAttempted: false,
-    storageUploadSucceeded: false,
-    ipStorageUploadAttempted: false,
-    ipStorageUploadSucceeded: false,
-    storageVerifyWarning: false,
-    ipStorageVerifyWarning: false,
-    emailAttempted: false,
-    emailSkipped: true,
-    resendSucceeded: false,
-    resendErrorMessage: null,
-  };
-
   return NextResponse.json({
     ok: true,
     ...ndaDeliveryResponseFields(ndaOutcome, "[onboarding/complete]"),
-    debugNdaDelivery: ndaOutcome?.debugNdaDelivery ?? debugNdaNoRecipient,
+    debugNdaDelivery:
+      ndaOutcome?.debugNdaDelivery ??
+      buildRouteLevelSkippedNdaDebug(
+        recipientEmail ? "first_completion_finalize_missing_outcome" : "first_completion_no_recipient_email"
+      ),
   });
 }
