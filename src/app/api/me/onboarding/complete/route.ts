@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
   const bodyEmail = typeof body.email === "string" ? body.email.trim() : "";
   let firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
   let lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
-  let titleIn = typeof body.title === "string" ? body.title.trim() : "";
-  let departmentIn = typeof body.department === "string" ? body.department.trim() : "";
+  const titleIn = typeof body.title === "string" ? body.title.trim() : "";
+  const departmentIn = typeof body.department === "string" ? body.department.trim() : "";
 
   if (!firstName || !lastName) {
     const legacy = typeof body.fullName === "string" ? body.fullName.trim() : "";
